@@ -23,7 +23,7 @@ import {
 } from "../api/recursos.js";
 
 // =====================================================
-// ÁREAS
+// ÁREAS DE ATUAÇÃO
 // =====================================================
 
 const AREAS_ATUACAO = [
@@ -36,7 +36,7 @@ const AREAS_ATUACAO = [
 ];
 
 // =====================================================
-// FORMULÁRIO
+// FORMULÁRIO VAZIO
 // =====================================================
 
 const FORMULARIO_VAZIO = {
@@ -48,13 +48,11 @@ const FORMULARIO_VAZIO = {
 };
 
 // =====================================================
-// AUXILIAR
+// FORMATAR DINHEIRO
 // =====================================================
 
 function formatarReal(valor) {
-  return Number(
-    valor || 0
-  ).toLocaleString(
+  return Number(valor || 0).toLocaleString(
     "pt-BR",
     {
       style: "currency",
@@ -70,6 +68,10 @@ function formatarReal(valor) {
 function Equipes({
   onNavegar,
 }) {
+  // ===================================================
+  // ESTADOS
+  // ===================================================
+
   const [
     equipes,
     setEquipes,
@@ -128,12 +130,16 @@ function Equipes({
   );
 
   // ===================================================
-  // CARREGAR
+  // CARREGAR PÁGINA
   // ===================================================
 
   useEffect(() => {
     carregarPagina();
   }, []);
+
+  // ===================================================
+  // DESCOBRIR CONSTRUTORA
+  // ===================================================
 
   async function buscarIdConstrutora() {
     let idConstrutora =
@@ -180,13 +186,15 @@ function Equipes({
 
     localStorage.setItem(
       "idconstrutora",
-      String(
-        idConstrutora
-      )
+      String(idConstrutora)
     );
 
     return idConstrutora;
   }
+
+  // ===================================================
+  // CARREGAR OBRAS + EQUIPES
+  // ===================================================
 
   async function carregarPagina() {
     try {
@@ -227,9 +235,7 @@ function Equipes({
                   obra.id_obra
                 )
             )
-            .filter(
-              Boolean
-            )
+            .filter(Boolean)
         );
 
       const equipesValidas =
@@ -256,7 +262,7 @@ function Equipes({
 
       setErro(
         error.message ||
-        "Erro ao carregar equipes."
+          "Erro ao carregar equipes."
       );
     } finally {
       setCarregando(false);
@@ -264,7 +270,7 @@ function Equipes({
   }
 
   // ===================================================
-  // FORMULÁRIO
+  // ALTERAR FORMULÁRIO
   // ===================================================
 
   function alterarCampo(
@@ -283,6 +289,10 @@ function Equipes({
     );
   }
 
+  // ===================================================
+  // ABRIR CADASTRO
+  // ===================================================
+
   function abrirCadastro() {
     setEquipeEditando(
       null
@@ -299,6 +309,10 @@ function Equipes({
       true
     );
   }
+
+  // ===================================================
+  // ABRIR EDIÇÃO
+  // ===================================================
 
   function abrirEdicao(
     equipe
@@ -338,7 +352,16 @@ function Equipes({
     setFormularioAberto(
       true
     );
+
+    window.scrollTo({
+      top: 0,
+      behavior: "smooth",
+    });
   }
+
+  // ===================================================
+  // CANCELAR FORMULÁRIO
+  // ===================================================
 
   function cancelarFormulario() {
     if (salvando) {
@@ -356,10 +379,12 @@ function Equipes({
     setFormulario(
       FORMULARIO_VAZIO
     );
+
+    setErro("");
   }
 
   // ===================================================
-  // SALVAR
+  // SALVAR EQUIPE
   // ===================================================
 
   async function salvarEquipe(
@@ -375,13 +400,10 @@ function Equipes({
 
       const payload = {
         nome_equipe:
-          formulario
-            .nome_equipe
-            .trim(),
+          formulario.nome_equipe.trim(),
 
         area_atuacao:
-          formulario
-            .area_atuacao,
+          formulario.area_atuacao,
 
         quantidade_profissionais:
           Number(
@@ -393,7 +415,7 @@ function Equipes({
           Number(
             formulario
               .custo_diario_total ||
-            0
+              0
           ),
 
         id_obra:
@@ -401,6 +423,10 @@ function Equipes({
             formulario.id_obra
           ),
       };
+
+      // =================================================
+      // VALIDAÇÕES
+      // =================================================
 
       if (
         !payload.nome_equipe
@@ -433,11 +459,16 @@ function Equipes({
       }
 
       if (
-        payload.custo_diario_total <
-        0
+        Number.isNaN(
+          payload
+            .custo_diario_total
+        ) ||
+        payload
+          .custo_diario_total <
+          0
       ) {
         throw new Error(
-          "O custo diário não pode ser negativo."
+          "Informe um custo diário válido."
         );
       }
 
@@ -448,6 +479,10 @@ function Equipes({
           "Selecione uma obra."
         );
       }
+
+      // =================================================
+      // EDITAR
+      // =================================================
 
       if (equipeEditando) {
         const id =
@@ -469,7 +504,13 @@ function Equipes({
         setSucesso(
           "Equipe atualizada com sucesso."
         );
-      } else {
+      }
+
+      // =================================================
+      // CADASTRAR
+      // =================================================
+
+      else {
         await criarEquipe(
           payload
         );
@@ -500,7 +541,7 @@ function Equipes({
 
       setErro(
         error.message ||
-        "Erro ao salvar equipe."
+          "Erro ao salvar equipe."
       );
     } finally {
       setSalvando(false);
@@ -508,7 +549,7 @@ function Equipes({
   }
 
   // ===================================================
-  // EXCLUIR
+  // EXCLUIR EQUIPE
   // ===================================================
 
   async function removerEquipe(
@@ -516,7 +557,7 @@ function Equipes({
   ) {
     const confirmar =
       window.confirm(
-        `Deseja excluir a equipe "${equipe.nome_equipe}"?`
+        `Deseja realmente excluir a equipe "${equipe.nome_equipe}"?`
       );
 
     if (!confirmar) {
@@ -537,15 +578,20 @@ function Equipes({
 
       await carregarPagina();
     } catch (error) {
+      console.error(
+        "Erro ao excluir equipe:",
+        error
+      );
+
       setErro(
         error.message ||
-        "Erro ao excluir equipe."
+          "Erro ao excluir equipe."
       );
     }
   }
 
   // ===================================================
-  // OBRAS
+  // MAPA DE OBRAS
   // ===================================================
 
   const nomeObraPorId =
@@ -569,7 +615,7 @@ function Equipes({
     }, [obras]);
 
   // ===================================================
-  // FILTROS
+  // FILTRAR EQUIPES
   // ===================================================
 
   const equipesFiltradas =
@@ -584,30 +630,25 @@ function Equipes({
           const nome =
             String(
               equipe.nome_equipe ||
-              ""
+                ""
             ).toLowerCase();
 
           const area =
             String(
               equipe.area_atuacao ||
-              ""
+                ""
             ).toLowerCase();
+
+          const idObra =
+            equipe.id_obra ??
+            equipe.idobra;
 
           const obra =
             String(
               nomeObraPorId[
-                String(
-                  equipe.id_obra ??
-                  equipe.idobra
-                )
+                String(idObra)
               ] || ""
             ).toLowerCase();
-
-          const quantidade =
-            String(
-              equipe.quantidade_profissionais ||
-              ""
-            );
 
           const correspondePesquisa =
             !termo ||
@@ -618,9 +659,6 @@ function Equipes({
               termo
             ) ||
             obra.includes(
-              termo
-            ) ||
-            quantidade.includes(
               termo
             );
 
@@ -654,8 +692,9 @@ function Equipes({
       ) =>
         total +
         Number(
-          equipe.quantidade_profissionais ||
-          0
+          equipe
+            .quantidade_profissionais ||
+            0
         ),
       0
     );
@@ -668,8 +707,9 @@ function Equipes({
       ) =>
         total +
         Number(
-          equipe.custo_diario_total ||
-          0
+          equipe
+            .custo_diario_total ||
+            0
         ),
       0
     );
@@ -681,9 +721,20 @@ function Equipes({
           (equipe) =>
             equipe.area_atuacao
         )
-        .filter(
-          Boolean
+        .filter(Boolean)
+    ).size;
+
+  const obrasAtendidas =
+    new Set(
+      equipes
+        .map(
+          (equipe) =>
+            Number(
+              equipe.id_obra ??
+                equipe.idobra
+            )
         )
+        .filter(Boolean)
     ).size;
 
   // ===================================================
@@ -698,6 +749,10 @@ function Equipes({
     >
       <div className="dashboard">
 
+        {/* ============================================
+            CABEÇALHO
+        ============================================ */}
+
         <section className="dashboard-header">
 
           <div>
@@ -711,8 +766,8 @@ function Equipes({
             </h1>
 
             <p>
-              Cadastre e organize as
-              equipes por área de atuação.
+              Cadastre, organize e consulte
+              as equipes por área de atuação.
             </p>
 
           </div>
@@ -743,6 +798,10 @@ function Equipes({
 
         </section>
 
+        {/* ============================================
+            MENSAGENS
+        ============================================ */}
+
         {erro && (
           <div className="auth-error">
             {erro}
@@ -769,9 +828,12 @@ function Equipes({
           </div>
         )}
 
-        {/* FORMULÁRIO */}
+        {/* ============================================
+            FORMULÁRIO
+        ============================================ */}
 
         {formularioAberto && (
+
           <section className="dashboard-section">
 
             <div className="section-header">
@@ -779,16 +841,24 @@ function Equipes({
               <div>
 
                 <span className="section-label">
+
                   {equipeEditando
                     ? "EDIÇÃO"
                     : "CADASTRO"}
+
                 </span>
 
                 <h2>
+
                   {equipeEditando
                     ? "Editar equipe"
                     : "Cadastrar equipe"}
+
                 </h2>
+
+                <p>
+                  Informe os dados da equipe.
+                </p>
 
               </div>
 
@@ -803,6 +873,8 @@ function Equipes({
 
               <div className="obra-form-grid">
 
+                {/* NOME */}
+
                 <div className="form-group">
 
                   <label>
@@ -813,7 +885,8 @@ function Equipes({
                     type="text"
                     name="nome_equipe"
                     value={
-                      formulario.nome_equipe
+                      formulario
+                        .nome_equipe
                     }
                     onChange={
                       alterarCampo
@@ -824,6 +897,8 @@ function Equipes({
 
                 </div>
 
+                {/* ÁREA */}
+
                 <div className="form-group">
 
                   <label>
@@ -833,7 +908,8 @@ function Equipes({
                   <select
                     name="area_atuacao"
                     value={
-                      formulario.area_atuacao
+                      formulario
+                        .area_atuacao
                     }
                     onChange={
                       alterarCampo
@@ -842,11 +918,12 @@ function Equipes({
                   >
 
                     <option value="">
-                      Selecione
+                      Selecione uma área
                     </option>
 
                     {AREAS_ATUACAO.map(
                       (area) => (
+
                         <option
                           key={
                             area
@@ -857,12 +934,15 @@ function Equipes({
                         >
                           {area}
                         </option>
+
                       )
                     )}
 
                   </select>
 
                 </div>
+
+                {/* PROFISSIONAIS */}
 
                 <div className="form-group">
 
@@ -888,6 +968,8 @@ function Equipes({
 
                 </div>
 
+                {/* CUSTO */}
+
                 <div className="form-group">
 
                   <label>
@@ -912,6 +994,8 @@ function Equipes({
 
                 </div>
 
+                {/* OBRA */}
+
                 <div className="form-group">
 
                   <label>
@@ -935,6 +1019,7 @@ function Equipes({
 
                     {obras.map(
                       (obra) => (
+
                         <option
                           key={
                             obra.id_obra
@@ -947,6 +1032,7 @@ function Equipes({
                             obra.obra ||
                             `Obra ${obra.id_obra}`}
                         </option>
+
                       )
                     )}
 
@@ -978,11 +1064,13 @@ function Equipes({
                     salvando
                   }
                 >
+
                   {salvando
                     ? "Salvando..."
                     : equipeEditando
                       ? "Salvar alterações"
                       : "Cadastrar equipe"}
+
                 </button>
 
               </div>
@@ -990,9 +1078,12 @@ function Equipes({
             </form>
 
           </section>
+
         )}
 
-        {/* CARDS */}
+        {/* ============================================
+            INDICADORES
+        ============================================ */}
 
         <section className="cards-grid">
 
@@ -1045,7 +1136,25 @@ function Equipes({
             </h2>
 
             <p>
-              Áreas atendidas
+              Áreas de atuação
+            </p>
+
+          </div>
+
+          <div className="dashboard-section">
+
+            <span className="section-label">
+              OBRAS
+            </span>
+
+            <h2>
+              {carregando
+                ? "..."
+                : obrasAtendidas}
+            </h2>
+
+            <p>
+              Obras atendidas
             </p>
 
           </div>
@@ -1072,7 +1181,9 @@ function Equipes({
 
         </section>
 
-        {/* LISTAGEM */}
+        {/* ============================================
+            LISTAGEM
+        ============================================ */}
 
         <section className="dashboard-section">
 
@@ -1089,80 +1200,92 @@ function Equipes({
               </h2>
 
               <p>
-                Consulte equipes por
-                nome, área ou obra.
+                Consulte equipes por nome,
+                área ou obra.
               </p>
 
             </div>
 
           </div>
 
-          <div
-            style={{
-              display:
-                "flex",
+          {/* ==========================================
+              FILTROS
+          ========================================== */}
 
-              gap:
-                "12px",
+          <div className="filtros-equipes">
 
-              flexWrap:
-                "wrap",
+            <div className="filtro-pesquisa">
 
-              marginBottom:
-                "20px",
-            }}
-          >
+              <label>
+                Pesquisar
+              </label>
 
-            <input
-              type="text"
-              placeholder="Pesquisar nome, área ou obra..."
-              value={
-                pesquisa
-              }
-              onChange={(
-                event
-              ) =>
-                setPesquisa(
-                  event.target.value
-                )
-              }
-            />
+              <input
+                type="text"
+                placeholder="Pesquisar por nome, área ou obra..."
+                value={
+                  pesquisa
+                }
+                onChange={(
+                  event
+                ) =>
+                  setPesquisa(
+                    event.target.value
+                  )
+                }
+              />
 
-            <select
-              value={
-                filtroArea
-              }
-              onChange={(
-                event
-              ) =>
-                setFiltroArea(
-                  event.target.value
-                )
-              }
-            >
+            </div>
 
-              <option value="">
-                Todas as áreas
-              </option>
+            <div className="filtro-area">
 
-              {AREAS_ATUACAO.map(
-                (area) => (
-                  <option
-                    key={
-                      area
-                    }
-                    value={
-                      area
-                    }
-                  >
-                    {area}
-                  </option>
-                )
-              )}
+              <label>
+                Área de atuação
+              </label>
 
-            </select>
+              <select
+                value={
+                  filtroArea
+                }
+                onChange={(
+                  event
+                ) =>
+                  setFiltroArea(
+                    event.target.value
+                  )
+                }
+              >
+
+                <option value="">
+                  Todas as áreas
+                </option>
+
+                {AREAS_ATUACAO.map(
+                  (area) => (
+
+                    <option
+                      key={
+                        area
+                      }
+                      value={
+                        area
+                      }
+                    >
+                      {area}
+                    </option>
+
+                  )
+                )}
+
+              </select>
+
+            </div>
 
           </div>
+
+          {/* ==========================================
+              TABELA
+          ========================================== */}
 
           <div className="tabela-container">
 
@@ -1287,7 +1410,8 @@ function Equipes({
                           <td>
 
                             {formatarReal(
-                              equipe.custo_diario_total
+                              equipe
+                                .custo_diario_total
                             )}
 
                           </td>

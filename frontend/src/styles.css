@@ -1802,3 +1802,74 @@ button {
     grid-template-columns: 1fr;
   }
 }
+
+/* =========================================
+   FILTROS - EQUIPES
+========================================= */
+
+.filtros-equipes {
+  display: grid;
+  grid-template-columns: minmax(280px, 1.5fr) minmax(220px, 1fr);
+  gap: 16px;
+  width: 100%;
+  margin-bottom: 24px;
+  align-items: end;
+}
+
+.filtro-pesquisa,
+.filtro-area {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  min-width: 0;
+}
+
+.filtro-pesquisa label,
+.filtro-area label {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.filtro-pesquisa input,
+.filtro-area select {
+  width: 100%;
+  height: 44px;
+  box-sizing: border-box;
+
+  padding: 0 14px;
+
+  border: 1px solid #d7dce3;
+  border-radius: 8px;
+
+  background: #ffffff;
+
+  font-size: 15px;
+  font-family: inherit;
+
+  outline: none;
+}
+
+.filtro-pesquisa input:focus,
+.filtro-area select:focus {
+  border-color: #1d4ed8;
+}
+
+.filtro-pesquisa input::placeholder {
+  font-size: 14px;
+}
+
+/* TABLET */
+
+@media (max-width: 850px) {
+  .filtros-equipes {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+/* CELULAR */
+
+@media (max-width: 600px) {
+  .filtros-equipes {
+    grid-template-columns: 1fr;
+  }
+}
