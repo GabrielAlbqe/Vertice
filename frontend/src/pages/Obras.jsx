@@ -1,395 +1,209 @@
-import { useEffect, useState } from "react";
+import {
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 
 import Layout from "../componentes/Layout";
 import Card from "../componentes/Card";
-import Table from "../componentes/Table";
-import { requisitar } from "../api/api";
+
+import {
+  atualizarObra,
+  criarObra,
+  excluirObra,
+  listarObras,
+} from "../api/obras";
+
+import {
+  atribuirEquipe,
+  atribuirInsumo,
+  atribuirMaquinario,
+  buscarCatalogoRecursos,
+  obterIdEquipe,
+  obterIdInsumo,
+  obterIdMaquinario,
+} from "../api/recursos";
 
 // =====================================================
-// FORMULÁRIOS
+// FORMULÁRIO DA OBRA
 // =====================================================
 
 const formularioObraVazio = {
   nome: "",
-  status: "",
-  categoria: "",
+  status: "Planejamento",
+  categoria: "Residencial",
   numero_pavimentos: "",
   data_inicio_planejada: "",
   data_termino_planejada: "",
   orcamento_planejado: "",
 };
 
+// =====================================================
+// AUXILIARES
+// =====================================================
 
-const insumoVazio = {
-  nome: "",
-  quantidade_lote: "",
-  valor_lote: "",
-};
+function formatarReal(valor) {
+  return Number(valor || 0).toLocaleString(
+    "pt-BR",
+    {
+      style: "currency",
+      currency: "BRL",
+    }
+  );
+}
 
-const maquinarioVazio = {
-  nome: "",
-  quantidade: "",
-  custo_diario_maquinario: "",
-  prazo_final_estimado: "",
-  status: "Ativo",
-};
+function formatarData(data) {
+  if (!data) {
+    return "-";
+  }
 
-const planejamentoVazio = {
-  etapa: "",
-  origem_custo: "",
-  valor_planejado: "",
-  data_inicio_prevista: "",
-  data_fim_prevista: "",
-};
+  const limpa =
+    String(data).split("T")[0];
 
+  const [ano, mes, dia] =
+    limpa.split("-");
 
-const ETAPAS = [
-  "Mobilização",
-  "Infraestrutura",
-  "Supraestrutura e Alvenaria",
-  "Instalações",
-  "Revestimentos",
-  "Acabamento",
-];
+  if (!ano || !mes || !dia) {
+    return limpa;
+  }
 
-const CHAVE_RECURSOS =
-  "vertice_recursos_obras_prototipo_v1";
-
-// Enquanto a rota definitiva de atribuição ainda não existe,
-// a relação obra <-> equipe fica salva no navegador.
-// Quando o backend estiver pronto, basta trocar para true
-// e ajustar as duas rotas abaixo.
-const CHAVE_ATRIBUICOES_EQUIPES =
-  "vertice_atribuicoes_equipes_obras_v1";
-
-const ATRIBUICAO_EQUIPE_API_ATIVA =
-  false;
-
-const ROTA_ATRIBUIR_EQUIPE =
-  "/obra-equipes/insert";
-
-const ROTA_REMOVER_ATRIBUICAO =
-  "/obra-equipes/del";
+  return `${dia}/${mes}/${ano}`;
+}
 
 // =====================================================
 // COMPONENTE
 // =====================================================
 
-function Obras({ onNavegar, onAbrirObra }) {
-  const [obras, setObras] = useState([]);
-  const [carregando, setCarregando] =
-    useState(true);
-  const [salvando, setSalvando] =
-    useState(false);
-  const [erro, setErro] = useState("");
-
-  // Modal cadastro/edição da obra
-  const [modalAberto, setModalAberto] =
-    useState(false);
-  const [obraEditando, setObraEditando] =
-    useState(null);
-  const [formulario, setFormulario] =
-    useState(formularioObraVazio);
-
-  // Modal de recursos da obra
-  const [modalRecursos, setModalRecursos] =
-    useState(false);
-  const [obraRecursos, setObraRecursos] =
-    useState(null);
-  const [abaRecursos, setAbaRecursos] =
-    useState("equipes");
-
-  // Recursos temporários enquanto as rotas definitivas
-  // ainda estão sendo concluídas.
-  const [recursosPorObra, setRecursosPorObra] =
-    useState(() => {
-      try {
-        const salvo =
-          localStorage.getItem(
-            CHAVE_RECURSOS
-          );
-
-        return salvo
-          ? JSON.parse(salvo)
-          : {};
-      } catch {
-        return {};
-      }
-    });
-
-  // Catálogo de equipes já cadastradas no sistema
-  const [equipesDisponiveis, setEquipesDisponiveis] =
+function Obras({
+  onNavegar,
+  onAbrirObra,
+}) {
+  const [obras, setObras] =
     useState([]);
 
   const [
-    carregandoCatalogoEquipes,
-    setCarregandoCatalogoEquipes,
+    carregando,
+    setCarregando,
+  ] = useState(true);
+
+  const [erro, setErro] =
+    useState("");
+
+  const [
+    salvando,
+    setSalvando,
   ] = useState(false);
 
-  const [erroEquipes, setErroEquipes] =
-    useState("");
+  // ===================================================
+  // MODAL OBRA
+  // ===================================================
+
+  const [
+    modalObraAberto,
+    setModalObraAberto,
+  ] = useState(false);
+
+  const [
+    obraEditando,
+    setObraEditando,
+  ] = useState(null);
+
+  const [
+    formulario,
+    setFormulario,
+  ] = useState(
+    formularioObraVazio
+  );
+
+  // ===================================================
+  // MODAL RECURSOS
+  // ===================================================
+
+  const [
+    modalRecursos,
+    setModalRecursos,
+  ] = useState(false);
+
+  const [
+    obraRecursos,
+    setObraRecursos,
+  ] = useState(null);
+
+  const [
+    abaRecursos,
+    setAbaRecursos,
+  ] = useState("equipes");
+
+  const [
+    carregandoRecursos,
+    setCarregandoRecursos,
+  ] = useState(false);
+
+  const [
+    erroRecursos,
+    setErroRecursos,
+  ] = useState("");
+
+  const [
+    atribuindo,
+    setAtribuindo,
+  ] = useState(false);
+
+  // ===================================================
+  // CATÁLOGOS DE RECURSOS
+  // ===================================================
+
+  const [
+    equipes,
+    setEquipes,
+  ] = useState([]);
+
+  const [
+    insumos,
+    setInsumos,
+  ] = useState([]);
+
+  const [
+    maquinarios,
+    setMaquinarios,
+  ] = useState([]);
+
+  // ===================================================
+  // RECURSOS SELECIONADOS
+  // ===================================================
 
   const [
     idEquipeSelecionada,
     setIdEquipeSelecionada,
   ] = useState("");
 
-  // Relações temporárias obra <-> equipe.
-  // Aqui salvamos somente IDs, sem duplicar cadastro da equipe.
   const [
-    atribuicoesEquipes,
-    setAtribuicoesEquipes,
-  ] = useState(() => {
-    try {
-      const salvo =
-        localStorage.getItem(
-          CHAVE_ATRIBUICOES_EQUIPES
-        );
+    idInsumoSelecionado,
+    setIdInsumoSelecionado,
+  ] = useState("");
 
-      return salvo
-        ? JSON.parse(salvo)
-        : {};
-    } catch {
-      return {};
-    }
-  });
-
-  const [formInsumo, setFormInsumo] =
-    useState(insumoVazio);
-  const [formMaquinario, setFormMaquinario] =
-    useState(maquinarioVazio);
   const [
-    formPlanejamento,
-    setFormPlanejamento,
-  ] = useState(planejamentoVazio);
+    idMaquinarioSelecionado,
+    setIdMaquinarioSelecionado,
+  ] = useState("");
 
   const idConstrutora =
     localStorage.getItem(
       "idconstrutora"
+    ) ||
+    localStorage.getItem(
+      "id_construtora"
     );
 
-  // =====================================================
-  // PERSISTÊNCIA TEMPORÁRIA DOS RECURSOS
-  // =====================================================
+  // ===================================================
+  // CARREGAR OBRAS
+  // ===================================================
 
   useEffect(() => {
-    localStorage.setItem(
-      CHAVE_RECURSOS,
-      JSON.stringify(
-        recursosPorObra
-      )
-    );
-  }, [recursosPorObra]);
+    carregarObras();
+  }, []);
 
-  useEffect(() => {
-    localStorage.setItem(
-      CHAVE_ATRIBUICOES_EQUIPES,
-      JSON.stringify(
-        atribuicoesEquipes
-      )
-    );
-  }, [atribuicoesEquipes]);
-
-  // =====================================================
-  // AUXILIARES
-  // =====================================================
-
-  function limparData(data) {
-    if (!data) return "";
-    return String(data).split("T")[0];
-  }
-
-  function formatarData(data) {
-    const dataLimpa =
-      limparData(data);
-
-    if (!dataLimpa) return "-";
-
-    const [ano, mes, dia] =
-      dataLimpa.split("-");
-
-    return `${dia}/${mes}/${ano}`;
-  }
-
-  function formatarReal(valor) {
-    return Number(
-      valor || 0
-    ).toLocaleString("pt-BR", {
-      style: "currency",
-      currency: "BRL",
-    });
-  }
-
-  function normalizarStatus(status) {
-    return String(status || "")
-      .trim()
-      .toLowerCase();
-  }
-
-  function obterIdEquipe(equipe) {
-    return (
-      equipe?.id_cadastro_equipes ??
-      equipe?.id_equipe_terceirizad ??
-      equipe?.id_equipe ??
-      equipe?.id
-    );
-  }
-
-  function extrairLista(dados, chaves = []) {
-    if (Array.isArray(dados)) {
-      return dados;
-    }
-
-    for (const chave of chaves) {
-      if (Array.isArray(dados?.[chave])) {
-        return dados[chave];
-      }
-    }
-
-    if (Array.isArray(dados?.dados)) {
-      return dados.dados;
-    }
-
-    if (Array.isArray(dados?.resultado)) {
-      return dados.resultado;
-    }
-
-    return [];
-  }
-
-  function removerDuplicadasPorId(lista) {
-    const mapa = new Map();
-
-    lista.forEach((equipe) => {
-      const id = obterIdEquipe(equipe);
-
-      if (id !== undefined && id !== null) {
-        mapa.set(String(id), equipe);
-      }
-    });
-
-    return Array.from(mapa.values());
-  }
-
-  function normalizarObra(item) {
-    return {
-      ...item,
-
-      id_obra:
-        item.id_obra ??
-        item.id,
-
-      obra:
-        item.nome ??
-        item.nome_obra ??
-        item.obra ??
-        "",
-
-      nome:
-        item.nome ??
-        item.nome_obra ??
-        item.obra ??
-        "",
-
-      status:
-        item.status ?? "",
-
-      categoria:
-        item.categoria ?? "",
-
-      pavimentos:
-        item.numero_pavimentos ??
-        item.numero_pavimento ??
-        item.pavimentos ??
-        0,
-
-      numero_pavimentos:
-        item.numero_pavimentos ??
-        item.numero_pavimento ??
-        item.pavimentos ??
-        0,
-
-      data_inicio_planejada:
-        limparData(
-          item.data_inicio_planejada ??
-            item.data_inicial_planejada
-        ),
-
-      data_termino_planejada:
-        limparData(
-          item.data_termino_planejada ??
-            item.data_final_planejada
-        ),
-
-      data_inicial_planejada:
-        limparData(
-          item.data_inicio_planejada ??
-            item.data_inicial_planejada
-        ),
-
-      data_final_planejada:
-        limparData(
-          item.data_termino_planejada ??
-            item.data_final_planejada
-        ),
-
-      orcamento_planejado:
-        Number(
-          item.orcamento_planejado ||
-            0
-        ),
-
-      id_construtora:
-        item.id_construtora ??
-        item.idconstrutora ??
-        idConstrutora,
-    };
-  }
-
-  function obterRecursos(idObra) {
-    return (
-      recursosPorObra[
-        String(idObra)
-      ] || {
-        equipes: [],
-        insumos: [],
-        maquinarios: [],
-        planejamento: [],
-      }
-    );
-  }
-
-  function atualizarRecursosDaObra(
-    idObra,
-    atualizador
-  ) {
-    const chave =
-      String(idObra);
-
-    setRecursosPorObra(
-      (anterior) => {
-        const atual =
-          anterior[chave] || {
-            equipes: [],
-            insumos: [],
-            maquinarios: [],
-            planejamento: [],
-          };
-
-        return {
-          ...anterior,
-          [chave]:
-            atualizador(atual),
-        };
-      }
-    );
-  }
-
-  // =====================================================
-  // BUSCAR OBRAS
-  // =====================================================
-
-  async function buscarObras() {
+  async function carregarObras() {
     try {
       setCarregando(true);
       setErro("");
@@ -400,24 +214,15 @@ function Obras({ onNavegar, onAbrirObra }) {
         );
       }
 
-      const dados =
-        await requisitar(
-          `/obras?id_construtora=${idConstrutora}`
+      const lista =
+        await listarObras(
+          idConstrutora
         );
 
-      const lista =
-        Array.isArray(dados)
-          ? dados
-          : Array.isArray(dados?.obras)
-            ? dados.obras
-            : [];
-
-      setObras(
-        lista.map(normalizarObra)
-      );
+      setObras(lista);
     } catch (error) {
       console.error(
-        "Erro ao buscar obras:",
+        "Erro ao carregar obras:",
         error
       );
 
@@ -430,15 +235,85 @@ function Obras({ onNavegar, onAbrirObra }) {
     }
   }
 
-  useEffect(() => {
-    buscarObras();
-  }, []);
+  // ===================================================
+  // CADASTRAR OBRA
+  // ===================================================
 
-  // =====================================================
-  // FORMULÁRIO DA OBRA
-  // =====================================================
+  function abrirCadastroObra() {
+    setObraEditando(null);
 
-  function handleChange(event) {
+    setFormulario(
+      formularioObraVazio
+    );
+
+    setErro("");
+
+    setModalObraAberto(true);
+  }
+
+  // ===================================================
+  // EDITAR OBRA
+  // ===================================================
+
+  function abrirEdicaoObra(
+    obra
+  ) {
+    setObraEditando(obra);
+
+    setFormulario({
+      nome:
+        obra.nome ||
+        obra.obra ||
+        "",
+
+      status:
+        obra.status ||
+        "Planejamento",
+
+      categoria:
+        obra.categoria ||
+        "Residencial",
+
+      numero_pavimentos:
+        obra.numero_pavimentos ??
+        obra.pavimentos ??
+        "",
+
+      data_inicio_planejada:
+        obra.data_inicio_planejada ||
+        "",
+
+      data_termino_planejada:
+        obra.data_termino_planejada ||
+        "",
+
+      orcamento_planejado:
+        obra.orcamento_planejado ??
+        "",
+    });
+
+    setErro("");
+
+    setModalObraAberto(true);
+  }
+
+  function fecharModalObra() {
+    if (salvando) {
+      return;
+    }
+
+    setModalObraAberto(false);
+
+    setObraEditando(null);
+
+    setFormulario(
+      formularioObraVazio
+    );
+  }
+
+  function alterarFormulario(
+    event
+  ) {
     const { name, value } =
       event.target;
 
@@ -450,67 +325,13 @@ function Obras({ onNavegar, onAbrirObra }) {
     );
   }
 
-  function abrirModalCadastro() {
-    setErro("");
-    setObraEditando(null);
-    setFormulario(
-      formularioObraVazio
-    );
-    setModalAberto(true);
-  }
+  // ===================================================
+  // SALVAR OBRA
+  // ===================================================
 
-  function abrirModalEdicao(obra) {
-    setErro("");
-    setObraEditando(obra);
-
-    setFormulario({
-      nome:
-        obra.nome ??
-        obra.obra ??
-        "",
-
-      status:
-        obra.status ?? "",
-
-      categoria:
-        obra.categoria ?? "",
-
-      numero_pavimentos:
-        obra.numero_pavimentos ??
-        obra.pavimentos ??
-        "",
-
-      data_inicio_planejada:
-        limparData(
-          obra.data_inicio_planejada ??
-            obra.data_inicial_planejada
-        ),
-
-      data_termino_planejada:
-        limparData(
-          obra.data_termino_planejada ??
-            obra.data_final_planejada
-        ),
-
-      orcamento_planejado:
-        obra.orcamento_planejado ??
-        "",
-    });
-
-    setModalAberto(true);
-  }
-
-  function fecharModal() {
-    if (salvando) return;
-
-    setModalAberto(false);
-    setObraEditando(null);
-    setFormulario(
-      formularioObraVazio
-    );
-  }
-
-  async function salvarObra(event) {
+  async function salvarObra(
+    event
+  ) {
     event.preventDefault();
 
     try {
@@ -519,7 +340,7 @@ function Obras({ onNavegar, onAbrirObra }) {
 
       if (!idConstrutora) {
         throw new Error(
-          "ID da construtora não encontrado."
+          "Construtora não identificada."
         );
       }
 
@@ -534,7 +355,7 @@ function Obras({ onNavegar, onAbrirObra }) {
         );
       }
 
-      const dadosObra = {
+      const payload = {
         nome:
           formulario.nome.trim(),
 
@@ -542,7 +363,9 @@ function Obras({ onNavegar, onAbrirObra }) {
           formulario.status,
 
         id_construtora:
-          Number(idConstrutora),
+          Number(
+            idConstrutora
+          ),
 
         categoria:
           formulario.categoria,
@@ -569,36 +392,25 @@ function Obras({ onNavegar, onAbrirObra }) {
       };
 
       if (obraEditando) {
-        await requisitar(
-          `/obras/insert/${obraEditando.id_obra}`,
-          {
-            method: "PUT",
-            body:
-              JSON.stringify(
-                dadosObra
-              ),
-          }
+        await atualizarObra(
+          obraEditando.id_obra,
+          payload
         );
       } else {
-        await requisitar(
-          "/obras/insert",
-          {
-            method: "POST",
-            body:
-              JSON.stringify(
-                dadosObra
-              ),
-          }
+        await criarObra(
+          payload
         );
       }
 
-      setModalAberto(false);
+      setModalObraAberto(false);
+
       setObraEditando(null);
+
       setFormulario(
         formularioObraVazio
       );
 
-      await buscarObras();
+      await carregarObras();
     } catch (error) {
       console.error(
         "Erro ao salvar obra:",
@@ -607,52 +419,68 @@ function Obras({ onNavegar, onAbrirObra }) {
 
       setErro(
         error.message ||
-          "Erro ao salvar obra."
+          "Não foi possível salvar a obra."
       );
     } finally {
       setSalvando(false);
     }
   }
 
-  // =====================================================
+  // ===================================================
   // EXCLUIR OBRA
-  // =====================================================
+  // ===================================================
 
-  async function excluirObra(obra) {
+  async function removerObra(
+    obra
+  ) {
     const confirmar =
       window.confirm(
         `Deseja realmente excluir a obra "${obra.obra}"?`
       );
 
-    if (!confirmar) return;
+    if (!confirmar) {
+      return;
+    }
 
     try {
       setErro("");
 
-      await requisitar(
-        `/obras/del/${obra.id_obra}`,
-        {
-          method: "DELETE",
-        }
+      await excluirObra(
+        obra.id_obra
       );
 
-      // Também limpa os recursos temporários
-      // ligados à obra.
-      setRecursosPorObra(
-        (anterior) => {
-          const copia = {
-            ...anterior,
-          };
+      const obraSelecionada =
+        localStorage.getItem(
+          "obra_selecionada"
+        );
 
-          delete copia[
-            String(obra.id_obra)
-          ];
+      if (obraSelecionada) {
+        try {
+          const dados =
+            JSON.parse(
+              obraSelecionada
+            );
 
-          return copia;
+          if (
+            Number(
+              dados?.id_obra
+            ) ===
+            Number(
+              obra.id_obra
+            )
+          ) {
+            localStorage.removeItem(
+              "obra_selecionada"
+            );
+          }
+        } catch {
+          localStorage.removeItem(
+            "obra_selecionada"
+          );
         }
-      );
+      }
 
-      await buscarObras();
+      await carregarObras();
     } catch (error) {
       console.error(
         "Erro ao excluir obra:",
@@ -661,16 +489,23 @@ function Obras({ onNavegar, onAbrirObra }) {
 
       setErro(
         error.message ||
-          "Erro ao excluir obra."
+          "Não foi possível excluir a obra."
       );
     }
   }
 
-  // =====================================================
+  // ===================================================
   // ABRIR OBRA
-  // =====================================================
+  // ===================================================
 
-  function abrirObra(obra) {
+  function abrirObra(
+    obra
+  ) {
+    localStorage.setItem(
+      "obra_selecionada",
+      JSON.stringify(obra)
+    );
+
     if (
       typeof onAbrirObra ===
       "function"
@@ -679,181 +514,130 @@ function Obras({ onNavegar, onAbrirObra }) {
     }
   }
 
-  // =====================================================
-  // RECURSOS DA OBRA
-  // =====================================================
+  // ===================================================
+  // ABRIR RECURSOS
+  // ===================================================
 
-  function abrirModalRecursos(obra) {
+  async function abrirRecursos(
+    obra
+  ) {
     setObraRecursos(obra);
-    setAbaRecursos("equipes");
 
-    setIdEquipeSelecionada("");
-
-    // A atribuição é uma relação separada do cadastro.
-    // Portanto, aqui carregamos apenas o catálogo de equipes.
-    buscarCatalogoEquipes();
-
-    setFormInsumo(insumoVazio);
-    setFormMaquinario(
-      maquinarioVazio
+    setAbaRecursos(
+      "equipes"
     );
-    setFormPlanejamento(
-      planejamentoVazio
+
+    setIdEquipeSelecionada(
+      ""
     );
+
+    setIdInsumoSelecionado(
+      ""
+    );
+
+    setIdMaquinarioSelecionado(
+      ""
+    );
+
+    setErroRecursos("");
 
     setModalRecursos(true);
+
+    await carregarCatalogoRecursos();
   }
 
-  function fecharModalRecursos() {
+  function fecharRecursos() {
+    if (atribuindo) {
+      return;
+    }
+
     setModalRecursos(false);
+
     setObraRecursos(null);
+
+    setErroRecursos("");
   }
 
-  async function buscarCatalogoEquipes() {
+  // ===================================================
+  // CARREGAR RECURSOS CADASTRADOS
+  // ===================================================
+
+  async function carregarCatalogoRecursos() {
     try {
-      setCarregandoCatalogoEquipes(true);
-      setErroEquipes("");
+      setCarregandoRecursos(
+        true
+      );
 
-      // Tenta listagem geral primeiro.
-      // Se o backend atual ainda exigir idobra,
-      // monta o catálogo juntando as equipes encontradas
-      // nas obras existentes.
-      try {
-        const dadosGerais =
-          await requisitar(
-            "/equipes"
-          );
+      setErroRecursos("");
 
-        const listaGeral =
-          extrairLista(
-            dadosGerais,
-            ["equipes"]
-          );
-
-        if (listaGeral.length > 0) {
-          setEquipesDisponiveis(
-            removerDuplicadasPorId(
-              listaGeral
-            )
-          );
-
-          return;
-        }
-      } catch (erroListagemGeral) {
-        console.warn(
-          "Listagem geral de equipes indisponível. Montando catálogo pelas obras.",
-          erroListagemGeral
-        );
-      }
-
-      const respostas =
-        await Promise.all(
-          obras.map(
-            async (obra) => {
-              try {
-                const dados =
-                  await requisitar(
-                    `/equipes/?idobra=${obra.id_obra}`
-                  );
-
-                return extrairLista(
-                  dados,
-                  ["equipes"]
-                );
-              } catch {
-                return [];
-              }
-            }
-          )
+      const catalogo =
+        await buscarCatalogoRecursos(
+          obras
         );
 
-      setEquipesDisponiveis(
-        removerDuplicadasPorId(
-          respostas.flat()
-        )
+      setEquipes(
+        catalogo.equipes ||
+          []
+      );
+
+      setInsumos(
+        catalogo.insumos ||
+          []
+      );
+
+      setMaquinarios(
+        catalogo.maquinarios ||
+          []
       );
     } catch (error) {
       console.error(
-        "Erro ao carregar catálogo de equipes:",
+        "Erro ao carregar recursos:",
         error
       );
 
-      setErroEquipes(
-        "Não foi possível carregar as equipes cadastradas."
+      setErroRecursos(
+        error.message ||
+          "Não foi possível carregar os recursos cadastrados."
       );
-
-      setEquipesDisponiveis([]);
     } finally {
-      setCarregandoCatalogoEquipes(false);
+      setCarregandoRecursos(
+        false
+      );
     }
   }
 
-  function obterIdsAtribuidosLocalmente(idObra) {
-    const lista =
-      atribuicoesEquipes[
-        String(idObra)
-      ] || [];
+  // ===================================================
+  // OBRA ATUAL DO RECURSO
+  // ===================================================
 
-    return lista.map(
-      (item) =>
-        String(item.id_equipe)
+  function nomeObraDoRecurso(
+    idObra
+  ) {
+    if (!idObra) {
+      return "Sem obra";
+    }
+
+    const encontrada =
+      obras.find(
+        (obra) =>
+          Number(
+            obra.id_obra
+          ) ===
+          Number(idObra)
+      );
+
+    return (
+      encontrada?.obra ||
+      encontrada?.nome ||
+      `Obra #${idObra}`
     );
   }
 
-  function obterEquipesAtribuidasExibidas() {
-    if (!obraRecursos) {
-      return [];
-    }
+  // ===================================================
+  // ATRIBUIR EQUIPE
+  // ===================================================
 
-    const idsAtribuidos =
-      obterIdsAtribuidosLocalmente(
-        obraRecursos.id_obra
-      );
-
-    return idsAtribuidos
-      .map((id) =>
-        equipesDisponiveis.find(
-          (equipe) =>
-            String(
-              obterIdEquipe(
-                equipe
-              )
-            ) ===
-            String(id)
-        )
-      )
-      .filter(Boolean);
-  }
-
-  function obterEquipesAindaDisponiveis() {
-    if (!obraRecursos) {
-      return equipesDisponiveis;
-    }
-
-    const idsAtribuidos =
-      new Set(
-        obterIdsAtribuidosLocalmente(
-          obraRecursos.id_obra
-        )
-      );
-
-    return equipesDisponiveis.filter(
-      (equipe) => {
-        const id =
-          obterIdEquipe(equipe);
-
-        return (
-          id !== undefined &&
-          id !== null &&
-          !idsAtribuidos.has(
-            String(id)
-          )
-        );
-      }
-    );
-  }
-
-  async function atribuirEquipeExistente(
+  async function atribuirEquipeSelecionada(
     event
   ) {
     event.preventDefault();
@@ -863,602 +647,363 @@ function Obras({ onNavegar, onAbrirObra }) {
     }
 
     if (!idEquipeSelecionada) {
-      setErroEquipes(
+      setErroRecursos(
         "Selecione uma equipe para atribuir."
       );
+
       return;
     }
 
-    const idObra =
-      obraRecursos.id_obra;
-
-    const idEquipe =
-      Number(
-        idEquipeSelecionada
+    const equipe =
+      equipes.find(
+        (item) =>
+          String(
+            obterIdEquipe(
+              item
+            )
+          ) ===
+          String(
+            idEquipeSelecionada
+          )
       );
 
+    if (!equipe) {
+      setErroRecursos(
+        "Equipe selecionada não encontrada."
+      );
+
+      return;
+    }
+
     try {
-      setErroEquipes("");
+      setAtribuindo(true);
 
-      if (
-        ATRIBUICAO_EQUIPE_API_ATIVA
-      ) {
-        await requisitar(
-          ROTA_ATRIBUIR_EQUIPE,
-          {
-            method: "POST",
-            body:
-              JSON.stringify({
-                id_obra:
-                  Number(idObra),
-                id_equipe:
-                  idEquipe,
-              }),
-          }
-        );
-      } else {
-        setAtribuicoesEquipes(
-          (anterior) => {
-            const chave =
-              String(idObra);
+      setErroRecursos("");
 
-            const atuais =
-              anterior[chave] || [];
+      await atribuirEquipe(
+        equipe,
+        obraRecursos.id_obra
+      );
 
-            const jaExiste =
-              atuais.some(
-                (item) =>
-                  String(
-                    item.id_equipe
-                  ) ===
-                  String(idEquipe)
-              );
+      setIdEquipeSelecionada(
+        ""
+      );
 
-            if (jaExiste) {
-              return anterior;
-            }
-
-            return {
-              ...anterior,
-
-              [chave]: [
-                ...atuais,
-                {
-                  id_obra:
-                    Number(idObra),
-                  id_equipe:
-                    idEquipe,
-                },
-              ],
-            };
-          }
-        );
-      }
-
-      setIdEquipeSelecionada("");
+      await carregarCatalogoRecursos();
     } catch (error) {
       console.error(
         "Erro ao atribuir equipe:",
         error
       );
 
-      setErroEquipes(
+      setErroRecursos(
         error.message ||
           "Não foi possível atribuir a equipe."
       );
+    } finally {
+      setAtribuindo(false);
     }
   }
 
-  async function removerAtribuicaoEquipe(
-    equipe
-  ) {
-    if (!obraRecursos) {
-      return;
-    }
+  // ===================================================
+  // ATRIBUIR INSUMO
+  // ===================================================
 
-    const idEquipe =
-      obterIdEquipe(equipe);
-
-    if (!idEquipe) {
-      return;
-    }
-
-    const idObra =
-      obraRecursos.id_obra;
-
-    const confirmar =
-      window.confirm(
-        `Remover a equipe "${equipe.nome_equipe}" desta obra?`
-      );
-
-    if (!confirmar) {
-      return;
-    }
-
-    try {
-      setErroEquipes("");
-
-      if (
-        ATRIBUICAO_EQUIPE_API_ATIVA
-      ) {
-        await requisitar(
-          `${ROTA_REMOVER_ATRIBUICAO}/${idObra}/${idEquipe}`,
-          {
-            method: "DELETE",
-          }
-        );
-      } else {
-        setAtribuicoesEquipes(
-          (anterior) => {
-            const chave =
-              String(idObra);
-
-            const atuais =
-              anterior[chave] || [];
-
-            return {
-              ...anterior,
-
-              [chave]:
-                atuais.filter(
-                  (item) =>
-                    String(
-                      item.id_equipe
-                    ) !==
-                    String(
-                      idEquipe
-                    )
-                ),
-            };
-          }
-        );
-      }
-    } catch (error) {
-      console.error(
-        "Erro ao remover atribuição:",
-        error
-      );
-
-      setErroEquipes(
-        error.message ||
-          "Não foi possível remover a atribuição."
-      );
-    }
-  }
-
-  function atribuirInsumo(event) {
-    event.preventDefault();
-
-    if (!obraRecursos) return;
-
-    const novoInsumo = {
-      id_insumo:
-        Date.now(),
-
-      id_obra:
-        obraRecursos.id_obra,
-
-      nome:
-        formInsumo.nome.trim(),
-
-      quantidade_lote:
-        Number(
-          formInsumo
-            .quantidade_lote
-        ),
-
-      valor_lote:
-        Number(
-          formInsumo
-            .valor_lote
-        ),
-    };
-
-    atualizarRecursosDaObra(
-      obraRecursos.id_obra,
-      (atual) => ({
-        ...atual,
-        insumos: [
-          ...atual.insumos,
-          novoInsumo,
-        ],
-      })
-    );
-
-    setFormInsumo(
-      insumoVazio
-    );
-    setErro("");
-  }
-
-  function atribuirMaquinario(event) {
-    event.preventDefault();
-
-    if (!obraRecursos) return;
-
-    const novoMaquinario = {
-      id_maquinario:
-        Date.now(),
-
-      id_obra:
-        obraRecursos.id_obra,
-
-      nome:
-        formMaquinario.nome.trim(),
-
-      quantidade:
-        Number(
-          formMaquinario
-            .quantidade
-        ),
-
-      custo_diario_maquinario:
-        Number(
-          formMaquinario
-            .custo_diario_maquinario
-        ),
-
-      prazo_final_estimado:
-        formMaquinario
-          .prazo_final_estimado,
-
-      status:
-        formMaquinario.status,
-    };
-
-    atualizarRecursosDaObra(
-      obraRecursos.id_obra,
-      (atual) => ({
-        ...atual,
-        maquinarios: [
-          ...atual.maquinarios,
-          novoMaquinario,
-        ],
-      })
-    );
-
-    setFormMaquinario(
-      maquinarioVazio
-    );
-    setErro("");
-  }
-
-  function adicionarPlanejamento(
+  async function atribuirInsumoSelecionado(
     event
   ) {
     event.preventDefault();
 
-    if (!obraRecursos) return;
-
-    if (
-      formPlanejamento
-        .data_fim_prevista &&
-      formPlanejamento
-        .data_inicio_prevista &&
-      formPlanejamento
-        .data_fim_prevista <
-        formPlanejamento
-          .data_inicio_prevista
-    ) {
-      setErro(
-        "A data final prevista não pode ser anterior à data inicial."
-      );
+    if (!obraRecursos) {
       return;
     }
 
-    const novoPlanejamento = {
-      id_custo_planejado:
-        Date.now(),
+    if (!idInsumoSelecionado) {
+      setErroRecursos(
+        "Selecione um insumo para atribuir."
+      );
 
-      id_obra:
-        obraRecursos.id_obra,
+      return;
+    }
 
-      etapa:
-        formPlanejamento.etapa,
+    const insumo =
+      insumos.find(
+        (item) =>
+          String(
+            obterIdInsumo(
+              item
+            )
+          ) ===
+          String(
+            idInsumoSelecionado
+          )
+      );
 
-      origem_custo:
-        formPlanejamento
-          .origem_custo,
+    if (!insumo) {
+      setErroRecursos(
+        "Insumo selecionado não encontrado."
+      );
 
-      valor_planejado:
-        Number(
-          formPlanejamento
-            .valor_planejado
-        ),
+      return;
+    }
 
-      data_inicio_prevista:
-        formPlanejamento
-          .data_inicio_prevista,
+    try {
+      setAtribuindo(true);
 
-      data_fim_prevista:
-        formPlanejamento
-          .data_fim_prevista,
-    };
+      setErroRecursos("");
 
-    atualizarRecursosDaObra(
-      obraRecursos.id_obra,
-      (atual) => ({
-        ...atual,
-        planejamento: [
-          ...atual.planejamento,
-          novoPlanejamento,
-        ],
-      })
-    );
+      await atribuirInsumo(
+        insumo,
+        obraRecursos.id_obra
+      );
 
-    setFormPlanejamento(
-      planejamentoVazio
-    );
-    setErro("");
+      setIdInsumoSelecionado(
+        ""
+      );
+
+      await carregarCatalogoRecursos();
+    } catch (error) {
+      console.error(
+        "Erro ao atribuir insumo:",
+        error
+      );
+
+      setErroRecursos(
+        error.message ||
+          "Não foi possível atribuir o insumo."
+      );
+    } finally {
+      setAtribuindo(false);
+    }
   }
 
-  function removerRecurso(
-    tipo,
-    id
+  // ===================================================
+  // ATRIBUIR MAQUINÁRIO
+  // ===================================================
+
+  async function atribuirMaquinarioSelecionado(
+    event
   ) {
-    if (!obraRecursos) return;
+    event.preventDefault();
 
-    atualizarRecursosDaObra(
-      obraRecursos.id_obra,
-      (atual) => ({
-        ...atual,
+    if (!obraRecursos) {
+      return;
+    }
 
-        [tipo]:
-          atual[tipo].filter(
-            (item) => {
-              const idItem =
-                item
-                  .id_equipe_terceirizad ??
-                item.id_insumo ??
-                item.id_maquinario ??
-                item.id_custo_planejado;
+    if (
+      !idMaquinarioSelecionado
+    ) {
+      setErroRecursos(
+        "Selecione um maquinário para atribuir."
+      );
 
-              return (
-                String(idItem) !==
-                String(id)
-              );
-            }
-          ),
-      })
-    );
+      return;
+    }
+
+    const maquinario =
+      maquinarios.find(
+        (item) =>
+          String(
+            obterIdMaquinario(
+              item
+            )
+          ) ===
+          String(
+            idMaquinarioSelecionado
+          )
+      );
+
+    if (!maquinario) {
+      setErroRecursos(
+        "Maquinário selecionado não encontrado."
+      );
+
+      return;
+    }
+
+    try {
+      setAtribuindo(true);
+
+      setErroRecursos("");
+
+      await atribuirMaquinario(
+        maquinario,
+        obraRecursos.id_obra
+      );
+
+      setIdMaquinarioSelecionado(
+        ""
+      );
+
+      await carregarCatalogoRecursos();
+    } catch (error) {
+      console.error(
+        "Erro ao atribuir maquinário:",
+        error
+      );
+
+      setErroRecursos(
+        error.message ||
+          "Não foi possível atribuir o maquinário."
+      );
+    } finally {
+      setAtribuindo(false);
+    }
   }
 
-  // =====================================================
+  // ===================================================
   // INDICADORES
-  // =====================================================
+  // ===================================================
 
-  const obrasAtivas =
-    obras.filter((obra) => {
-      const status =
-        normalizarStatus(
-          obra.status
-        );
+  const indicadores =
+    useMemo(() => {
+      const ativas =
+        obras.filter(
+          (obra) => {
+            const status =
+              String(
+                obra.status ||
+                  ""
+              )
+                .trim()
+                .toLowerCase();
 
-      return [
-        "planejamento",
-        "em andamento",
-        "iniciada",
-        "iniciado",
-        "ativa",
-        "ativo",
-      ].includes(status);
-    }).length;
+            return [
+              "planejamento",
+              "em andamento",
+            ].includes(
+              status
+            );
+          }
+        ).length;
 
-  const obrasParalisadas =
-    obras.filter(
-      (obra) =>
-        normalizarStatus(
-          obra.status
-        ) === "paralisada"
-    ).length;
+      const paralisadas =
+        obras.filter(
+          (obra) =>
+            String(
+              obra.status ||
+                ""
+            )
+              .trim()
+              .toLowerCase() ===
+            "paralisada"
+        ).length;
 
-  const obrasConcluidas =
-    obras.filter((obra) =>
-      [
-        "concluída",
-        "concluida",
-      ].includes(
-        normalizarStatus(
-          obra.status
-        )
-      )
-    ).length;
-
-  const orcamentoTotal =
-    obras.reduce(
-      (total, obra) =>
-        total +
-        Number(
-          obra.orcamento_planejado ||
-            0
-        ),
-      0
-    );
-
-  // =====================================================
-  // TABELA
-  // =====================================================
-
-  const obrasTabela =
-    obras.map((obra) => {
-      const recursos =
-        obterRecursos(
-          obra.id_obra
+      const orcamento =
+        obras.reduce(
+          (
+            total,
+            obra
+          ) =>
+            total +
+            Number(
+              obra
+                .orcamento_planejado ||
+                0
+            ),
+          0
         );
 
       return {
-        ...obra,
-
-        inicio:
-          formatarData(
-            obra
-              .data_inicio_planejada
-          ),
-
-        fim:
-          formatarData(
-            obra
-              .data_termino_planejada
-          ),
-
-        orcamento:
-          formatarReal(
-            obra.orcamento_planejado
-          ),
-
-        recursos: (
-          <div
-            style={{
-              display: "flex",
-              gap: "6px",
-              flexWrap: "wrap",
-            }}
-          >
-            <span className="badge">
-              Equipes: {
-                (
-                  atribuicoesEquipes[
-                    String(
-                      obra.id_obra
-                    )
-                  ] || []
-                ).length
-              }
-            </span>
-
-            <span className="badge">
-              I: {recursos.insumos.length}
-            </span>
-
-            <span className="badge">
-              M: {recursos.maquinarios.length}
-            </span>
-          </div>
-        ),
-
-        acoes: (
-          <div
-            style={{
-              display: "flex",
-              gap: "8px",
-              flexWrap: "wrap",
-            }}
-          >
-            <button
-              type="button"
-              className="button"
-              onClick={() =>
-                abrirObra(obra)
-              }
-            >
-              Abrir
-            </button>
-
-            <button
-              type="button"
-              className="secondary-button"
-              onClick={() =>
-                abrirModalRecursos(
-                  obra
-                )
-              }
-            >
-              Recursos
-            </button>
-
-            <button
-              type="button"
-              className="secondary-button"
-              onClick={() =>
-                abrirModalEdicao(
-                  obra
-                )
-              }
-            >
-              Editar
-            </button>
-
-            <button
-              type="button"
-              className="secondary-button"
-              onClick={() =>
-                excluirObra(obra)
-              }
-            >
-              Excluir
-            </button>
-          </div>
-        ),
+        ativas,
+        paralisadas,
+        orcamento,
       };
-    });
+    }, [obras]);
 
-  const columns = [
-    {
-      key: "obra",
-      label: "Obra",
-    },
-    {
-      key: "status",
-      label: "Status",
-    },
-    {
-      key: "categoria",
-      label: "Categoria",
-    },
-    {
-      key: "pavimentos",
-      label: "Pavimentos",
-    },
-    {
-      key: "inicio",
-      label: "Início planejado",
-    },
-    {
-      key: "fim",
-      label: "Término planejado",
-    },
-    {
-      key: "orcamento",
-      label: "Orçamento",
-    },
-    {
-      key: "recursos",
-      label: "Recursos",
-    },
-    {
-      key: "acoes",
-      label: "Ações",
-    },
-  ];
-
-  const recursosSelecionados =
-    obraRecursos
-      ? obterRecursos(
-          obraRecursos.id_obra
-        )
-      : {
-          equipes: [],
-          insumos: [],
-          maquinarios: [],
-          planejamento: [],
-        };
+  // ===================================================
+  // RECURSOS ATRIBUÍDOS À OBRA
+  // ===================================================
 
   const equipesAtribuidas =
-    obterEquipesAtribuidasExibidas();
+    obraRecursos
+      ? equipes.filter(
+          (item) =>
+            Number(
+              item.idobra
+            ) ===
+            Number(
+              obraRecursos.id_obra
+            )
+        )
+      : [];
 
   const equipesParaAtribuir =
-    obterEquipesAindaDisponiveis();
+    obraRecursos
+      ? equipes.filter(
+          (item) =>
+            Number(
+              item.idobra
+            ) !==
+            Number(
+              obraRecursos.id_obra
+            )
+        )
+      : equipes;
 
-  // =====================================================
+  const insumosAtribuidos =
+    obraRecursos
+      ? insumos.filter(
+          (item) =>
+            Number(
+              item.idobra
+            ) ===
+            Number(
+              obraRecursos.id_obra
+            )
+        )
+      : [];
+
+  const insumosParaAtribuir =
+    obraRecursos
+      ? insumos.filter(
+          (item) =>
+            Number(
+              item.idobra
+            ) !==
+            Number(
+              obraRecursos.id_obra
+            )
+        )
+      : insumos;
+
+  const maquinariosAtribuidos =
+    obraRecursos
+      ? maquinarios.filter(
+          (item) =>
+            Number(
+              item.idobra
+            ) ===
+            Number(
+              obraRecursos.id_obra
+            )
+        )
+      : [];
+
+  const maquinariosParaAtribuir =
+    obraRecursos
+      ? maquinarios.filter(
+          (item) =>
+            Number(
+              item.idobra
+            ) !==
+            Number(
+              obraRecursos.id_obra
+            )
+        )
+      : maquinarios;
+
+  // ===================================================
   // JSX
-  // =====================================================
+  // ===================================================
 
   return (
-    <Layout onNavegar={onNavegar}>
-
+    <Layout
+      onNavegar={
+        onNavegar
+      }
+    >
       <div className="dashboard">
-
-        {/* CABEÇALHO */}
 
         <section className="dashboard-header">
 
@@ -1473,9 +1018,8 @@ function Obras({ onNavegar, onAbrirObra }) {
             </h1>
 
             <p>
-              Cadastre as obras e atribua
-              equipes, materiais, maquinários
-              e planejamento a cada projeto.
+              Cadastre suas obras e atribua equipes,
+              insumos e maquinários já cadastrados.
             </p>
 
           </div>
@@ -1486,7 +1030,7 @@ function Obras({ onNavegar, onAbrirObra }) {
               type="button"
               className="button"
               onClick={
-                abrirModalCadastro
+                abrirCadastroObra
               }
             >
               + Nova obra
@@ -1502,25 +1046,30 @@ function Obras({ onNavegar, onAbrirObra }) {
           </div>
         )}
 
-        {/* CARDS */}
-
         <section className="cards-grid">
 
           <Card
             title="Total de obras"
-            value={obras.length}
+            value={
+              obras.length
+            }
             description="Obras cadastradas"
           />
 
           <Card
             title="Obras ativas"
-            value={obrasAtivas}
+            value={
+              indicadores.ativas
+            }
             description="Planejamento ou execução"
           />
 
           <Card
             title="Paralisadas"
-            value={obrasParalisadas}
+            value={
+              indicadores
+                .paralisadas
+            }
             description="Necessitam acompanhamento"
           />
 
@@ -1528,15 +1077,14 @@ function Obras({ onNavegar, onAbrirObra }) {
             title="Orçamento total"
             value={
               formatarReal(
-                orcamentoTotal
+                indicadores
+                  .orcamento
               )
             }
-            description={`${obrasConcluidas} obra(s) concluída(s)`}
+            description="Orçamento planejado"
           />
 
         </section>
-
-        {/* LISTAGEM */}
 
         <section className="dashboard-section">
 
@@ -1553,666 +1101,778 @@ function Obras({ onNavegar, onAbrirObra }) {
               </h2>
 
               <p>
-                Abra a obra ou use
-                "Recursos" para fazer as
-                atribuições enquanto as novas
-                rotas do backend são
-                finalizadas.
+                Clique em Recursos para atribuir os recursos existentes.
               </p>
 
             </div>
 
-            <button
-              type="button"
-              className="button"
-              onClick={
-                abrirModalCadastro
-              }
-            >
-              + Nova obra
-            </button>
-
           </div>
 
-          <div className="dashboard-table">
+          <div className="tabela-container">
 
-            {carregando ? (
-              <p>
-                Carregando obras...
-              </p>
-            ) : obras.length === 0 ? (
-              <p>
-                Nenhuma obra cadastrada.
-              </p>
-            ) : (
-              <Table
-                columns={columns}
-                data={obrasTabela}
-              />
-            )}
+            <table>
+
+              <thead>
+
+                <tr>
+
+                  <th>
+                    Obra
+                  </th>
+
+                  <th>
+                    Status
+                  </th>
+
+                  <th>
+                    Categoria
+                  </th>
+
+                  <th>
+                    Pavimentos
+                  </th>
+
+                  <th>
+                    Início
+                  </th>
+
+                  <th>
+                    Término
+                  </th>
+
+                  <th>
+                    Orçamento
+                  </th>
+
+                  <th>
+                    Ações
+                  </th>
+
+                </tr>
+
+              </thead>
+
+              <tbody>
+
+                {carregando ? (
+
+                  <tr>
+
+                    <td
+                      colSpan="8"
+                      className="tabela-vazia"
+                    >
+                      Carregando obras...
+                    </td>
+
+                  </tr>
+
+                ) : obras.length ===
+                  0 ? (
+
+                  <tr>
+
+                    <td
+                      colSpan="8"
+                      className="tabela-vazia"
+                    >
+                      Nenhuma obra encontrada.
+                    </td>
+
+                  </tr>
+
+                ) : (
+
+                  obras.map(
+                    (obra) => (
+
+                      <tr
+                        key={
+                          obra.id_obra
+                        }
+                      >
+
+                        <td>
+                          {
+                            obra.obra
+                          }
+                        </td>
+
+                        <td>
+                          {obra.status ||
+                            "-"}
+                        </td>
+
+                        <td>
+                          {obra.categoria ||
+                            "-"}
+                        </td>
+
+                        <td>
+                          {obra
+                            .numero_pavimentos ??
+                            "-"}
+                        </td>
+
+                        <td>
+                          {formatarData(
+                            obra
+                              .data_inicio_planejada
+                          )}
+                        </td>
+
+                        <td>
+                          {formatarData(
+                            obra
+                              .data_termino_planejada
+                          )}
+                        </td>
+
+                        <td>
+                          {formatarReal(
+                            obra
+                              .orcamento_planejado
+                          )}
+                        </td>
+
+                        <td>
+
+                          <div className="section-actions">
+
+                            <button
+                              type="button"
+                              className="button"
+                              onClick={() =>
+                                abrirObra(
+                                  obra
+                                )
+                              }
+                            >
+                              Abrir
+                            </button>
+
+                            <button
+                              type="button"
+                              className="secondary-button"
+                              onClick={() =>
+                                abrirRecursos(
+                                  obra
+                                )
+                              }
+                            >
+                              Recursos
+                            </button>
+
+                            <button
+                              type="button"
+                              className="secondary-button"
+                              onClick={() =>
+                                abrirEdicaoObra(
+                                  obra
+                                )
+                              }
+                            >
+                              Editar
+                            </button>
+
+                            <button
+                              type="button"
+                              className="cancel-button"
+                              onClick={() =>
+                                removerObra(
+                                  obra
+                                )
+                              }
+                            >
+                              Excluir
+                            </button>
+
+                          </div>
+
+                        </td>
+
+                      </tr>
+
+                    )
+                  )
+
+                )}
+
+              </tbody>
+
+            </table>
 
           </div>
 
         </section>
 
-        {/* =================================================
-            MODAL CADASTRAR / EDITAR OBRA
-        ================================================= */}
+      </div>
 
-        {modalAberto && (
+      {/* =================================================
+          MODAL CADASTRO / EDIÇÃO
+      ================================================= */}
 
-          <div className="modal-overlay">
+      {modalObraAberto && (
 
-            <div className="modal-container modal-obra">
+        <div className="modal-overlay">
 
-              <div className="modal-header">
+          <div className="modal-container modal-obra">
 
-                <div>
+            <div className="modal-header">
 
-                  <span className="section-label">
-                    {obraEditando
-                      ? "EDITAR OBRA"
-                      : "NOVA OBRA"}
-                  </span>
+              <div>
 
-                  <h2>
-                    {obraEditando
-                      ? "Editar obra"
-                      : "Cadastrar obra"}
-                  </h2>
+                <span className="section-label">
+                  OBRA
+                </span>
 
-                </div>
-
-                <button
-                  type="button"
-                  className="modal-close"
-                  onClick={
-                    fecharModal
-                  }
-                >
-                  ×
-                </button>
+                <h2>
+                  {obraEditando
+                    ? "Editar obra"
+                    : "Cadastrar obra"}
+                </h2>
 
               </div>
 
-              <form
-                className="obra-form"
-                onSubmit={
-                  salvarObra
+              <button
+                type="button"
+                className="modal-close"
+                onClick={
+                  fecharModalObra
                 }
               >
-
-                <div className="obra-form-grid">
-
-                  <div className="form-group">
-
-                    <label>
-                      Nome da obra
-                    </label>
-
-                    <input
-                      type="text"
-                      name="nome"
-                      value={
-                        formulario.nome
-                      }
-                      onChange={
-                        handleChange
-                      }
-                      placeholder="Ex.: Residencial Vértice"
-                      required
-                    />
-
-                  </div>
-
-                  <div className="form-group">
-
-                    <label>
-                      Status
-                    </label>
-
-                    <select
-                      name="status"
-                      value={
-                        formulario.status
-                      }
-                      onChange={
-                        handleChange
-                      }
-                      required
-                    >
-
-                      <option value="">
-                        Selecione
-                      </option>
-
-                      <option value="Planejamento">
-                        Planejamento
-                      </option>
-
-                      <option value="Em Andamento">
-                        Em Andamento
-                      </option>
-
-                      <option value="Concluída">
-                        Concluída
-                      </option>
-
-                      <option value="Paralisada">
-                        Paralisada
-                      </option>
-
-                    </select>
-
-                  </div>
-
-                  <div className="form-group">
-
-                    <label>
-                      Categoria
-                    </label>
-
-                    <select
-                      name="categoria"
-                      value={
-                        formulario.categoria
-                      }
-                      onChange={
-                        handleChange
-                      }
-                      required
-                    >
-
-                      <option value="">
-                        Selecione
-                      </option>
-
-                      <option value="Residencial">
-                        Residencial
-                      </option>
-
-                      <option value="Comercial">
-                        Comercial
-                      </option>
-
-                      <option value="Industrial">
-                        Industrial
-                      </option>
-
-                      <option value="Reforma">
-                        Reforma
-                      </option>
-
-                    </select>
-
-                  </div>
-
-                  <div className="form-group">
-
-                    <label>
-                      Número de pavimentos
-                    </label>
-
-                    <input
-                      type="number"
-                      name="numero_pavimentos"
-                      min="1"
-                      value={
-                        formulario
-                          .numero_pavimentos
-                      }
-                      onChange={
-                        handleChange
-                      }
-                      required
-                    />
-
-                  </div>
-
-                  <div className="form-group">
-
-                    <label>
-                      Data de início planejada
-                    </label>
-
-                    <input
-                      type="date"
-                      name="data_inicio_planejada"
-                      value={
-                        formulario
-                          .data_inicio_planejada
-                      }
-                      onChange={
-                        handleChange
-                      }
-                      required
-                    />
-
-                  </div>
-
-                  <div className="form-group">
-
-                    <label>
-                      Data de término planejada
-                    </label>
-
-                    <input
-                      type="date"
-                      name="data_termino_planejada"
-                      value={
-                        formulario
-                          .data_termino_planejada
-                      }
-                      onChange={
-                        handleChange
-                      }
-                      required
-                    />
-
-                  </div>
-
-                  <div className="form-group">
-
-                    <label>
-                      Orçamento planejado
-                    </label>
-
-                    <input
-                      type="number"
-                      name="orcamento_planejado"
-                      min="0"
-                      step="0.01"
-                      value={
-                        formulario
-                          .orcamento_planejado
-                      }
-                      onChange={
-                        handleChange
-                      }
-                      placeholder="Ex.: 1500000"
-                      required
-                    />
-
-                  </div>
-
-                </div>
-
-                <div className="modal-actions">
-
-                  <button
-                    type="button"
-                    className="cancel-button"
-                    onClick={
-                      fecharModal
-                    }
-                    disabled={
-                      salvando
-                    }
-                  >
-                    Cancelar
-                  </button>
-
-                  <button
-                    type="submit"
-                    className="button"
-                    disabled={
-                      salvando
-                    }
-                  >
-                    {salvando
-                      ? "Salvando..."
-                      : obraEditando
-                        ? "Salvar alterações"
-                        : "Cadastrar obra"}
-                  </button>
-
-                </div>
-
-              </form>
+                ×
+              </button>
 
             </div>
 
-          </div>
-        )}
-
-        {/* =================================================
-            MODAL RECURSOS DA OBRA
-        ================================================= */}
-
-        {modalRecursos &&
-          obraRecursos && (
-
-          <div className="modal-overlay">
-
-            <div
-              className="modal-container modal-obra"
-              style={{
-                maxWidth: "1050px",
-                width: "94%",
-                maxHeight: "92vh",
-                overflowY: "auto",
-              }}
+            <form
+              className="obra-form"
+              onSubmit={
+                salvarObra
+              }
             >
 
-              <div className="modal-header">
+              <div className="obra-form-grid">
 
-                <div>
+                <div className="form-group">
 
-                  <span className="section-label">
-                    RECURSOS DA OBRA
-                  </span>
+                  <label>
+                    Nome
+                  </label>
 
-                  <h2>
-                    {obraRecursos.obra}
-                  </h2>
-
-                  <p>
-                    Gerencie quais equipes e recursos
-                    estão atribuídos a esta obra.
-                  </p>
+                  <input
+                    type="text"
+                    name="nome"
+                    value={
+                      formulario.nome
+                    }
+                    onChange={
+                      alterarFormulario
+                    }
+                    required
+                  />
 
                 </div>
 
+                <div className="form-group">
+
+                  <label>
+                    Status
+                  </label>
+
+                  <select
+                    name="status"
+                    value={
+                      formulario.status
+                    }
+                    onChange={
+                      alterarFormulario
+                    }
+                    required
+                  >
+
+                    <option value="Planejamento">
+                      Planejamento
+                    </option>
+
+                    <option value="Em Andamento">
+                      Em Andamento
+                    </option>
+
+                    <option value="Concluida">
+                      Concluída
+                    </option>
+
+                    <option value="Paralisada">
+                      Paralisada
+                    </option>
+
+                  </select>
+
+                </div>
+
+                <div className="form-group">
+
+                  <label>
+                    Categoria
+                  </label>
+
+                  <select
+                    name="categoria"
+                    value={
+                      formulario
+                        .categoria
+                    }
+                    onChange={
+                      alterarFormulario
+                    }
+                    required
+                  >
+
+                    <option value="Residencial">
+                      Residencial
+                    </option>
+
+                    <option value="Comercial">
+                      Comercial
+                    </option>
+
+                    <option value="Industrial">
+                      Industrial
+                    </option>
+
+                    <option value="Reforma">
+                      Reforma
+                    </option>
+
+                  </select>
+
+                </div>
+
+                <div className="form-group">
+
+                  <label>
+                    Número de pavimentos
+                  </label>
+
+                  <input
+                    type="number"
+                    min="1"
+                    name="numero_pavimentos"
+                    value={
+                      formulario
+                        .numero_pavimentos
+                    }
+                    onChange={
+                      alterarFormulario
+                    }
+                    required
+                  />
+
+                </div>
+
+                <div className="form-group">
+
+                  <label>
+                    Início planejado
+                  </label>
+
+                  <input
+                    type="date"
+                    name="data_inicio_planejada"
+                    value={
+                      formulario
+                        .data_inicio_planejada
+                    }
+                    onChange={
+                      alterarFormulario
+                    }
+                    required
+                  />
+
+                </div>
+
+                <div className="form-group">
+
+                  <label>
+                    Término planejado
+                  </label>
+
+                  <input
+                    type="date"
+                    name="data_termino_planejada"
+                    value={
+                      formulario
+                        .data_termino_planejada
+                    }
+                    onChange={
+                      alterarFormulario
+                    }
+                    required
+                  />
+
+                </div>
+
+                <div className="form-group">
+
+                  <label>
+                    Orçamento planejado
+                  </label>
+
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    name="orcamento_planejado"
+                    value={
+                      formulario
+                        .orcamento_planejado
+                    }
+                    onChange={
+                      alterarFormulario
+                    }
+                    required
+                  />
+
+                </div>
+
+              </div>
+
+              <div className="modal-actions">
+
                 <button
                   type="button"
-                  className="modal-close"
+                  className="cancel-button"
                   onClick={
-                    fecharModalRecursos
+                    fecharModalObra
                   }
                 >
-                  ×
+                  Cancelar
+                </button>
+
+                <button
+                  type="submit"
+                  className="button"
+                  disabled={
+                    salvando
+                  }
+                >
+                  {salvando
+                    ? "Salvando..."
+                    : "Salvar obra"}
                 </button>
 
               </div>
 
-              {/* ABAS */}
+            </form>
 
-              <div
-                style={{
-                  display: "flex",
-                  gap: "8px",
-                  flexWrap: "wrap",
-                  marginBottom: "24px",
-                }}
-              >
+          </div>
 
-                {[
-                  ["equipes", "Equipes"],
-                  ["insumos", "Materiais e Insumos"],
-                  ["maquinarios", "Maquinários"],
-                  ["planejamento", "Planejamento"],
-                ].map(
-                  ([chave, label]) => (
+        </div>
 
-                    <button
-                      key={chave}
-                      type="button"
-                      className={
-                        abaRecursos ===
-                        chave
-                          ? "button"
-                          : "secondary-button"
-                      }
-                      onClick={() =>
-                        setAbaRecursos(
-                          chave
-                        )
-                      }
-                    >
-                      {label}
-                    </button>
+      )}
 
-                  )
-                )}
+      {/* =================================================
+          MODAL DE RECURSOS
+      ================================================= */}
+
+      {modalRecursos &&
+        obraRecursos && (
+
+        <div className="modal-overlay">
+
+          <div
+            className="modal-container modal-obra"
+            style={{
+              maxWidth:
+                "1050px",
+            }}
+          >
+
+            <div className="modal-header">
+
+              <div>
+
+                <span className="section-label">
+                  ATRIBUIÇÃO DE RECURSOS
+                </span>
+
+                <h2>
+                  {
+                    obraRecursos.obra
+                  }
+                </h2>
+
+                <p>
+                  Escolha os recursos já cadastrados que serão usados nesta obra.
+                </p>
 
               </div>
 
-              {/* ============================
-                  EQUIPES
-              ============================ */}
+              <button
+                type="button"
+                className="modal-close"
+                onClick={
+                  fecharRecursos
+                }
+              >
+                ×
+              </button>
 
-              {abaRecursos ===
-                "equipes" && (
+            </div>
 
-                <div>
+            {erroRecursos && (
 
-                  <div className="section-header">
+              <div className="auth-error">
+                {erroRecursos}
+              </div>
 
-                    <div>
+            )}
 
-                      <span className="section-label">
-                        EQUIPES TERCEIRIZADAS
-                      </span>
+            <div
+              className="abas-obra"
+              style={{
+                marginBottom:
+                  "22px",
+              }}
+            >
 
-                      <h2>
-                        Atribuir equipes à obra
-                      </h2>
+              <button
+                type="button"
+                className={
+                  abaRecursos ===
+                  "equipes"
+                    ? "aba ativa"
+                    : "aba"
+                }
+                onClick={() =>
+                  setAbaRecursos(
+                    "equipes"
+                  )
+                }
+              >
+                Equipes
+              </button>
 
-                      <p>
-                        A equipe já existe no cadastro.
-                        Aqui você apenas escolhe qual
-                        equipe será vinculada à obra
-                        selecionada.
-                      </p>
+              <button
+                type="button"
+                className={
+                  abaRecursos ===
+                  "insumos"
+                    ? "aba ativa"
+                    : "aba"
+                }
+                onClick={() =>
+                  setAbaRecursos(
+                    "insumos"
+                  )
+                }
+              >
+                Insumos
+              </button>
 
-                    </div>
+              <button
+                type="button"
+                className={
+                  abaRecursos ===
+                  "maquinarios"
+                    ? "aba ativa"
+                    : "aba"
+                }
+                onClick={() =>
+                  setAbaRecursos(
+                    "maquinarios"
+                  )
+                }
+              >
+                Maquinários
+              </button>
 
-                    <button
-                      type="button"
-                      className="secondary-button"
-                      onClick={
-                        buscarCatalogoEquipes
+            </div>
+
+            {carregandoRecursos ? (
+
+              <p>
+                Carregando recursos cadastrados...
+              </p>
+
+            ) : (
+
+              <>
+
+                {/* =====================================
+                    EQUIPES
+                ===================================== */}
+
+                {abaRecursos ===
+                  "equipes" && (
+
+                  <div>
+
+                    <form
+                      className="obra-form"
+                      onSubmit={
+                        atribuirEquipeSelecionada
                       }
                     >
-                      Atualizar
-                    </button>
 
-                  </div>
+                      <div className="obra-form-grid">
 
-                  {erroEquipes && (
-                    <div className="auth-error">
-                      {erroEquipes}
-                    </div>
-                  )}
+                        <div className="form-group">
 
-                  {/* ATRIBUIR EQUIPE EXISTENTE */}
+                          <label>
+                            Equipe cadastrada
+                          </label>
 
-                  <form
-                    className="obra-form"
-                    onSubmit={
-                      atribuirEquipeExistente
-                    }
-                    style={{
-                      marginTop: "20px",
-                    }}
-                  >
+                          <select
+                            value={
+                              idEquipeSelecionada
+                            }
+                            onChange={(event) =>
+                              setIdEquipeSelecionada(
+                                event.target.value
+                              )
+                            }
+                            required
+                          >
 
-                    <div className="obra-form-grid">
+                            <option value="">
+                              Selecione uma equipe
+                            </option>
 
-                      <div className="form-group">
+                            {equipesParaAtribuir.map(
+                              (equipe) => (
 
-                        <label>
-                          Equipe cadastrada
-                        </label>
-
-                        <select
-                          value={
-                            idEquipeSelecionada
-                          }
-                          onChange={(event) =>
-                            setIdEquipeSelecionada(
-                              event.target.value
-                            )
-                          }
-                          disabled={
-                            carregandoCatalogoEquipes
-                          }
-                          required
-                        >
-
-                          <option value="">
-                            {carregandoCatalogoEquipes
-                              ? "Carregando equipes..."
-                              : "Selecione uma equipe"}
-                          </option>
-
-                          {equipesParaAtribuir.map(
-                            (equipe) => {
-
-                              const id =
-                                obterIdEquipe(
-                                  equipe
-                                );
-
-                              return (
                                 <option
-                                  key={id}
-                                  value={id}
+                                  key={
+                                    obterIdEquipe(
+                                      equipe
+                                    )
+                                  }
+                                  value={
+                                    obterIdEquipe(
+                                      equipe
+                                    )
+                                  }
                                 >
                                   {equipe.nome_equipe}
-                                  {equipe.etapa_atuacao
-                                    ? ` — ${equipe.etapa_atuacao}`
-                                    : ""}
+                                  {" — "}
+                                  {nomeObraDoRecurso(
+                                    equipe.idobra
+                                  )}
                                 </option>
-                              );
-                            }
-                          )}
 
-                        </select>
+                              )
+                            )}
+
+                          </select>
+
+                        </div>
 
                       </div>
-
-                    </div>
-
-                    <div className="modal-actions">
 
                       <button
                         type="submit"
                         className="button"
                         disabled={
-                          !idEquipeSelecionada ||
-                          carregandoCatalogoEquipes
+                          atribuindo ||
+                          !idEquipeSelecionada
                         }
                       >
-                        + Atribuir equipe
+                        {atribuindo
+                          ? "Atribuindo..."
+                          : "Atribuir equipe"}
                       </button>
 
-                    </div>
+                    </form>
 
-                  </form>
-
-                  {!ATRIBUICAO_EQUIPE_API_ATIVA && (
-                    <p
+                    <div
+                      className="tabela-container"
                       style={{
-                        marginTop: "10px",
-                        fontSize: "13px",
-                        opacity: 0.72,
+                        marginTop:
+                          "25px",
                       }}
                     >
-                      Enquanto a rota definitiva de
-                      atribuição não estiver pronta, o sistema
-                      salva somente a relação id_obra +
-                      id_equipe no navegador. O cadastro da
-                      equipe permanece intacto.
-                    </p>
-                  )}
-
-                  {/* EQUIPES JÁ ATRIBUÍDAS */}
-
-                  <div
-                    className="section-header"
-                    style={{
-                      marginTop: "30px",
-                    }}
-                  >
-
-                    <div>
-
-                      <span className="section-label">
-                        EQUIPES DA OBRA
-                      </span>
-
-                      <h2>
-                        Equipes atribuídas
-                      </h2>
-
-                      <p>
-                        {equipesAtribuidas.length}
-                        {" "}
-                        equipe(s) vinculada(s) a esta obra.
-                      </p>
-
-                    </div>
-
-                  </div>
-
-                  <div
-                    className="dashboard-table"
-                    style={{
-                      marginTop: "16px",
-                    }}
-                  >
-
-                    {carregandoCatalogoEquipes ? (
-
-                      <p>
-                        Carregando equipes...
-                      </p>
-
-                    ) : equipesAtribuidas.length ===
-                      0 ? (
-
-                      <p>
-                        Nenhuma equipe atribuída
-                        a esta obra.
-                      </p>
-
-                    ) : (
 
                       <table>
 
                         <thead>
+
                           <tr>
-                            <th>Equipe</th>
-                            <th>Etapa atual</th>
-                            <th>Profissionais</th>
-                            <th>Custo diário</th>
-                            <th>Custo mensal</th>
-                            <th>Ações</th>
+
+                            <th>
+                              Equipe
+                            </th>
+
+                            <th>
+                              Etapa
+                            </th>
+
+                            <th>
+                              Profissionais
+                            </th>
+
+                            <th>
+                              Custo diário
+                            </th>
+
+                            <th>
+                              Custo mensal
+                            </th>
+
                           </tr>
+
                         </thead>
 
                         <tbody>
 
-                          {equipesAtribuidas.map(
-                            (equipe) => {
+                          {equipesAtribuidas.length ===
+                          0 ? (
 
-                              const id =
-                                obterIdEquipe(
-                                  equipe
-                                );
+                            <tr>
 
-                              return (
+                              <td
+                                colSpan="5"
+                                className="tabela-vazia"
+                              >
+                                Nenhuma equipe atribuída.
+                              </td>
+
+                            </tr>
+
+                          ) : (
+
+                            equipesAtribuidas.map(
+                              (equipe) => (
+
                                 <tr
-                                  key={id}
+                                  key={
+                                    obterIdEquipe(
+                                      equipe
+                                    )
+                                  }
                                 >
 
                                   <td>
-                                    {equipe.nome_equipe}
+                                    {
+                                      equipe.nome_equipe
+                                    }
                                   </td>
 
                                   <td>
-                                    {equipe.etapa_atuacao || "-"}
+                                    {equipe.etapa_atuacao ||
+                                      "-"}
                                   </td>
 
                                   <td>
-                                    {equipe.quantidade_profissionais ?? "-"}
+                                    {equipe.quantidade_profissionais ??
+                                      "-"}
                                   </td>
 
                                   <td>
                                     {formatarReal(
-                                      equipe.custo_diario ??
-                                      equipe.custo_diario_total
+                                      equipe.custo_diario
                                     )}
                                   </td>
 
@@ -2222,892 +1882,425 @@ function Obras({ onNavegar, onAbrirObra }) {
                                     )}
                                   </td>
 
-                                  <td>
-
-                                    <button
-                                      type="button"
-                                      className="secondary-button"
-                                      onClick={() =>
-                                        removerAtribuicaoEquipe(
-                                          equipe
-                                        )
-                                      }
-                                    >
-                                      Remover atribuição
-                                    </button>
-
-                                  </td>
-
                                 </tr>
-                              );
-                            }
+
+                              )
+                            )
+
                           )}
 
                         </tbody>
 
                       </table>
 
-                    )}
-
-                  </div>
-
-                </div>
-
-              )}
-
-              {/* ============================
-                  INSUMOS
-              ============================ */}
-
-              {abaRecursos ===
-                "insumos" && (
-
-                <div>
-
-                  <div className="section-header">
-
-                    <div>
-
-                      <span className="section-label">
-                        MATERIAIS
-                      </span>
-
-                      <h2>
-                        Atribuir material ou insumo
-                      </h2>
-
                     </div>
 
                   </div>
 
-                  <form
-                    className="obra-form"
-                    onSubmit={
-                      atribuirInsumo
-                    }
-                  >
+                )}
 
-                    <div className="obra-form-grid">
+                {/* =====================================
+                    INSUMOS
+                ===================================== */}
 
-                      <div className="form-group">
+                {abaRecursos ===
+                  "insumos" && (
 
-                        <label>
-                          Nome
-                        </label>
+                  <div>
 
-                        <input
-                          type="text"
-                          value={
-                            formInsumo.nome
-                          }
-                          onChange={(e) =>
-                            setFormInsumo(
-                              {
-                                ...formInsumo,
-                                nome:
-                                  e.target
-                                    .value,
-                              }
-                            )
-                          }
-                          required
-                        />
+                    <form
+                      className="obra-form"
+                      onSubmit={
+                        atribuirInsumoSelecionado
+                      }
+                    >
 
-                      </div>
+                      <div className="obra-form-grid">
 
-                      <div className="form-group">
+                        <div className="form-group">
 
-                        <label>
-                          Quantidade por lote
-                        </label>
+                          <label>
+                            Insumo cadastrado
+                          </label>
 
-                        <input
-                          type="number"
-                          min="0"
-                          step="0.01"
-                          value={
-                            formInsumo
-                              .quantidade_lote
-                          }
-                          onChange={(e) =>
-                            setFormInsumo(
-                              {
-                                ...formInsumo,
-                                quantidade_lote:
-                                  e.target
-                                    .value,
-                              }
-                            )
-                          }
-                          required
-                        />
+                          <select
+                            value={
+                              idInsumoSelecionado
+                            }
+                            onChange={(event) =>
+                              setIdInsumoSelecionado(
+                                event.target.value
+                              )
+                            }
+                            required
+                          >
 
-                      </div>
+                            <option value="">
+                              Selecione um insumo
+                            </option>
 
-                      <div className="form-group">
+                            {insumosParaAtribuir.map(
+                              (insumo) => (
 
-                        <label>
-                          Valor do lote
-                        </label>
+                                <option
+                                  key={
+                                    obterIdInsumo(
+                                      insumo
+                                    )
+                                  }
+                                  value={
+                                    obterIdInsumo(
+                                      insumo
+                                    )
+                                  }
+                                >
+                                  {insumo.nome}
+                                  {" — "}
+                                  {nomeObraDoRecurso(
+                                    insumo.idobra
+                                  )}
+                                </option>
 
-                        <input
-                          type="number"
-                          min="0"
-                          step="0.01"
-                          value={
-                            formInsumo
-                              .valor_lote
-                          }
-                          onChange={(e) =>
-                            setFormInsumo(
-                              {
-                                ...formInsumo,
-                                valor_lote:
-                                  e.target
-                                    .value,
-                              }
-                            )
-                          }
-                          required
-                        />
+                              )
+                            )}
+
+                          </select>
+
+                        </div>
 
                       </div>
-
-                    </div>
-
-                    <div className="modal-actions">
 
                       <button
                         type="submit"
                         className="button"
+                        disabled={
+                          atribuindo ||
+                          !idInsumoSelecionado
+                        }
                       >
-                        Atribuir insumo
+                        {atribuindo
+                          ? "Atribuindo..."
+                          : "Atribuir insumo"}
                       </button>
 
-                    </div>
+                    </form>
 
-                  </form>
-
-                  <div
-                    className="dashboard-table"
-                    style={{
-                      marginTop: "24px",
-                    }}
-                  >
-
-                    {recursosSelecionados
-                      .insumos.length ===
-                    0 ? (
-                      <p>
-                        Nenhum insumo atribuído.
-                      </p>
-                    ) : (
+                    <div
+                      className="tabela-container"
+                      style={{
+                        marginTop:
+                          "25px",
+                      }}
+                    >
 
                       <table>
 
                         <thead>
+
                           <tr>
-                            <th>Insumo</th>
-                            <th>Qtd. lote</th>
-                            <th>Valor lote</th>
-                            <th>Ações</th>
+
+                            <th>
+                              Insumo
+                            </th>
+
+                            <th>
+                              Quantidade
+                            </th>
+
+                            <th>
+                              Valor unitário
+                            </th>
+
+                            <th>
+                              Valor total
+                            </th>
+
                           </tr>
+
                         </thead>
 
                         <tbody>
 
-                          {recursosSelecionados
-                            .insumos
-                            .map(
+                          {insumosAtribuidos.length ===
+                          0 ? (
+
+                            <tr>
+
+                              <td
+                                colSpan="4"
+                                className="tabela-vazia"
+                              >
+                                Nenhum insumo atribuído.
+                              </td>
+
+                            </tr>
+
+                          ) : (
+
+                            insumosAtribuidos.map(
                               (insumo) => (
 
                                 <tr
                                   key={
-                                    insumo
-                                      .id_insumo
-                                  }
-                                >
-
-                                  <td>
-                                    {insumo.nome}
-                                  </td>
-
-                                  <td>
-                                    {insumo.quantidade_lote}
-                                  </td>
-
-                                  <td>
-                                    {formatarReal(
+                                    obterIdInsumo(
                                       insumo
-                                        .valor_lote
-                                    )}
-                                  </td>
-
-                                  <td>
-
-                                    <button
-                                      type="button"
-                                      className="secondary-button"
-                                      onClick={() =>
-                                        removerRecurso(
-                                          "insumos",
-                                          insumo
-                                            .id_insumo
-                                        )
-                                      }
-                                    >
-                                      Remover
-                                    </button>
-
-                                  </td>
-
-                                </tr>
-
-                              )
-                            )}
-
-                        </tbody>
-
-                      </table>
-
-                    )}
-
-                  </div>
-
-                </div>
-
-              )}
-
-              {/* ============================
-                  MAQUINÁRIOS
-              ============================ */}
-
-              {abaRecursos ===
-                "maquinarios" && (
-
-                <div>
-
-                  <div className="section-header">
-
-                    <div>
-
-                      <span className="section-label">
-                        EQUIPAMENTOS
-                      </span>
-
-                      <h2>
-                        Atribuir maquinário
-                      </h2>
-
-                    </div>
-
-                  </div>
-
-                  <form
-                    className="obra-form"
-                    onSubmit={
-                      atribuirMaquinario
-                    }
-                  >
-
-                    <div className="obra-form-grid">
-
-                      <div className="form-group">
-
-                        <label>
-                          Nome
-                        </label>
-
-                        <input
-                          type="text"
-                          value={
-                            formMaquinario
-                              .nome
-                          }
-                          onChange={(e) =>
-                            setFormMaquinario(
-                              {
-                                ...formMaquinario,
-                                nome:
-                                  e.target
-                                    .value,
-                              }
-                            )
-                          }
-                          required
-                        />
-
-                      </div>
-
-                      <div className="form-group">
-
-                        <label>
-                          Quantidade
-                        </label>
-
-                        <input
-                          type="number"
-                          min="1"
-                          value={
-                            formMaquinario
-                              .quantidade
-                          }
-                          onChange={(e) =>
-                            setFormMaquinario(
-                              {
-                                ...formMaquinario,
-                                quantidade:
-                                  e.target
-                                    .value,
-                              }
-                            )
-                          }
-                          required
-                        />
-
-                      </div>
-
-                      <div className="form-group">
-
-                        <label>
-                          Custo diário por unidade
-                        </label>
-
-                        <input
-                          type="number"
-                          min="0"
-                          step="0.01"
-                          value={
-                            formMaquinario
-                              .custo_diario_maquinario
-                          }
-                          onChange={(e) =>
-                            setFormMaquinario(
-                              {
-                                ...formMaquinario,
-                                custo_diario_maquinario:
-                                  e.target
-                                    .value,
-                              }
-                            )
-                          }
-                          required
-                        />
-
-                      </div>
-
-                      <div className="form-group">
-
-                        <label>
-                          Prazo final estimado
-                        </label>
-
-                        <input
-                          type="date"
-                          value={
-                            formMaquinario
-                              .prazo_final_estimado
-                          }
-                          onChange={(e) =>
-                            setFormMaquinario(
-                              {
-                                ...formMaquinario,
-                                prazo_final_estimado:
-                                  e.target
-                                    .value,
-                              }
-                            )
-                          }
-                        />
-
-                      </div>
-
-                      <div className="form-group">
-
-                        <label>
-                          Status
-                        </label>
-
-                        <select
-                          value={
-                            formMaquinario
-                              .status
-                          }
-                          onChange={(e) =>
-                            setFormMaquinario(
-                              {
-                                ...formMaquinario,
-                                status:
-                                  e.target
-                                    .value,
-                              }
-                            )
-                          }
-                        >
-
-                          <option value="Ativo">
-                            Ativo
-                          </option>
-
-                          <option value="Inativo">
-                            Inativo
-                          </option>
-
-                        </select>
-
-                      </div>
-
-                    </div>
-
-                    <div className="modal-actions">
-
-                      <button
-                        type="submit"
-                        className="button"
-                      >
-                        Atribuir maquinário
-                      </button>
-
-                    </div>
-
-                  </form>
-
-                  <div
-                    className="dashboard-table"
-                    style={{
-                      marginTop: "24px",
-                    }}
-                  >
-
-                    {recursosSelecionados
-                      .maquinarios.length ===
-                    0 ? (
-                      <p>
-                        Nenhum maquinário atribuído.
-                      </p>
-                    ) : (
-
-                      <table>
-
-                        <thead>
-                          <tr>
-                            <th>Maquinário</th>
-                            <th>Qtd.</th>
-                            <th>Custo/un.</th>
-                            <th>Prazo</th>
-                            <th>Status</th>
-                            <th>Ações</th>
-                          </tr>
-                        </thead>
-
-                        <tbody>
-
-                          {recursosSelecionados
-                            .maquinarios
-                            .map(
-                              (item) => (
-
-                                <tr
-                                  key={
-                                    item
-                                      .id_maquinario
+                                    )
                                   }
                                 >
 
                                   <td>
-                                    {item.nome}
+                                    {
+                                      insumo.nome
+                                    }
                                   </td>
 
                                   <td>
-                                    {item.quantidade}
+                                    {insumo.quantidade_disponivel ??
+                                      0}
                                   </td>
 
                                   <td>
                                     {formatarReal(
-                                      item
-                                        .custo_diario_maquinario
+                                      insumo.valor_unitario
                                     )}
                                   </td>
 
                                   <td>
-                                    {formatarData(
-                                      item
-                                        .prazo_final_estimado
-                                    )}
-                                  </td>
-
-                                  <td>
-                                    {item.status}
-                                  </td>
-
-                                  <td>
-
-                                    <button
-                                      type="button"
-                                      className="secondary-button"
-                                      onClick={() =>
-                                        removerRecurso(
-                                          "maquinarios",
-                                          item
-                                            .id_maquinario
+                                    {formatarReal(
+                                      Number(
+                                        insumo.quantidade_disponivel ||
+                                          0
+                                      ) *
+                                        Number(
+                                          insumo.valor_unitario ||
+                                            0
                                         )
-                                      }
-                                    >
-                                      Remover
-                                    </button>
-
+                                    )}
                                   </td>
 
                                 </tr>
 
                               )
-                            )}
-
-                        </tbody>
-
-                      </table>
-
-                    )}
-
-                  </div>
-
-                </div>
-
-              )}
-
-              {/* ============================
-                  PLANEJAMENTO
-              ============================ */}
-
-              {abaRecursos ===
-                "planejamento" && (
-
-                <div>
-
-                  <div className="section-header">
-
-                    <div>
-
-                      <span className="section-label">
-                        CUSTO PLANEJADO
-                      </span>
-
-                      <h2>
-                        Planejamento por etapa
-                      </h2>
-
-                    </div>
-
-                  </div>
-
-                  <form
-                    className="obra-form"
-                    onSubmit={
-                      adicionarPlanejamento
-                    }
-                  >
-
-                    <div className="obra-form-grid">
-
-                      <div className="form-group">
-
-                        <label>
-                          Etapa
-                        </label>
-
-                        <select
-                          value={
-                            formPlanejamento
-                              .etapa
-                          }
-                          onChange={(e) =>
-                            setFormPlanejamento(
-                              {
-                                ...formPlanejamento,
-                                etapa:
-                                  e.target
-                                    .value,
-                              }
                             )
-                          }
-                          required
-                        >
 
-                          <option value="">
-                            Selecione
-                          </option>
-
-                          {ETAPAS.map(
-                            (etapa) => (
-                              <option
-                                key={etapa}
-                                value={etapa}
-                              >
-                                {etapa}
-                              </option>
-                            )
                           )}
 
-                        </select>
+                        </tbody>
 
-                      </div>
-
-                      <div className="form-group">
-
-                        <label>
-                          Origem do custo
-                        </label>
-
-                        <select
-                          value={
-                            formPlanejamento
-                              .origem_custo
-                          }
-                          onChange={(e) =>
-                            setFormPlanejamento(
-                              {
-                                ...formPlanejamento,
-                                origem_custo:
-                                  e.target
-                                    .value,
-                              }
-                            )
-                          }
-                          required
-                        >
-
-                          <option value="">
-                            Selecione
-                          </option>
-
-                          <option value="Equipe">
-                            Equipe
-                          </option>
-
-                          <option value="Insumo">
-                            Insumo
-                          </option>
-
-                          <option value="Maquinário">
-                            Maquinário
-                          </option>
-
-                        </select>
-
-                      </div>
-
-                      <div className="form-group">
-
-                        <label>
-                          Valor planejado
-                        </label>
-
-                        <input
-                          type="number"
-                          min="0"
-                          step="0.01"
-                          value={
-                            formPlanejamento
-                              .valor_planejado
-                          }
-                          onChange={(e) =>
-                            setFormPlanejamento(
-                              {
-                                ...formPlanejamento,
-                                valor_planejado:
-                                  e.target
-                                    .value,
-                              }
-                            )
-                          }
-                          required
-                        />
-
-                      </div>
-
-                      <div className="form-group">
-
-                        <label>
-                          Início previsto
-                        </label>
-
-                        <input
-                          type="date"
-                          value={
-                            formPlanejamento
-                              .data_inicio_prevista
-                          }
-                          onChange={(e) =>
-                            setFormPlanejamento(
-                              {
-                                ...formPlanejamento,
-                                data_inicio_prevista:
-                                  e.target
-                                    .value,
-                              }
-                            )
-                          }
-                          required
-                        />
-
-                      </div>
-
-                      <div className="form-group">
-
-                        <label>
-                          Fim previsto
-                        </label>
-
-                        <input
-                          type="date"
-                          value={
-                            formPlanejamento
-                              .data_fim_prevista
-                          }
-                          onChange={(e) =>
-                            setFormPlanejamento(
-                              {
-                                ...formPlanejamento,
-                                data_fim_prevista:
-                                  e.target
-                                    .value,
-                              }
-                            )
-                          }
-                          required
-                        />
-
-                      </div>
+                      </table>
 
                     </div>
 
-                    <div className="modal-actions">
+                  </div>
+
+                )}
+
+                {/* =====================================
+                    MAQUINÁRIOS
+                ===================================== */}
+
+                {abaRecursos ===
+                  "maquinarios" && (
+
+                  <div>
+
+                    <form
+                      className="obra-form"
+                      onSubmit={
+                        atribuirMaquinarioSelecionado
+                      }
+                    >
+
+                      <div className="obra-form-grid">
+
+                        <div className="form-group">
+
+                          <label>
+                            Maquinário cadastrado
+                          </label>
+
+                          <select
+                            value={
+                              idMaquinarioSelecionado
+                            }
+                            onChange={(event) =>
+                              setIdMaquinarioSelecionado(
+                                event.target.value
+                              )
+                            }
+                            required
+                          >
+
+                            <option value="">
+                              Selecione um maquinário
+                            </option>
+
+                            {maquinariosParaAtribuir.map(
+                              (maquinario) => (
+
+                                <option
+                                  key={
+                                    obterIdMaquinario(
+                                      maquinario
+                                    )
+                                  }
+                                  value={
+                                    obterIdMaquinario(
+                                      maquinario
+                                    )
+                                  }
+                                >
+                                  {maquinario.nome}
+                                  {" — "}
+                                  {nomeObraDoRecurso(
+                                    maquinario.idobra
+                                  )}
+                                </option>
+
+                              )
+                            )}
+
+                          </select>
+
+                        </div>
+
+                      </div>
 
                       <button
                         type="submit"
                         className="button"
+                        disabled={
+                          atribuindo ||
+                          !idMaquinarioSelecionado
+                        }
                       >
-                        Adicionar planejamento
+                        {atribuindo
+                          ? "Atribuindo..."
+                          : "Atribuir maquinário"}
                       </button>
 
-                    </div>
+                    </form>
 
-                  </form>
-
-                  <div
-                    className="dashboard-table"
-                    style={{
-                      marginTop: "24px",
-                    }}
-                  >
-
-                    {recursosSelecionados
-                      .planejamento
-                      .length === 0 ? (
-                      <p>
-                        Nenhum custo planejado
-                        cadastrado.
-                      </p>
-                    ) : (
+                    <div
+                      className="tabela-container"
+                      style={{
+                        marginTop:
+                          "25px",
+                      }}
+                    >
 
                       <table>
 
                         <thead>
+
                           <tr>
-                            <th>Etapa</th>
-                            <th>Origem</th>
-                            <th>Valor</th>
-                            <th>Início</th>
-                            <th>Fim</th>
-                            <th>Ações</th>
+
+                            <th>
+                              Maquinário
+                            </th>
+
+                            <th>
+                              Quantidade
+                            </th>
+
+                            <th>
+                              Etapa
+                            </th>
+
+                            <th>
+                              Custo diário
+                            </th>
+
+                            <th>
+                              Status
+                            </th>
+
                           </tr>
+
                         </thead>
 
                         <tbody>
 
-                          {recursosSelecionados
-                            .planejamento
-                            .map(
-                              (item) => (
+                          {maquinariosAtribuidos.length ===
+                          0 ? (
+
+                            <tr>
+
+                              <td
+                                colSpan="5"
+                                className="tabela-vazia"
+                              >
+                                Nenhum maquinário atribuído.
+                              </td>
+
+                            </tr>
+
+                          ) : (
+
+                            maquinariosAtribuidos.map(
+                              (maquinario) => (
 
                                 <tr
                                   key={
-                                    item
-                                      .id_custo_planejado
+                                    obterIdMaquinario(
+                                      maquinario
+                                    )
                                   }
                                 >
 
                                   <td>
-                                    {item.etapa}
+                                    {
+                                      maquinario.nome
+                                    }
                                   </td>
 
                                   <td>
-                                    {item.origem_custo}
+                                    {maquinario.quantidade ??
+                                      0}
+                                  </td>
+
+                                  <td>
+                                    {maquinario.etapa_atuacao ||
+                                      "-"}
                                   </td>
 
                                   <td>
                                     {formatarReal(
-                                      item
-                                        .valor_planejado
+                                      maquinario.custo_diario
                                     )}
                                   </td>
 
                                   <td>
-                                    {formatarData(
-                                      item
-                                        .data_inicio_prevista
-                                    )}
-                                  </td>
-
-                                  <td>
-                                    {formatarData(
-                                      item
-                                        .data_fim_prevista
-                                    )}
-                                  </td>
-
-                                  <td>
-
-                                    <button
-                                      type="button"
-                                      className="secondary-button"
-                                      onClick={() =>
-                                        removerRecurso(
-                                          "planejamento",
-                                          item
-                                            .id_custo_planejado
-                                        )
-                                      }
-                                    >
-                                      Remover
-                                    </button>
-
+                                    {maquinario.status ||
+                                      "-"}
                                   </td>
 
                                 </tr>
 
                               )
-                            )}
+                            )
+
+                          )}
 
                         </tbody>
 
                       </table>
 
-                    )}
+                    </div>
 
                   </div>
 
-                </div>
+                )}
 
-              )}
+              </>
 
-            </div>
+            )}
 
           </div>
 
-        )}
+        </div>
 
-      </div>
+      )}
 
     </Layout>
   );

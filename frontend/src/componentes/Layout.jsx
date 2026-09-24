@@ -1,62 +1,110 @@
-import { useEffect, useState } from "react";
+import {
+  useEffect,
+  useState,
+} from "react";
 
 import Header from "./Header";
 import Sidebar from "./Sidebar";
 
-import { requisitar } from "../api/api";
+import {
+  requisitar,
+} from "../api/api";
 
-function Layout({ children, onNavegar }) {
-  const [usuario, setUsuario] = useState(null);
+function Layout({
+  children,
+  onNavegar,
+}) {
+  const [
+    usuario,
+    setUsuario,
+  ] = useState(() => {
+    try {
+      return JSON.parse(
+        localStorage.getItem(
+          "usuario"
+        ) || "null"
+      );
+    } catch {
+      return null;
+    }
+  });
 
   useEffect(() => {
     buscarUsuario();
   }, []);
 
   async function buscarUsuario() {
+    const idUsuario =
+      localStorage.getItem(
+        "id_usuario"
+      );
+
+    if (!idUsuario) {
+      return;
+    }
+
     try {
-      const idUsuario =
-        localStorage.getItem("id_usuario");
+      const dados =
+        await requisitar(
+          `/usuarios/${idUsuario}`
+        );
 
-      if (!idUsuario) {
-        return;
-      }
-
-      const dados = await requisitar(
-        `/usuarios/${idUsuario}`
-      );
-
-      console.log(
-        "Usuário carregado:",
-        dados
-      );
+      const usuarioAtual =
+        dados?.usuario ||
+        dados;
 
       setUsuario(
-        dados.usuario || dados
+        usuarioAtual
       );
 
+      localStorage.setItem(
+        "usuario",
+        JSON.stringify(
+          usuarioAtual
+        )
+      );
+
+      localStorage.setItem(
+        "nome_usuario",
+        usuarioAtual?.nome || ""
+      );
     } catch (erro) {
-      console.error(
-        "Erro ao buscar usuário:",
-        erro
+      console.warn(
+        "Não foi possível atualizar o usuário do cabeçalho:",
+        erro.message || erro
       );
     }
   }
 
   function sair() {
-    localStorage.removeItem(
-      "id_usuario"
+    [
+      "id_usuario",
+      "nome_usuario",
+      "email_usuario",
+      "ocupacao",
+      "ambiente",
+      "status_usuario",
+      "idconstrutora",
+      "id_construtora",
+      "usuario",
+      "obra_selecionada",
+    ].forEach(
+      (chave) =>
+        localStorage.removeItem(
+          chave
+        )
     );
 
-    localStorage.removeItem(
-      "idconstrutora"
-    );
-
-    onNavegar("login");
+    if (
+      typeof onNavegar ===
+      "function"
+    ) {
+      onNavegar("login");
+    }
   }
 
   return (
     <div className="layout">
-
       <Header
         usuario={usuario}
         onNavegar={onNavegar}
@@ -64,7 +112,6 @@ function Layout({ children, onNavegar }) {
       />
 
       <div className="layout-body">
-
         <Sidebar
           onNavegar={onNavegar}
         />
@@ -72,7 +119,6 @@ function Layout({ children, onNavegar }) {
         <main className="main-content">
           {children}
         </main>
-
       </div>
     </div>
   );

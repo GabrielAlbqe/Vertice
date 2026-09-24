@@ -1,295 +1,709 @@
-import { useState } from "react";
+import {
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 
 import Layout from "../componentes/Layout";
-import Card from "../componentes/Card";
-import Table from "../componentes/Table";
 
-function Equipes({ onNavegar }) {
-  const [modalAberto, setModalAberto] = useState(false);
+import {
+  requisitar,
+} from "../api/api.js";
 
-  const obras = [
+import {
+  listarObras,
+} from "../api/obras.js";
+
+import {
+  atualizarEquipe,
+  criarEquipe,
+  excluirEquipe,
+  listarEquipesTerceirizadas,
+  obterIdEquipe,
+} from "../api/recursos.js";
+
+// =====================================================
+// ÁREAS
+// =====================================================
+
+const AREAS_ATUACAO = [
+  "Mobilização",
+  "Infraestrutura",
+  "Supraestrutura e Alvenaria",
+  "Instalações",
+  "Revestimentos",
+  "Acabamento",
+];
+
+// =====================================================
+// FORMULÁRIO
+// =====================================================
+
+const FORMULARIO_VAZIO = {
+  nome_equipe: "",
+  area_atuacao: "",
+  quantidade_profissionais: "",
+  custo_diario_total: "",
+  id_obra: "",
+};
+
+// =====================================================
+// AUXILIAR
+// =====================================================
+
+function formatarReal(valor) {
+  return Number(
+    valor || 0
+  ).toLocaleString(
+    "pt-BR",
     {
-      id_obra: 1,
-      nome: "Residencial Aurora",
-    },
-    {
-      id_obra: 2,
-      nome: "Edifício Central",
-    },
-    {
-      id_obra: 3,
-      nome: "Condomínio Vale",
-    },
-    {
-      id_obra: 4,
-      nome: "Hospital São Lucas",
-    },
-  ];
+      style: "currency",
+      currency: "BRL",
+    }
+  );
+}
 
-  const diasSemana = [
-    { valor: "seg", nome: "Segunda" },
-    { valor: "ter", nome: "Terça" },
-    { valor: "qua", nome: "Quarta" },
-    { valor: "qui", nome: "Quinta" },
-    { valor: "sex", nome: "Sexta" },
-    { valor: "sab", nome: "Sábado" },
-    { valor: "dom", nome: "Domingo" },
-  ];
+// =====================================================
+// COMPONENTE
+// =====================================================
 
-  const [equipes, setEquipes] = useState([
-    {
-      id_equipe: 1,
-      nome_equipe: "Equipe Elétrica",
-      tipo_equipe: "Terceirizada",
-      etapa_atuacao: "Instalações",
-      custo_diario_total: 850,
+function Equipes({
+  onNavegar,
+}) {
+  const [
+    equipes,
+    setEquipes,
+  ] = useState([]);
 
-      dias_semana_atuacao: [
-        "seg",
-        "ter",
-        "qua",
-        "qui",
-        "sex",
-      ],
+  const [
+    obras,
+    setObras,
+  ] = useState([]);
 
-      dias_atuacao: "Seg, Ter, Qua, Qui, Sex",
+  const [
+    carregando,
+    setCarregando,
+  ] = useState(true);
 
-      id_obra: 1,
-      obra: "Residencial Aurora",
-    },
+  const [
+    salvando,
+    setSalvando,
+  ] = useState(false);
 
-    {
-      id_equipe: 2,
-      nome_equipe: "Equipe Estrutural",
-      tipo_equipe: "Própria",
-      etapa_atuacao: "Supraestrutura e alvenaria",
-      custo_diario_total: 1200,
+  const [
+    erro,
+    setErro,
+  ] = useState("");
 
-      dias_semana_atuacao: [
-        "seg",
-        "ter",
-        "qua",
-        "qui",
-        "sex",
-        "sab",
-      ],
+  const [
+    sucesso,
+    setSucesso,
+  ] = useState("");
 
-      dias_atuacao: "Seg, Ter, Qua, Qui, Sex, Sáb",
+  const [
+    pesquisa,
+    setPesquisa,
+  ] = useState("");
 
-      id_obra: 2,
-      obra: "Edifício Central",
-    },
+  const [
+    filtroArea,
+    setFiltroArea,
+  ] = useState("");
 
-    {
-      id_equipe: 3,
-      nome_equipe: "Equipe de Acabamento",
-      tipo_equipe: "Terceirizada",
-      etapa_atuacao: "Acabamento",
-      custo_diario_total: 700,
+  const [
+    formularioAberto,
+    setFormularioAberto,
+  ] = useState(false);
 
-      dias_semana_atuacao: [
-        "seg",
-        "qua",
-        "sex",
-      ],
+  const [
+    equipeEditando,
+    setEquipeEditando,
+  ] = useState(null);
 
-      dias_atuacao: "Seg, Qua, Sex",
+  const [
+    formulario,
+    setFormulario,
+  ] = useState(
+    FORMULARIO_VAZIO
+  );
 
-      id_obra: 3,
-      obra: "Condomínio Vale",
-    },
-  ]);
+  // ===================================================
+  // CARREGAR
+  // ===================================================
 
-  const [novaEquipe, setNovaEquipe] = useState({
-    nome_equipe: "",
-    tipo_equipe: "",
-    etapa_atuacao: "",
-    custo_diario_total: "",
-    dias_semana_atuacao: [],
-    id_obra: "",
-  });
+  useEffect(() => {
+    carregarPagina();
+  }, []);
 
-  const columns = [
-    {
-      key: "nome_equipe",
-      label: "Equipe",
-    },
-    {
-      key: "tipo_equipe",
-      label: "Tipo",
-    },
-    {
-      key: "etapa_atuacao",
-      label: "Etapa de atuação",
-    },
-    {
-      key: "custo_diario_total",
-      label: "Custo diário",
-    },
-    {
-      key: "dias_atuacao",
-      label: "Dias de atuação",
-    },
-    {
-      key: "obra",
-      label: "Obra",
-    },
-  ];
+  async function buscarIdConstrutora() {
+    let idConstrutora =
+      localStorage.getItem(
+        "idconstrutora"
+      ) ||
+      localStorage.getItem(
+        "id_construtora"
+      );
 
-  function handleChange(event) {
-    const { name, value } = event.target;
+    if (idConstrutora) {
+      return idConstrutora;
+    }
 
-    setNovaEquipe({
-      ...novaEquipe,
-      [name]: value,
-    });
+    const idUsuario =
+      localStorage.getItem(
+        "id_usuario"
+      );
+
+    if (!idUsuario) {
+      throw new Error(
+        "Usuário não identificado."
+      );
+    }
+
+    const dadosUsuario =
+      await requisitar(
+        `/usuarios/${idUsuario}`
+      );
+
+    const usuario =
+      dadosUsuario?.usuario ||
+      dadosUsuario;
+
+    idConstrutora =
+      usuario?.idconstrutora ??
+      usuario?.id_construtora;
+
+    if (!idConstrutora) {
+      throw new Error(
+        "Construtora não identificada."
+      );
+    }
+
+    localStorage.setItem(
+      "idconstrutora",
+      String(
+        idConstrutora
+      )
+    );
+
+    return idConstrutora;
   }
 
-  function handleDiaChange(event) {
-    const { value, checked } = event.target;
+  async function carregarPagina() {
+    try {
+      setCarregando(true);
+      setErro("");
 
-    if (checked) {
-      setNovaEquipe({
-        ...novaEquipe,
+      const idConstrutora =
+        await buscarIdConstrutora();
 
-        dias_semana_atuacao: [
-          ...novaEquipe.dias_semana_atuacao,
-          value,
-        ],
-      });
-    } else {
-      setNovaEquipe({
-        ...novaEquipe,
+      const [
+        listaObras,
+        listaEquipes,
+      ] = await Promise.all([
+        listarObras(
+          idConstrutora
+        ),
 
-        dias_semana_atuacao:
-          novaEquipe.dias_semana_atuacao.filter(
-            (dia) => dia !== value
-          ),
-      });
+        listarEquipesTerceirizadas(),
+      ]);
+
+      const obrasValidas =
+        Array.isArray(
+          listaObras
+        )
+          ? listaObras
+          : [];
+
+      setObras(
+        obrasValidas
+      );
+
+      const idsObras =
+        new Set(
+          obrasValidas
+            .map(
+              (obra) =>
+                Number(
+                  obra.id_obra
+                )
+            )
+            .filter(
+              Boolean
+            )
+        );
+
+      const equipesValidas =
+        idsObras.size > 0
+          ? listaEquipes.filter(
+              (equipe) =>
+                idsObras.has(
+                  Number(
+                    equipe.id_obra ??
+                    equipe.idobra
+                  )
+                )
+            )
+          : listaEquipes;
+
+      setEquipes(
+        equipesValidas
+      );
+    } catch (error) {
+      console.error(
+        "Erro ao carregar equipes:",
+        error
+      );
+
+      setErro(
+        error.message ||
+        "Erro ao carregar equipes."
+      );
+    } finally {
+      setCarregando(false);
     }
   }
 
-  function formatarDias(dias) {
-    const nomes = {
-      seg: "Seg",
-      ter: "Ter",
-      qua: "Qua",
-      qui: "Qui",
-      sex: "Sex",
-      sab: "Sáb",
-      dom: "Dom",
-    };
+  // ===================================================
+  // FORMULÁRIO
+  // ===================================================
 
-    return dias
-      .map((dia) => nomes[dia])
-      .join(", ");
+  function alterarCampo(
+    event
+  ) {
+    const {
+      name,
+      value,
+    } = event.target;
+
+    setFormulario(
+      (anterior) => ({
+        ...anterior,
+        [name]: value,
+      })
+    );
   }
 
-  function criarEquipe(event) {
-    event.preventDefault();
+  function abrirCadastro() {
+    setEquipeEditando(
+      null
+    );
 
-    if (novaEquipe.dias_semana_atuacao.length === 0) {
-      alert("Selecione pelo menos um dia de atuação.");
+    setFormulario(
+      FORMULARIO_VAZIO
+    );
+
+    setErro("");
+    setSucesso("");
+
+    setFormularioAberto(
+      true
+    );
+  }
+
+  function abrirEdicao(
+    equipe
+  ) {
+    setEquipeEditando(
+      equipe
+    );
+
+    setFormulario({
+      nome_equipe:
+        equipe.nome_equipe ||
+        "",
+
+      area_atuacao:
+        equipe.area_atuacao ||
+        "",
+
+      quantidade_profissionais:
+        equipe.quantidade_profissionais ??
+        "",
+
+      custo_diario_total:
+        equipe.custo_diario_total ??
+        "",
+
+      id_obra:
+        String(
+          equipe.id_obra ??
+          equipe.idobra ??
+          ""
+        ),
+    });
+
+    setErro("");
+    setSucesso("");
+
+    setFormularioAberto(
+      true
+    );
+  }
+
+  function cancelarFormulario() {
+    if (salvando) {
       return;
     }
 
-    const obraSelecionada = obras.find(
-      (obra) =>
-        obra.id_obra === Number(novaEquipe.id_obra)
+    setFormularioAberto(
+      false
     );
 
-    const equipe = {
-      id_equipe: Date.now(),
+    setEquipeEditando(
+      null
+    );
 
-      nome_equipe: novaEquipe.nome_equipe,
-
-      tipo_equipe:
-        novaEquipe.tipo_equipe === "propria"
-          ? "Própria"
-          : "Terceirizada",
-
-      etapa_atuacao:
-        novaEquipe.etapa_atuacao,
-
-      custo_diario_total: Number(
-        novaEquipe.custo_diario_total
-      ),
-
-      dias_semana_atuacao:
-        novaEquipe.dias_semana_atuacao,
-
-      dias_atuacao: formatarDias(
-        novaEquipe.dias_semana_atuacao
-      ),
-
-      id_obra: Number(
-        novaEquipe.id_obra
-      ),
-
-      obra: obraSelecionada
-        ? obraSelecionada.nome
-        : "",
-    };
-
-    setEquipes([
-      ...equipes,
-      equipe,
-    ]);
-
-    setNovaEquipe({
-      nome_equipe: "",
-      tipo_equipe: "",
-      etapa_atuacao: "",
-      custo_diario_total: "",
-      dias_semana_atuacao: [],
-      id_obra: "",
-    });
-
-    setModalAberto(false);
+    setFormulario(
+      FORMULARIO_VAZIO
+    );
   }
 
-  const equipesProprias =
-    equipes.filter(
-      (equipe) =>
-        equipe.tipo_equipe === "Própria"
-    ).length;
+  // ===================================================
+  // SALVAR
+  // ===================================================
 
-  const equipesTerceirizadas =
-    equipes.filter(
-      (equipe) =>
-        equipe.tipo_equipe === "Terceirizada"
-    ).length;
+  async function salvarEquipe(
+    event
+  ) {
+    event.preventDefault();
 
-  const custoDiarioTotal =
+    try {
+      setSalvando(true);
+
+      setErro("");
+      setSucesso("");
+
+      const payload = {
+        nome_equipe:
+          formulario
+            .nome_equipe
+            .trim(),
+
+        area_atuacao:
+          formulario
+            .area_atuacao,
+
+        quantidade_profissionais:
+          Number(
+            formulario
+              .quantidade_profissionais
+          ),
+
+        custo_diario_total:
+          Number(
+            formulario
+              .custo_diario_total ||
+            0
+          ),
+
+        id_obra:
+          Number(
+            formulario.id_obra
+          ),
+      };
+
+      if (
+        !payload.nome_equipe
+      ) {
+        throw new Error(
+          "Informe o nome da equipe."
+        );
+      }
+
+      if (
+        !payload.area_atuacao
+      ) {
+        throw new Error(
+          "Selecione a área de atuação."
+        );
+      }
+
+      if (
+        !Number.isInteger(
+          payload
+            .quantidade_profissionais
+        ) ||
+        payload
+          .quantidade_profissionais <=
+          0
+      ) {
+        throw new Error(
+          "Informe uma quantidade de profissionais válida."
+        );
+      }
+
+      if (
+        payload.custo_diario_total <
+        0
+      ) {
+        throw new Error(
+          "O custo diário não pode ser negativo."
+        );
+      }
+
+      if (
+        !payload.id_obra
+      ) {
+        throw new Error(
+          "Selecione uma obra."
+        );
+      }
+
+      if (equipeEditando) {
+        const id =
+          obterIdEquipe(
+            equipeEditando
+          );
+
+        if (!id) {
+          throw new Error(
+            "Equipe não identificada."
+          );
+        }
+
+        await atualizarEquipe(
+          id,
+          payload
+        );
+
+        setSucesso(
+          "Equipe atualizada com sucesso."
+        );
+      } else {
+        await criarEquipe(
+          payload
+        );
+
+        setSucesso(
+          "Equipe cadastrada com sucesso."
+        );
+      }
+
+      setFormularioAberto(
+        false
+      );
+
+      setEquipeEditando(
+        null
+      );
+
+      setFormulario(
+        FORMULARIO_VAZIO
+      );
+
+      await carregarPagina();
+    } catch (error) {
+      console.error(
+        "Erro ao salvar equipe:",
+        error
+      );
+
+      setErro(
+        error.message ||
+        "Erro ao salvar equipe."
+      );
+    } finally {
+      setSalvando(false);
+    }
+  }
+
+  // ===================================================
+  // EXCLUIR
+  // ===================================================
+
+  async function removerEquipe(
+    equipe
+  ) {
+    const confirmar =
+      window.confirm(
+        `Deseja excluir a equipe "${equipe.nome_equipe}"?`
+      );
+
+    if (!confirmar) {
+      return;
+    }
+
+    try {
+      setErro("");
+      setSucesso("");
+
+      await excluirEquipe(
+        equipe
+      );
+
+      setSucesso(
+        "Equipe excluída com sucesso."
+      );
+
+      await carregarPagina();
+    } catch (error) {
+      setErro(
+        error.message ||
+        "Erro ao excluir equipe."
+      );
+    }
+  }
+
+  // ===================================================
+  // OBRAS
+  // ===================================================
+
+  const nomeObraPorId =
+    useMemo(() => {
+      const mapa = {};
+
+      obras.forEach(
+        (obra) => {
+          mapa[
+            String(
+              obra.id_obra
+            )
+          ] =
+            obra.nome ||
+            obra.obra ||
+            `Obra ${obra.id_obra}`;
+        }
+      );
+
+      return mapa;
+    }, [obras]);
+
+  // ===================================================
+  // FILTROS
+  // ===================================================
+
+  const equipesFiltradas =
+    useMemo(() => {
+      const termo =
+        pesquisa
+          .trim()
+          .toLowerCase();
+
+      return equipes.filter(
+        (equipe) => {
+          const nome =
+            String(
+              equipe.nome_equipe ||
+              ""
+            ).toLowerCase();
+
+          const area =
+            String(
+              equipe.area_atuacao ||
+              ""
+            ).toLowerCase();
+
+          const obra =
+            String(
+              nomeObraPorId[
+                String(
+                  equipe.id_obra ??
+                  equipe.idobra
+                )
+              ] || ""
+            ).toLowerCase();
+
+          const quantidade =
+            String(
+              equipe.quantidade_profissionais ||
+              ""
+            );
+
+          const correspondePesquisa =
+            !termo ||
+            nome.includes(
+              termo
+            ) ||
+            area.includes(
+              termo
+            ) ||
+            obra.includes(
+              termo
+            ) ||
+            quantidade.includes(
+              termo
+            );
+
+          const correspondeArea =
+            !filtroArea ||
+            equipe.area_atuacao ===
+              filtroArea;
+
+          return (
+            correspondePesquisa &&
+            correspondeArea
+          );
+        }
+      );
+    }, [
+      equipes,
+      pesquisa,
+      filtroArea,
+      nomeObraPorId,
+    ]);
+
+  // ===================================================
+  // INDICADORES
+  // ===================================================
+
+  const totalProfissionais =
     equipes.reduce(
-      (total, equipe) =>
+      (
+        total,
+        equipe
+      ) =>
         total +
         Number(
-          equipe.custo_diario_total || 0
+          equipe.quantidade_profissionais ||
+          0
         ),
       0
     );
 
-  const obrasAtendidas =
+  const custoTotal =
+    equipes.reduce(
+      (
+        total,
+        equipe
+      ) =>
+        total +
+        Number(
+          equipe.custo_diario_total ||
+          0
+        ),
+      0
+    );
+
+  const totalAreas =
     new Set(
-      equipes.map(
-        (equipe) => equipe.id_obra
-      )
+      equipes
+        .map(
+          (equipe) =>
+            equipe.area_atuacao
+        )
+        .filter(
+          Boolean
+        )
     ).size;
 
+  // ===================================================
+  // JSX
+  // ===================================================
+
   return (
-    <Layout onNavegar={onNavegar}>
-
+    <Layout
+      onNavegar={
+        onNavegar
+      }
+    >
       <div className="dashboard">
-
-        {/* CABEÇALHO */}
 
         <section className="dashboard-header">
 
           <div>
 
             <span className="dashboard-eyebrow">
-              PLANEJAMENTO DE OBRA
+              RECURSOS HUMANOS
             </span>
 
             <h1>
@@ -297,140 +711,97 @@ function Equipes({ onNavegar }) {
             </h1>
 
             <p>
-              Cadastre e acompanhe as equipes próprias
-              e terceirizadas vinculadas às obras.
+              Cadastre e organize as
+              equipes por área de atuação.
             </p>
 
           </div>
 
-        </section>
-
-        {/* CARDS */}
-
-        <section className="cards-grid">
-
-          <Card
-            title="Total de equipes"
-            value={equipes.length}
-            description="Equipes cadastradas"
-          />
-
-          <Card
-            title="Equipes próprias"
-            value={equipesProprias}
-            description="Equipes da empresa"
-          />
-
-          <Card
-            title="Terceirizadas"
-            value={equipesTerceirizadas}
-            description="Equipes contratadas"
-          />
-
-          <Card
-            title="Custo diário"
-            value={`R$ ${custoDiarioTotal.toLocaleString(
-              "pt-BR",
-              {
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 2,
-              }
-            )}`}
-            description={`${obrasAtendidas} obras atendidas`}
-          />
-
-        </section>
-
-        {/* LISTA */}
-
-        <section className="dashboard-section">
-
-          <div className="section-header">
-
-            <div>
-
-              <span className="section-label">
-                GESTÃO DE EQUIPES
-              </span>
-
-              <h2>
-                Equipes cadastradas
-              </h2>
-
-              <p>
-                Visualize equipes, tipos,
-                etapas, dias de atuação,
-                custos e obras.
-              </p>
-
-            </div>
+          <div className="dashboard-header-actions">
 
             <button
+              type="button"
               className="secondary-button"
-              onClick={() =>
-                setModalAberto(true)
+              onClick={
+                carregarPagina
               }
             >
-              + Nova equipe
+              Atualizar
+            </button>
+
+            <button
+              type="button"
+              className="button"
+              onClick={
+                abrirCadastro
+              }
+            >
+              + Nova Equipe
             </button>
 
           </div>
 
-          <div className="dashboard-table">
-
-            <Table
-              columns={columns}
-              data={equipes}
-            />
-
-          </div>
-
         </section>
 
-        {/* MODAL */}
+        {erro && (
+          <div className="auth-error">
+            {erro}
+          </div>
+        )}
 
-        {modalAberto && (
+        {sucesso && (
+          <div
+            style={{
+              padding:
+                "14px 18px",
 
-          <div className="modal-overlay">
+              marginBottom:
+                "20px",
 
-            <div className="modal-container">
+              background:
+                "#e8f7ed",
 
-              <div className="modal-header">
+              borderRadius:
+                "10px",
+            }}
+          >
+            {sucesso}
+          </div>
+        )}
 
-                <div>
+        {/* FORMULÁRIO */}
 
-                  <span className="section-label">
-                    PLANEJAMENTO
-                  </span>
+        {formularioAberto && (
+          <section className="dashboard-section">
 
-                  <h2>
-                    Nova equipe
-                  </h2>
+            <div className="section-header">
 
-                  <p>
-                    Informe os dados da equipe.
-                  </p>
+              <div>
 
-                </div>
+                <span className="section-label">
+                  {equipeEditando
+                    ? "EDIÇÃO"
+                    : "CADASTRO"}
+                </span>
 
-                <button
-                  type="button"
-                  className="modal-close"
-                  onClick={() =>
-                    setModalAberto(false)
-                  }
-                >
-                  ×
-                </button>
+                <h2>
+                  {equipeEditando
+                    ? "Editar equipe"
+                    : "Cadastrar equipe"}
+                </h2>
 
               </div>
 
-              <form
-                className="equipe-form"
-                onSubmit={criarEquipe}
-              >
+            </div>
 
-                {/* NOME */}
+            <form
+              className="obra-form"
+              onSubmit={
+                salvarEquipe
+              }
+            >
+
+              <div className="obra-form-grid">
 
                 <div className="form-group">
 
@@ -441,99 +812,81 @@ function Equipes({ onNavegar }) {
                   <input
                     type="text"
                     name="nome_equipe"
-                    placeholder="Ex: Equipe Elétrica"
                     value={
-                      novaEquipe.nome_equipe
+                      formulario.nome_equipe
                     }
-                    onChange={handleChange}
+                    onChange={
+                      alterarCampo
+                    }
+                    placeholder="Ex.: Equipe Estrutura Norte"
                     required
                   />
 
                 </div>
 
-                {/* TIPO */}
-
                 <div className="form-group">
 
                   <label>
-                    Tipo da equipe
+                    Área de atuação
                   </label>
 
                   <select
-                    name="tipo_equipe"
+                    name="area_atuacao"
                     value={
-                      novaEquipe.tipo_equipe
+                      formulario.area_atuacao
                     }
-                    onChange={handleChange}
+                    onChange={
+                      alterarCampo
+                    }
                     required
                   >
 
                     <option value="">
-                      Selecione o tipo
+                      Selecione
                     </option>
 
-                    <option value="propria">
-                      Própria empresa
-                    </option>
-
-                    <option value="terceirizada">
-                      Terceirizada
-                    </option>
+                    {AREAS_ATUACAO.map(
+                      (area) => (
+                        <option
+                          key={
+                            area
+                          }
+                          value={
+                            area
+                          }
+                        >
+                          {area}
+                        </option>
+                      )
+                    )}
 
                   </select>
 
                 </div>
 
-                {/* ETAPA */}
-
                 <div className="form-group">
 
                   <label>
-                    Etapa de atuação
+                    Quantidade de profissionais
                   </label>
 
-                  <select
-                    name="etapa_atuacao"
+                  <input
+                    type="number"
+                    min="1"
+                    step="1"
+                    name="quantidade_profissionais"
                     value={
-                      novaEquipe.etapa_atuacao
+                      formulario
+                        .quantidade_profissionais
                     }
-                    onChange={handleChange}
+                    onChange={
+                      alterarCampo
+                    }
+                    placeholder="Ex.: 12"
                     required
-                  >
-
-                    <option value="">
-                      Selecione uma etapa
-                    </option>
-
-                    <option value="Mobilização">
-                      Mobilização
-                    </option>
-
-                    <option value="Infraestrutura">
-                      Infraestrutura
-                    </option>
-
-                    <option value="Supraestrutura e alvenaria">
-                      Supraestrutura e alvenaria
-                    </option>
-
-                    <option value="Instalações">
-                      Instalações
-                    </option>
-
-                    <option value="Revestimentos">
-                      Revestimentos
-                    </option>
-
-                    <option value="Acabamento">
-                      Acabamento
-                    </option>
-
-                  </select>
+                  />
 
                 </div>
-
-                {/* CUSTO */}
 
                 <div className="form-group">
 
@@ -543,67 +896,21 @@ function Equipes({ onNavegar }) {
 
                   <input
                     type="number"
-                    name="custo_diario_total"
                     min="0"
                     step="0.01"
-                    placeholder="Ex: 850,00"
+                    name="custo_diario_total"
                     value={
-                      novaEquipe.custo_diario_total
+                      formulario
+                        .custo_diario_total
                     }
-                    onChange={handleChange}
+                    onChange={
+                      alterarCampo
+                    }
+                    placeholder="Ex.: 2400"
                     required
                   />
 
                 </div>
-
-                {/* DIAS */}
-
-                <div className="form-group">
-
-                  <label>
-                    Dias da semana de atuação
-                  </label>
-
-                  <span className="form-help">
-                    Selecione todos os dias em que
-                    a equipe trabalha.
-                  </span>
-
-                  <div className="dias-semana-grid">
-
-                    {diasSemana.map((dia) => (
-
-                      <label
-                        className="dia-checkbox"
-                        key={dia.valor}
-                      >
-
-                        <input
-                          type="checkbox"
-                          value={dia.valor}
-                          checked={
-                            novaEquipe.dias_semana_atuacao.includes(
-                              dia.valor
-                            )
-                          }
-                          onChange={
-                            handleDiaChange
-                          }
-                        />
-
-                        <span>
-                          {dia.nome}
-                        </span>
-
-                      </label>
-
-                    ))}
-
-                  </div>
-
-                </div>
-
-                {/* OBRA */}
 
                 <div className="form-group">
 
@@ -614,9 +921,11 @@ function Equipes({ onNavegar }) {
                   <select
                     name="id_obra"
                     value={
-                      novaEquipe.id_obra
+                      formulario.id_obra
                     }
-                    onChange={handleChange}
+                    onChange={
+                      alterarCampo
+                    }
                     required
                   >
 
@@ -624,54 +933,425 @@ function Equipes({ onNavegar }) {
                       Selecione uma obra
                     </option>
 
-                    {obras.map((obra) => (
-
-                      <option
-                        key={obra.id_obra}
-                        value={obra.id_obra}
-                      >
-                        {obra.nome}
-                      </option>
-
-                    ))}
+                    {obras.map(
+                      (obra) => (
+                        <option
+                          key={
+                            obra.id_obra
+                          }
+                          value={
+                            obra.id_obra
+                          }
+                        >
+                          {obra.nome ||
+                            obra.obra ||
+                            `Obra ${obra.id_obra}`}
+                        </option>
+                      )
+                    )}
 
                   </select>
 
                 </div>
 
-                {/* BOTÕES */}
+              </div>
 
-                <div className="modal-actions">
+              <div className="modal-actions">
 
-                  <button
-                    type="button"
-                    className="cancel-button"
-                    onClick={() =>
-                      setModalAberto(false)
-                    }
-                  >
-                    Cancelar
-                  </button>
+                <button
+                  type="button"
+                  className="secondary-button"
+                  onClick={
+                    cancelarFormulario
+                  }
+                  disabled={
+                    salvando
+                  }
+                >
+                  Cancelar
+                </button>
 
-                  <button
-                    type="submit"
-                    className="secondary-button"
-                  >
-                    Cadastrar equipe
-                  </button>
+                <button
+                  type="submit"
+                  className="button"
+                  disabled={
+                    salvando
+                  }
+                >
+                  {salvando
+                    ? "Salvando..."
+                    : equipeEditando
+                      ? "Salvar alterações"
+                      : "Cadastrar equipe"}
+                </button>
 
-                </div>
+              </div>
 
-              </form>
+            </form>
+
+          </section>
+        )}
+
+        {/* CARDS */}
+
+        <section className="cards-grid">
+
+          <div className="dashboard-section">
+
+            <span className="section-label">
+              EQUIPES
+            </span>
+
+            <h2>
+              {carregando
+                ? "..."
+                : equipes.length}
+            </h2>
+
+            <p>
+              Equipes cadastradas
+            </p>
+
+          </div>
+
+          <div className="dashboard-section">
+
+            <span className="section-label">
+              PROFISSIONAIS
+            </span>
+
+            <h2>
+              {carregando
+                ? "..."
+                : totalProfissionais}
+            </h2>
+
+            <p>
+              Pessoas nas equipes
+            </p>
+
+          </div>
+
+          <div className="dashboard-section">
+
+            <span className="section-label">
+              ÁREAS
+            </span>
+
+            <h2>
+              {carregando
+                ? "..."
+                : totalAreas}
+            </h2>
+
+            <p>
+              Áreas atendidas
+            </p>
+
+          </div>
+
+          <div className="dashboard-section">
+
+            <span className="section-label">
+              CUSTO DIÁRIO
+            </span>
+
+            <h2>
+              {carregando
+                ? "..."
+                : formatarReal(
+                    custoTotal
+                  )}
+            </h2>
+
+            <p>
+              Total das equipes
+            </p>
+
+          </div>
+
+        </section>
+
+        {/* LISTAGEM */}
+
+        <section className="dashboard-section">
+
+          <div className="section-header">
+
+            <div>
+
+              <span className="section-label">
+                EQUIPES
+              </span>
+
+              <h2>
+                Equipes cadastradas
+              </h2>
+
+              <p>
+                Consulte equipes por
+                nome, área ou obra.
+              </p>
 
             </div>
 
           </div>
 
-        )}
+          <div
+            style={{
+              display:
+                "flex",
+
+              gap:
+                "12px",
+
+              flexWrap:
+                "wrap",
+
+              marginBottom:
+                "20px",
+            }}
+          >
+
+            <input
+              type="text"
+              placeholder="Pesquisar nome, área ou obra..."
+              value={
+                pesquisa
+              }
+              onChange={(
+                event
+              ) =>
+                setPesquisa(
+                  event.target.value
+                )
+              }
+            />
+
+            <select
+              value={
+                filtroArea
+              }
+              onChange={(
+                event
+              ) =>
+                setFiltroArea(
+                  event.target.value
+                )
+              }
+            >
+
+              <option value="">
+                Todas as áreas
+              </option>
+
+              {AREAS_ATUACAO.map(
+                (area) => (
+                  <option
+                    key={
+                      area
+                    }
+                    value={
+                      area
+                    }
+                  >
+                    {area}
+                  </option>
+                )
+              )}
+
+            </select>
+
+          </div>
+
+          <div className="tabela-container">
+
+            <table>
+
+              <thead>
+
+                <tr>
+
+                  <th>
+                    Equipe
+                  </th>
+
+                  <th>
+                    Área
+                  </th>
+
+                  <th>
+                    Profissionais
+                  </th>
+
+                  <th>
+                    Obra
+                  </th>
+
+                  <th>
+                    Custo diário
+                  </th>
+
+                  <th>
+                    Ações
+                  </th>
+
+                </tr>
+
+              </thead>
+
+              <tbody>
+
+                {carregando ? (
+
+                  <tr>
+
+                    <td
+                      colSpan="6"
+                      className="tabela-vazia"
+                    >
+                      Carregando equipes...
+                    </td>
+
+                  </tr>
+
+                ) : equipesFiltradas.length ===
+                  0 ? (
+
+                  <tr>
+
+                    <td
+                      colSpan="6"
+                      className="tabela-vazia"
+                    >
+                      Nenhuma equipe encontrada.
+                    </td>
+
+                  </tr>
+
+                ) : (
+
+                  equipesFiltradas.map(
+                    (equipe) => {
+
+                      const id =
+                        obterIdEquipe(
+                          equipe
+                        );
+
+                      const idObra =
+                        equipe.id_obra ??
+                        equipe.idobra;
+
+                      return (
+
+                        <tr
+                          key={
+                            id
+                          }
+                        >
+
+                          <td>
+
+                            <strong>
+                              {equipe.nome_equipe}
+                            </strong>
+
+                          </td>
+
+                          <td>
+
+                            {equipe.area_atuacao ||
+                              "Não definida"}
+
+                          </td>
+
+                          <td>
+
+                            {equipe.quantidade_profissionais ||
+                              0}
+
+                          </td>
+
+                          <td>
+
+                            {nomeObraPorId[
+                              String(
+                                idObra
+                              )
+                            ] ||
+                              `Obra ${idObra}`}
+
+                          </td>
+
+                          <td>
+
+                            {formatarReal(
+                              equipe.custo_diario_total
+                            )}
+
+                          </td>
+
+                          <td>
+
+                            <div
+                              style={{
+                                display:
+                                  "flex",
+
+                                gap:
+                                  "8px",
+
+                                flexWrap:
+                                  "wrap",
+                              }}
+                            >
+
+                              <button
+                                type="button"
+                                className="secondary-button"
+                                onClick={() =>
+                                  abrirEdicao(
+                                    equipe
+                                  )
+                                }
+                              >
+                                Editar
+                              </button>
+
+                              <button
+                                type="button"
+                                className="secondary-button"
+                                onClick={() =>
+                                  removerEquipe(
+                                    equipe
+                                  )
+                                }
+                              >
+                                Excluir
+                              </button>
+
+                            </div>
+
+                          </td>
+
+                        </tr>
+
+                      );
+                    }
+                  )
+
+                )}
+
+              </tbody>
+
+            </table>
+
+          </div>
+
+        </section>
 
       </div>
-
     </Layout>
   );
 }

@@ -1,52 +1,130 @@
-import { useState } from "react";
-import { requisitar } from "../api/api";
+import {
+  useState,
+} from "react";
 
-function Cadastro({ onCadastro, onVoltar }) {
-  const [nome, setNome] = useState("");
-  const [email, setEmail] = useState("");
-  const [senha, setSenha] = useState("");
-  const [confirmarSenha, setConfirmarSenha] = useState("");
-  const [idconstrutora, setIdConstrutora] = useState("");
+import {
+  requisitar,
+} from "../api/api";
 
-  const [erro, setErro] = useState("");
-  const [carregando, setCarregando] = useState(false);
+const estadoInicial = {
+  nome: "",
+  email: "",
+  senha: "",
+  confirmarSenha: "",
+  ocupacao: "",
+  ambiente: "Escritório",
+  status: "Ativo",
+  idconstrutora: "",
+};
 
-  async function handleSubmit(event) {
-    event.preventDefault();
+function Cadastro({
+  onCadastro,
+  onVoltar,
+}) {
+  const [
+    formulario,
+    setFormulario,
+  ] = useState(
+    estadoInicial
+  );
+
+  const [
+    erro,
+    setErro,
+  ] = useState("");
+
+  const [
+    carregando,
+    setCarregando,
+  ] = useState(false);
+
+  function alterar(evento) {
+    const {
+      name,
+      value,
+    } = evento.target;
+
+    setFormulario(
+      (anterior) => ({
+        ...anterior,
+        [name]: value,
+      })
+    );
+  }
+
+  async function handleSubmit(
+    evento
+  ) {
+    evento.preventDefault();
 
     setErro("");
 
-    // Confere se as senhas são iguais
-    if (senha !== confirmarSenha) {
-      setErro("As senhas não coincidem.");
+    if (
+      formulario.senha !==
+      formulario.confirmarSenha
+    ) {
+      setErro(
+        "As senhas não coincidem."
+      );
+
       return;
     }
 
-    setCarregando(true);
-
     try {
-      const dados = await requisitar("/usuarios/insert", {
-        method: "POST",
-        body: JSON.stringify({
-          nome,
-          email,
-          senha,
-          idconstrutora,
-        }),
-      });
+      setCarregando(true);
 
-      console.log("Usuário cadastrado:", dados);
+      await requisitar(
+        "/usuarios/insert",
+        {
+          method: "POST",
 
-      // Executa a função enviada pelo componente pai
-      onCadastro();
+          body: JSON.stringify({
+            nome:
+              formulario.nome.trim(),
 
-    } catch (erro) {
-      console.error("Erro ao cadastrar:", erro);
+            email:
+              formulario.email.trim(),
 
-      setErro(
-        erro.message || "Não foi possível criar a conta."
+            senha:
+              formulario.senha,
+
+            ocupacao:
+              formulario.ocupacao ||
+              null,
+
+            ambiente:
+              formulario.ambiente ||
+              null,
+
+            status:
+              formulario.status ||
+              "Ativo",
+
+            idconstrutora:
+              Number(
+                formulario
+                  .idconstrutora
+              ),
+          }),
+        }
       );
 
+      if (
+        typeof onCadastro ===
+        "function"
+      ) {
+        onCadastro();
+      }
+    } catch (erroCadastro) {
+      console.error(
+        "Erro ao cadastrar:",
+        erroCadastro
+      );
+
+      setErro(
+        erroCadastro.message ||
+          "Não foi possível criar a conta."
+      );
     } finally {
       setCarregando(false);
     }
@@ -54,11 +132,12 @@ function Cadastro({ onCadastro, onVoltar }) {
 
   return (
     <div className="auth-page">
-
       <div className="auth-container">
 
         <div className="auth-brand">
-          <h1>VÉRTICE</h1>
+          <h1>
+            VÉRTICE
+          </h1>
 
           <p>
             Inteligência para construção civil
@@ -68,80 +147,173 @@ function Cadastro({ onCadastro, onVoltar }) {
         <div className="auth-card">
 
           <div className="auth-header">
-            <h2>Criar conta</h2>
+            <h2>
+              Criar conta
+            </h2>
 
             <p>
-              Cadastre sua empresa para começar.
+              Cadastre o usuário para acessar o sistema.
             </p>
           </div>
 
-          <form onSubmit={handleSubmit}>
+          <form
+            onSubmit={
+              handleSubmit
+            }
+          >
 
             <div className="form-group">
-              <label>Nome</label>
+              <label>
+                Nome
+              </label>
 
               <input
-                type="text"
-                placeholder="Nome completo"
-                value={nome}
-                onChange={(event) =>
-                  setNome(event.target.value)
+                name="nome"
+                value={
+                  formulario.nome
+                }
+                onChange={
+                  alterar
                 }
                 required
               />
             </div>
 
             <div className="form-group">
-              <label>E-mail</label>
+              <label>
+                E-mail
+              </label>
 
               <input
                 type="email"
-                placeholder="seu@email.com"
-                value={email}
-                onChange={(event) =>
-                  setEmail(event.target.value)
+                name="email"
+                value={
+                  formulario.email
+                }
+                onChange={
+                  alterar
                 }
                 required
               />
             </div>
 
             <div className="form-group">
-              <label>ID da Construtora</label>
+              <label>
+                Função / ocupação
+              </label>
+
+              <input
+                name="ocupacao"
+                placeholder="Ex: Engenheiro, Mestre de Obras..."
+                value={
+                  formulario.ocupacao
+                }
+                onChange={
+                  alterar
+                }
+              />
+            </div>
+
+            <div className="form-group">
+              <label>
+                Ambiente
+              </label>
+
+              <select
+                name="ambiente"
+                value={
+                  formulario.ambiente
+                }
+                onChange={
+                  alterar
+                }
+              >
+                <option value="Escritório">
+                  Escritório
+                </option>
+
+                <option value="Canteiro">
+                  Canteiro
+                </option>
+              </select>
+            </div>
+
+            <div className="form-group">
+              <label>
+                Status
+              </label>
+
+              <select
+                name="status"
+                value={
+                  formulario.status
+                }
+                onChange={
+                  alterar
+                }
+              >
+                <option value="Ativo">
+                  Ativo
+                </option>
+
+                <option value="Inativo">
+                  Inativo
+                </option>
+              </select>
+            </div>
+
+            <div className="form-group">
+              <label>
+                ID da Construtora
+              </label>
 
               <input
                 type="number"
-                placeholder="ID da construtora"
-                value={idconstrutora}
-                onChange={(event) =>
-                  setIdConstrutora(event.target.value)
+                min="1"
+                name="idconstrutora"
+                value={
+                  formulario
+                    .idconstrutora
+                }
+                onChange={
+                  alterar
                 }
                 required
               />
             </div>
 
             <div className="form-group">
-              <label>Senha</label>
+              <label>
+                Senha
+              </label>
 
               <input
                 type="password"
-                placeholder="Crie uma senha"
-                value={senha}
-                onChange={(event) =>
-                  setSenha(event.target.value)
+                name="senha"
+                value={
+                  formulario.senha
+                }
+                onChange={
+                  alterar
                 }
                 required
               />
             </div>
 
             <div className="form-group">
-              <label>Confirmar senha</label>
+              <label>
+                Confirmar senha
+              </label>
 
               <input
                 type="password"
-                placeholder="Digite a senha novamente"
-                value={confirmarSenha}
-                onChange={(event) =>
-                  setConfirmarSenha(event.target.value)
+                name="confirmarSenha"
+                value={
+                  formulario
+                    .confirmarSenha
+                }
+                onChange={
+                  alterar
                 }
                 required
               />
@@ -156,7 +328,9 @@ function Cadastro({ onCadastro, onVoltar }) {
             <button
               type="submit"
               className="auth-button"
-              disabled={carregando}
+              disabled={
+                carregando
+              }
             >
               {carregando
                 ? "Criando conta..."
@@ -166,8 +340,9 @@ function Cadastro({ onCadastro, onVoltar }) {
           </form>
 
           <div className="auth-footer">
-
-            <span>Já possui uma conta?</span>
+            <span>
+              Já possui uma conta?
+            </span>
 
             <button
               type="button"
@@ -175,13 +350,11 @@ function Cadastro({ onCadastro, onVoltar }) {
             >
               Voltar para login
             </button>
-
           </div>
 
         </div>
 
       </div>
-
     </div>
   );
 }

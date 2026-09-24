@@ -1,58 +1,83 @@
-const API_URL =
-  "http://localhost:3000/api";
+const BASE_URL = "http://localhost:3000/api";
 
-export async function requisitar(
-  endpoint,
-  opcoes = {}
-) {
-  const resposta =
-    await fetch(
-      `${API_URL}${endpoint}`,
-      {
-        ...opcoes,
+export async function requisitar(caminho, opcoes = {}) {
+  const resposta = await fetch(`${BASE_URL}${caminho}`, {
+    ...opcoes,
+    headers: {
+      "Content-Type": "application/json",
+      ...(opcoes.headers || {}),
+    },
+  });
 
-        headers: {
-          "Content-Type":
-            "application/json",
+  const texto = await resposta.text();
 
-          ...(opcoes.headers ||
-            {}),
-        },
-      }
-    );
+  let dados = null;
 
-  const contentType =
-    resposta.headers.get(
-      "content-type"
-    ) || "";
-
-  let dados;
-
-  if (
-    contentType.includes(
-      "application/json"
-    )
-  ) {
-    dados =
-      await resposta.json();
-  } else {
-    dados =
-      await resposta.text();
+  if (texto) {
+    try {
+      dados = JSON.parse(texto);
+    } catch {
+      dados = texto;
+    }
   }
 
   if (!resposta.ok) {
-    const mensagem =
-      typeof dados ===
-      "string"
-        ? dados
-        : dados?.mensagem ||
-          dados?.erro ||
-          "Erro na requisição.";
-
     throw new Error(
-      mensagem
+      dados?.mensagem ||
+        dados?.message ||
+        dados?.erro ||
+        `Erro ${resposta.status} na requisição`
     );
   }
 
   return dados;
 }
+
+export async function requisicaoOpcional(
+  caminho,
+  opcoes = {},
+  valorPadrao = null
+) {
+  try {
+    return await requisitar(caminho, opcoes);
+  } catch (erro) {
+    console.warn(
+      `Requisição opcional falhou: ${caminho}`,
+      erro.message || erro
+    );
+
+    return valorPadrao;
+  }
+}
+
+export function extrairLista(dados, chaves = []) {
+  if (Array.isArray(dados)) {
+    return dados;
+  }
+
+  if (!dados || typeof dados !== "object") {
+    return [];
+  }
+
+  for (const chave of chaves) {
+    if (Array.isArray(dados[chave])) {
+      return dados[chave];
+    }
+  }
+
+  if (Array.isArray(dados.dados)) {
+    return dados.dados;
+  }
+
+  if (Array.isArray(dados.resultados)) {
+    return dados.resultados;
+  }
+
+  if (Array.isArray(dados.lista)) {
+    return dados.lista;
+  }
+
+  return [];
+}
+
+export { BASE_URL };
