@@ -2,7 +2,8 @@
 --
 -- Host: 127.0.0.1    Database: valen
 -- ------------------------------------------------------
--- Server version	8.0.43
+-- Server versio
+n	8.0.43
 
 /*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
 /*!40101 SET @OLD_CHARACTER_SET_RESULTS=@@CHARACTER_SET_RESULTS */;
@@ -22,7 +23,7 @@
 DROP TABLE IF EXISTS `apontamento_fisico`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `apontamento_fisico` (
+CREATE TABLE `apontamento_fisico` (  //teste
   `id_apontamento` int NOT NULL AUTO_INCREMENT,
   `percentual_dia` decimal(5,2) NOT NULL,
   `url_foto` varchar(512) NOT NULL,
