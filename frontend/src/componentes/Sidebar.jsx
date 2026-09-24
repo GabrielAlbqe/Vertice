@@ -1,38 +1,104 @@
-function Sidebar({ onNavegar }) {
+function Sidebar({
+  onNavegar,
+}) {
+  const paginaAtual =
+    localStorage.getItem(
+      "pagina_atual"
+    ) || "dashboard";
+
+  function estaAtiva(
+    pagina
+  ) {
+    if (
+      pagina === "obras"
+    ) {
+      return (
+        paginaAtual ===
+          "obras" ||
+        paginaAtual ===
+          "obra-detalhes"
+      );
+    }
+
+    return (
+      paginaAtual ===
+      pagina
+    );
+  }
+
+  function navegar(
+    pagina
+  ) {
+    if (
+      typeof onNavegar ===
+      "function"
+    ) {
+      onNavegar(
+        pagina
+      );
+    }
+  }
+
   return (
     <aside className="sidebar">
 
-      <div className="sidebar-title">
-        <h2>VÉRTICE</h2>
-      </div>
-
-      <div className="sidebar-menu">
+      <nav className="sidebar-menu">
 
         <button
+          type="button"
+          className={
+            estaAtiva(
+              "dashboard"
+            )
+              ? "sidebar-item ativo"
+              : "sidebar-item"
+          }
           onClick={() =>
-            onNavegar("dashboard")
+            navegar(
+              "dashboard"
+            )
           }
         >
           Dashboard
         </button>
 
         <button
+          type="button"
+          className={
+            estaAtiva(
+              "obras"
+            )
+              ? "sidebar-item ativo"
+              : "sidebar-item"
+          }
           onClick={() =>
-            onNavegar("obras")
+            navegar(
+              "obras"
+            )
           }
         >
           Obras
         </button>
 
         <button
+          type="button"
+          className={
+            estaAtiva(
+              "equipes"
+            )
+              ? "sidebar-item ativo"
+              : "sidebar-item"
+          }
           onClick={() =>
-            onNavegar("equipes")
+            navegar(
+              "equipes"
+            )
           }
         >
           Equipes
         </button>
 
-      </div>
+      </nav>
 
     </aside>
   );

@@ -1,4 +1,6 @@
-import { useState } from "react";
+import {
+  useState,
+} from "react";
 
 import Login from "./pages/Login";
 import Cadastro from "./pages/Cadastro";
@@ -11,13 +13,14 @@ import Perfil from "./pages/Perfil";
 import "./styles.css";
 
 function App() {
-  // =====================================================
-  // PÁGINA ATUAL
-  // =====================================================
-
-  const [pagina, setPagina] = useState(() => {
+  const [
+    pagina,
+    setPagina,
+  ] = useState(() => {
     const idUsuario =
-      localStorage.getItem("id_usuario");
+      localStorage.getItem(
+        "id_usuario"
+      );
 
     if (!idUsuario) {
       return "login";
@@ -35,54 +38,52 @@ function App() {
     return "dashboard";
   });
 
-  // =====================================================
-  // OBRA SELECIONADA
-  // =====================================================
-
   const [
     obraSelecionada,
     setObraSelecionada,
   ] = useState(() => {
-    const obraSalva =
-      localStorage.getItem(
-        "obra_selecionada"
-      );
-
-    if (!obraSalva) {
-      return null;
-    }
-
     try {
       return JSON.parse(
-        obraSalva
+        localStorage.getItem(
+          "obra_selecionada"
+        ) || "null"
       );
     } catch {
       return null;
     }
   });
 
-  // =====================================================
-  // ABRIR OBRA
-  // =====================================================
+  function navegar(
+    novaPagina
+  ) {
+    localStorage.setItem(
+      "pagina_atual",
+      novaPagina
+    );
 
-  function abrirObra(obra) {
+    setPagina(
+      novaPagina
+    );
+  }
+
+  function abrirObra(
+    obra
+  ) {
     setObraSelecionada(
       obra
     );
 
     localStorage.setItem(
       "obra_selecionada",
-      JSON.stringify(obra)
+      JSON.stringify(
+        obra
+      )
     );
 
-    setPagina(
+    navegar(
       "obra-detalhes"
     );
   }
-
-  // =====================================================
-  // VOLTAR PARA OBRAS
-  // =====================================================
 
   function voltarParaObras() {
     setObraSelecionada(
@@ -93,23 +94,23 @@ function App() {
       "obra_selecionada"
     );
 
-    setPagina("obras");
+    navegar(
+      "obras"
+    );
   }
 
-  // =====================================================
-  // LOGIN
-  // =====================================================
-
-  if (pagina === "login") {
+  if (
+    pagina === "login"
+  ) {
     return (
       <Login
         onLogin={() =>
-          setPagina(
+          navegar(
             "dashboard"
           )
         }
         onCadastro={() =>
-          setPagina(
+          navegar(
             "cadastro"
           )
         }
@@ -117,29 +118,24 @@ function App() {
     );
   }
 
-  // =====================================================
-  // CADASTRO
-  // =====================================================
-
   if (
-    pagina ===
-    "cadastro"
+    pagina === "cadastro"
   ) {
     return (
       <Cadastro
         onCadastro={() =>
-          setPagina("login")
+          navegar(
+            "login"
+          )
         }
         onVoltar={() =>
-          setPagina("login")
+          navegar(
+            "login"
+          )
         }
       />
     );
   }
-
-  // =====================================================
-  // DASHBOARD
-  // =====================================================
 
   if (
     pagina ===
@@ -148,15 +144,11 @@ function App() {
     return (
       <Dashboard
         onNavegar={
-          setPagina
+          navegar
         }
       />
     );
   }
-
-  // =====================================================
-  // OBRAS
-  // =====================================================
 
   if (
     pagina === "obras"
@@ -164,7 +156,7 @@ function App() {
     return (
       <Obras
         onNavegar={
-          setPagina
+          navegar
         }
         onAbrirObra={
           abrirObra
@@ -173,9 +165,17 @@ function App() {
     );
   }
 
-  // =====================================================
-  // DETALHES DA OBRA
-  // =====================================================
+  if (
+    pagina === "equipes"
+  ) {
+    return (
+      <Equipes
+        onNavegar={
+          navegar
+        }
+      />
+    );
+  }
 
   if (
     pagina ===
@@ -187,7 +187,7 @@ function App() {
           obraSelecionada
         }
         onNavegar={
-          setPagina
+          navegar
         }
         onVoltar={
           voltarParaObras
@@ -196,48 +196,22 @@ function App() {
     );
   }
 
-  // =====================================================
-  // PERFIL
-  // =====================================================
-
   if (
-    pagina ===
-    "perfil"
+    pagina === "perfil"
   ) {
     return (
       <Perfil
         onNavegar={
-          setPagina
+          navegar
         }
       />
     );
   }
-
-  // =====================================================
-  // EQUIPES
-  // =====================================================
-
-  if (
-    pagina ===
-    "equipes"
-  ) {
-    return (
-      <Equipes
-        onNavegar={
-          setPagina
-        }
-      />
-    );
-  }
-
-  // =====================================================
-  // FALLBACK
-  // =====================================================
 
   return (
     <Dashboard
       onNavegar={
-        setPagina
+        navegar
       }
     />
   );

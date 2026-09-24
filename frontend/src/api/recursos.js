@@ -3,36 +3,51 @@ import {
   requisitar,
 } from "./api.js";
 
-const CHAVE_DADOS_EQUIPES =
-  "vertice_dados_extras_equipes";
-
 // =====================================================
-// AUXILIARES
+// CHAVES DO LOCALSTORAGE
 // =====================================================
 
-function removerDuplicados(
-  lista,
-  obterId
+const CHAVE_EQUIPES =
+  "vertice_catalogo_equipes_empresa";
+
+const CHAVE_ATRIBUICOES =
+  "vertice_atribuicoes_equipes_obras";
+
+// =====================================================
+// JSON LOCAL
+// =====================================================
+
+function lerJSON(
+  chave,
+  padrao
 ) {
-  const mapa = new Map();
-
-  lista.forEach((item) => {
-    const id = obterId(item);
-
-    if (
-      id !== undefined &&
-      id !== null &&
-      id !== ""
-    ) {
-      mapa.set(
-        String(id),
-        item
+  try {
+    const salvo =
+      localStorage.getItem(
+        chave
       );
-    }
-  });
 
-  return Array.from(
-    mapa.values()
+    if (!salvo) {
+      return padrao;
+    }
+
+    return JSON.parse(
+      salvo
+    );
+  } catch {
+    return padrao;
+  }
+}
+
+function salvarJSON(
+  chave,
+  valor
+) {
+  localStorage.setItem(
+    chave,
+    JSON.stringify(
+      valor
+    )
   );
 }
 
@@ -40,24 +55,33 @@ function removerDuplicados(
 // IDS
 // =====================================================
 
-export function obterIdEquipe(item) {
+export function obterIdEquipe(
+  item
+) {
   return (
-    item?.id_equipe_terceirizada ??
-    item?.id_cadastro_equipes ??
     item?.id_equipe ??
+    item?.id_equipe_catalogo ??
+    item?.id_cadastro_equipes ??
+    item?.id_equipe_terceirizad ??
+    item?.id_equipe_terceirizada ??
     item?.id
   );
 }
 
-export function obterIdInsumo(item) {
+export function obterIdInsumo(
+  item
+) {
   return (
     item?.id_insumos ??
     item?.id_insumo ??
+    item?.id_cadastro_de_insumos ??
     item?.id
   );
 }
 
-export function obterIdMaquinario(item) {
+export function obterIdMaquinario(
+  item
+) {
   return (
     item?.id_maquina ??
     item?.id_maquinario ??
@@ -66,322 +90,228 @@ export function obterIdMaquinario(item) {
 }
 
 // =====================================================
-// DADOS EXTRAS DAS EQUIPES
-// Área + quantidade de profissionais
+// EQUIPES DA EMPRESA
 // =====================================================
 
-function lerDadosExtrasEquipes() {
-  try {
-    const dados = JSON.parse(
-      localStorage.getItem(
-        CHAVE_DADOS_EQUIPES
-      ) || "{}"
+function lerEquipes() {
+  const dados =
+    lerJSON(
+      CHAVE_EQUIPES,
+      []
     );
 
-    if (
-      !dados ||
-      typeof dados !== "object"
-    ) {
-      return {};
-    }
-
-    return dados;
-  } catch {
-    return {};
-  }
-}
-
-function salvarDadosExtrasEquipes(
-  dados
-) {
-  localStorage.setItem(
-    CHAVE_DADOS_EQUIPES,
-    JSON.stringify(dados)
-  );
-}
-
-function criarChaveTemporaria(
-  equipe
-) {
-  const nome = String(
-    equipe?.nome_equipe || ""
+  return Array.isArray(
+    dados
   )
-    .trim()
-    .toLowerCase();
-
-  const idObra =
-    equipe?.id_obra ??
-    equipe?.idobra ??
-    "";
-
-  return `${nome}::${idObra}`;
+    ? dados
+    : [];
 }
 
-export function obterDadosExtrasEquipe(
-  equipe
+function salvarEquipes(
+  equipes
 ) {
-  const dados =
-    lerDadosExtrasEquipes();
-
-  const id =
-    obterIdEquipe(equipe);
-
-  if (
-    id &&
-    dados[`id:${id}`]
-  ) {
-    return dados[`id:${id}`];
-  }
-
-  const chave =
-    criarChaveTemporaria(
-      equipe
-    );
-
-  return (
-    dados[`tmp:${chave}`] || {
-      area_atuacao: "",
-      quantidade_profissionais: 0,
-    }
+  salvarJSON(
+    CHAVE_EQUIPES,
+    equipes
   );
 }
 
-export function salvarDadosExtrasEquipe(
-  equipe,
-  extras = {}
+function normalizarEquipe(
+  equipe = {}
 ) {
-  const dados =
-    lerDadosExtrasEquipes();
+  return {
+    ...equipe,
 
-  const id =
-    obterIdEquipe(equipe);
+    id_equipe:
+      obterIdEquipe(
+        equipe
+      ),
 
-  const chave =
-    criarChaveTemporaria(
-      equipe
-    );
+    nome_equipe:
+      equipe.nome_equipe ??
+      equipe.nome ??
+      "",
 
-  const valor = {
     area_atuacao:
-      extras.area_atuacao || "",
+      equipe.area_atuacao ??
+      equipe.etapa_atuacao ??
+      "",
 
     quantidade_profissionais:
       Number(
-        extras.quantidade_profissionais ||
-          0
+        equipe.quantidade_profissionais ??
+        0
       ),
-  };
-
-  if (id) {
-    dados[`id:${id}`] =
-      valor;
-  }
-
-  if (chave) {
-    dados[`tmp:${chave}`] =
-      valor;
-  }
-
-  salvarDadosExtrasEquipes(
-    dados
-  );
-}
-
-export function excluirDadosExtrasEquipe(
-  equipe
-) {
-  const dados =
-    lerDadosExtrasEquipes();
-
-  const id =
-    obterIdEquipe(equipe);
-
-  const chave =
-    criarChaveTemporaria(
-      equipe
-    );
-
-  if (id) {
-    delete dados[`id:${id}`];
-  }
-
-  if (chave) {
-    delete dados[`tmp:${chave}`];
-  }
-
-  salvarDadosExtrasEquipes(
-    dados
-  );
-}
-
-// =====================================================
-// NORMALIZAR EQUIPE
-// =====================================================
-
-export function normalizarEquipe(
-  item = {}
-) {
-  const equipe = {
-    ...item,
-
-    id_equipe_terceirizada:
-      item.id_equipe_terceirizada ??
-      item.id_equipe ??
-      item.id,
-
-    nome_equipe:
-      item.nome_equipe ??
-      item.nome ??
-      "",
 
     custo_diario_total:
       Number(
-        item.custo_diario_total ??
-        item.custo_diario ??
+        equipe.custo_diario_total ??
+        equipe.custo_diario ??
         0
       ),
 
-    custo_diario:
-      Number(
-        item.custo_diario_total ??
-        item.custo_diario ??
-        0
-      ),
-
-    id_obra:
-      item.id_obra ??
-      item.idobra ??
-      null,
-
-    idobra:
-      item.id_obra ??
-      item.idobra ??
+    id_construtora:
+      equipe.id_construtora ??
+      equipe.idconstrutora ??
       null,
   };
-
-  const extras =
-    obterDadosExtrasEquipe(
-      equipe
-    );
-
-  equipe.area_atuacao =
-    extras.area_atuacao || "";
-
-  equipe.quantidade_profissionais =
-    Number(
-      extras.quantidade_profissionais ||
-        0
-    );
-
-  return equipe;
 }
 
 // =====================================================
-// LISTAR EQUIPES
+// LISTAR EQUIPES DA EMPRESA
 // =====================================================
 
-export async function listarEquipesTerceirizadas(
-  idObra = null
+export async function listarEquipesEmpresa(
+  idConstrutora = null
 ) {
-  const caminho =
-    idObra
-      ? `/equipes-terceirizadas?id_obra=${encodeURIComponent(
-          idObra
-        )}`
-      : "/equipes-terceirizadas";
-
-  const dados =
-    await requisitar(
-      caminho
+  const equipes =
+    lerEquipes().map(
+      normalizarEquipe
     );
 
-  return extrairLista(
-    dados,
-    ["equipes"]
-  ).map(
-    normalizarEquipe
+  if (!idConstrutora) {
+    return equipes;
+  }
+
+  return equipes.filter(
+    (equipe) =>
+      Number(
+        equipe.id_construtora
+      ) ===
+      Number(
+        idConstrutora
+      )
   );
 }
 
 // =====================================================
-// CADASTRAR EQUIPE
+// COMPATIBILIDADE COM CÓDIGOS ANTIGOS
+// =====================================================
+
+export async function listarEquipesTerceirizadas() {
+  const idConstrutora =
+    localStorage.getItem(
+      "idconstrutora"
+    ) ||
+    localStorage.getItem(
+      "id_construtora"
+    );
+
+  return listarEquipesEmpresa(
+    idConstrutora
+  );
+}
+
+// =====================================================
+// CRIAR EQUIPE
 // =====================================================
 
 export async function criarEquipe(
-  dadosEquipe
+  dados
 ) {
-  const payload = {
+  const equipes =
+    lerEquipes();
+
+  const idConstrutora =
+    dados.id_construtora ??
+    localStorage.getItem(
+      "idconstrutora"
+    ) ??
+    localStorage.getItem(
+      "id_construtora"
+    );
+
+  if (!idConstrutora) {
+    throw new Error(
+      "Construtora não identificada."
+    );
+  }
+
+  let id =
+    Date.now();
+
+  while (
+    equipes.some(
+      (equipe) =>
+        String(
+          obterIdEquipe(
+            equipe
+          )
+        ) ===
+        String(id)
+    )
+  ) {
+    id += 1;
+  }
+
+  const novaEquipe = {
+    id_equipe: id,
+
     nome_equipe:
       String(
-        dadosEquipe.nome_equipe || ""
+        dados.nome_equipe ??
+        ""
       ).trim(),
+
+    area_atuacao:
+      String(
+        dados.area_atuacao ??
+        ""
+      ),
+
+    quantidade_profissionais:
+      Number(
+        dados.quantidade_profissionais ??
+        0
+      ),
 
     custo_diario_total:
       Number(
-        dadosEquipe.custo_diario_total ||
-          0
+        dados.custo_diario_total ??
+        0
       ),
 
-    id_obra:
+    id_construtora:
       Number(
-        dadosEquipe.id_obra
+        idConstrutora
       ),
   };
 
-  if (!payload.nome_equipe) {
+  if (
+    !novaEquipe.nome_equipe
+  ) {
     throw new Error(
       "Informe o nome da equipe."
     );
   }
 
-  if (!payload.id_obra) {
+  if (
+    !novaEquipe.area_atuacao
+  ) {
     throw new Error(
-      "Selecione a obra."
+      "Selecione a área de atuação."
     );
   }
 
   if (
-    payload.custo_diario_total < 0
+    novaEquipe
+      .quantidade_profissionais <=
+    0
   ) {
     throw new Error(
-      "O custo diário não pode ser negativo."
+      "Informe a quantidade de profissionais."
     );
   }
 
-  const resposta =
-    await requisitar(
-      "/equipes-terceirizadas/insert",
-      {
-        method: "POST",
-
-        body: JSON.stringify(
-          payload
-        ),
-      }
-    );
-
-  const equipeCriada = {
-    ...payload,
-
-    id_equipe_terceirizada:
-      resposta?.insertId ??
-      resposta?.id_equipe_terceirizada ??
-      resposta?.id ??
-      null,
-  };
-
-  salvarDadosExtrasEquipe(
-    equipeCriada,
-    {
-      area_atuacao:
-        dadosEquipe.area_atuacao,
-
-      quantidade_profissionais:
-        dadosEquipe.quantidade_profissionais,
-    }
+  equipes.push(
+    novaEquipe
   );
 
-  return resposta;
+  salvarEquipes(
+    equipes
+  );
+
+  return novaEquipe;
 }
 
 // =====================================================
@@ -390,55 +320,63 @@ export async function criarEquipe(
 
 export async function atualizarEquipe(
   id,
-  dadosEquipe
+  dados
 ) {
-  const payload = {
+  const equipes =
+    lerEquipes();
+
+  const indice =
+    equipes.findIndex(
+      (equipe) =>
+        String(
+          obterIdEquipe(
+            equipe
+          )
+        ) ===
+        String(id)
+    );
+
+  if (indice === -1) {
+    throw new Error(
+      "Equipe não encontrada."
+    );
+  }
+
+  equipes[indice] = {
+    ...equipes[indice],
+
     nome_equipe:
       String(
-        dadosEquipe.nome_equipe || ""
+        dados.nome_equipe ??
+        ""
       ).trim(),
+
+    area_atuacao:
+      String(
+        dados.area_atuacao ??
+        ""
+      ),
+
+    quantidade_profissionais:
+      Number(
+        dados.quantidade_profissionais ??
+        0
+      ),
 
     custo_diario_total:
       Number(
-        dadosEquipe.custo_diario_total ||
-          0
-      ),
-
-    id_obra:
-      Number(
-        dadosEquipe.id_obra
+        dados.custo_diario_total ??
+        0
       ),
   };
 
-  const resposta =
-    await requisitar(
-      `/equipes-terceirizadas/insert/${id}`,
-      {
-        method: "PUT",
-
-        body: JSON.stringify(
-          payload
-        ),
-      }
-    );
-
-  salvarDadosExtrasEquipe(
-    {
-      ...payload,
-
-      id_equipe_terceirizada:
-        id,
-    },
-    {
-      area_atuacao:
-        dadosEquipe.area_atuacao,
-
-      quantidade_profissionais:
-        dadosEquipe.quantidade_profissionais,
-    }
+  salvarEquipes(
+    equipes
   );
 
-  return resposta;
+  return equipes[
+    indice
+  ];
 }
 
 // =====================================================
@@ -446,174 +384,567 @@ export async function atualizarEquipe(
 // =====================================================
 
 export async function excluirEquipe(
-  equipe
+  equipeOuId
 ) {
   const id =
-    typeof equipe === "object"
-      ? obterIdEquipe(equipe)
-      : equipe;
+    typeof equipeOuId ===
+    "object"
+      ? obterIdEquipe(
+          equipeOuId
+        )
+      : equipeOuId;
 
   if (!id) {
     throw new Error(
-      "Não foi possível identificar a equipe."
+      "Equipe não identificada."
     );
   }
 
-  const resposta =
-    await requisitar(
-      `/equipes-terceirizadas/del/${id}`,
-      {
-        method: "DELETE",
-      }
+  const novasEquipes =
+    lerEquipes().filter(
+      (equipe) =>
+        String(
+          obterIdEquipe(
+            equipe
+          )
+        ) !==
+        String(id)
+    );
+
+  salvarEquipes(
+    novasEquipes
+  );
+
+  const atribuicoes =
+    lerAtribuicoes();
+
+  Object.keys(
+    atribuicoes
+  ).forEach(
+    (idObra) => {
+      atribuicoes[
+        idObra
+      ] =
+        (
+          atribuicoes[
+            idObra
+          ] || []
+        ).filter(
+          (idEquipe) =>
+            String(
+              idEquipe
+            ) !==
+            String(id)
+        );
+    }
+  );
+
+  salvarAtribuicoes(
+    atribuicoes
+  );
+
+  return {
+    sucesso: true,
+  };
+}
+
+// =====================================================
+// ATRIBUIÇÕES
+// =====================================================
+
+function lerAtribuicoes() {
+  const dados =
+    lerJSON(
+      CHAVE_ATRIBUICOES,
+      {}
     );
 
   if (
-    typeof equipe === "object"
+    !dados ||
+    typeof dados !==
+      "object" ||
+    Array.isArray(dados)
   ) {
-    excluirDadosExtrasEquipe(
+    return {};
+  }
+
+  const valores =
+    Object.values(
+      dados
+    );
+
+  // Formato antigo:
+  // {
+  //   idEquipe: idObra
+  // }
+
+  const formatoAntigo =
+    valores.length > 0 &&
+    valores.every(
+      (valor) =>
+        !Array.isArray(
+          valor
+        )
+    );
+
+  if (!formatoAntigo) {
+    return dados;
+  }
+
+  // Novo formato:
+  // {
+  //   idObra: [idEquipe]
+  // }
+
+  const convertido = {};
+
+  Object.entries(
+    dados
+  ).forEach(
+    ([
+      idEquipe,
+      idObra,
+    ]) => {
+      if (!idObra) {
+        return;
+      }
+
+      const chave =
+        String(
+          idObra
+        );
+
+      if (
+        !Array.isArray(
+          convertido[
+            chave
+          ]
+        )
+      ) {
+        convertido[
+          chave
+        ] = [];
+      }
+
+      convertido[
+        chave
+      ].push(
+        String(
+          idEquipe
+        )
+      );
+    }
+  );
+
+  salvarAtribuicoes(
+    convertido
+  );
+
+  return convertido;
+}
+
+function salvarAtribuicoes(
+  atribuicoes
+) {
+  salvarJSON(
+    CHAVE_ATRIBUICOES,
+    atribuicoes
+  );
+}
+
+// =====================================================
+// IDS DAS EQUIPES DE UMA OBRA
+// =====================================================
+
+export function obterIdsEquipesDaObra(
+  idObra
+) {
+  const atribuicoes =
+    lerAtribuicoes();
+
+  const lista =
+    atribuicoes[
+      String(
+        idObra
+      )
+    ];
+
+  return Array.isArray(
+    lista
+  )
+    ? lista
+    : [];
+}
+
+// =====================================================
+// ATRIBUIR EQUIPE À OBRA
+// =====================================================
+
+export async function atribuirEquipe(
+  equipe,
+  idObra
+) {
+  const idEquipe =
+    obterIdEquipe(
       equipe
     );
+
+  if (!idEquipe) {
+    throw new Error(
+      "Equipe não identificada."
+    );
   }
 
-  return resposta;
-}
-
-// =====================================================
-// INSUMOS DAS OBRAS
-// =====================================================
-
-async function buscarInsumosDasObras(
-  obras = []
-) {
-  if (
-    !Array.isArray(obras) ||
-    obras.length === 0
-  ) {
-    return [];
+  if (!idObra) {
+    throw new Error(
+      "Obra não identificada."
+    );
   }
 
-  const respostas =
-    await Promise.all(
-      obras.map(
-        async (obra) => {
-          const idObra =
-            obra?.id_obra ??
-            obra?.id;
+  const atribuicoes =
+    lerAtribuicoes();
 
-          if (!idObra) {
-            return [];
-          }
-
-          try {
-            const dados =
-              await requisitar(
-                `/insumos?idobra=${idObra}`
-              );
-
-            return extrairLista(
-              dados,
-              ["insumos"]
-            ).map(
-              (insumo) => ({
-                ...insumo,
-
-                idobra:
-                  insumo.idobra ??
-                  idObra,
-              })
-            );
-          } catch {
-            return [];
-          }
-        }
-      )
+  const chave =
+    String(
+      idObra
     );
 
-  return removerDuplicados(
-    respostas.flat(),
-    obterIdInsumo
-  );
-}
+  const lista =
+    Array.isArray(
+      atribuicoes[
+        chave
+      ]
+    )
+      ? [
+          ...atribuicoes[
+            chave
+          ],
+        ]
+      : [];
 
-// =====================================================
-// MAQUINÁRIOS DAS OBRAS
-// =====================================================
-
-async function buscarMaquinariosDasObras(
-  obras = []
-) {
-  if (
-    !Array.isArray(obras) ||
-    obras.length === 0
-  ) {
-    return [];
-  }
-
-  const respostas =
-    await Promise.all(
-      obras.map(
-        async (obra) => {
-          const idObra =
-            obra?.id_obra ??
-            obra?.id;
-
-          if (!idObra) {
-            return [];
-          }
-
-          try {
-            const dados =
-              await requisitar(
-                `/maquinarios?idobra=${idObra}`
-              );
-
-            return extrairLista(
-              dados,
-              ["maquinarios"]
-            ).map(
-              (maquinario) => ({
-                ...maquinario,
-
-                idobra:
-                  maquinario.idobra ??
-                  idObra,
-              })
-            );
-          } catch {
-            return [];
-          }
-        }
-      )
+  const jaExiste =
+    lista.some(
+      (id) =>
+        String(id) ===
+        String(
+          idEquipe
+        )
     );
 
-  return removerDuplicados(
-    respostas.flat(),
-    obterIdMaquinario
+  if (!jaExiste) {
+    lista.push(
+      String(
+        idEquipe
+      )
+    );
+  }
+
+  atribuicoes[
+    chave
+  ] = lista;
+
+  salvarAtribuicoes(
+    atribuicoes
   );
+
+  return {
+    sucesso: true,
+
+    id_obra:
+      Number(
+        idObra
+      ),
+
+    id_equipe:
+      idEquipe,
+  };
 }
 
 // =====================================================
-// CATÁLOGO DE RECURSOS
+// REMOVER EQUIPE DA OBRA
+// =====================================================
+
+export async function desatribuirEquipe(
+  equipe,
+  idObra
+) {
+  const idEquipe =
+    obterIdEquipe(
+      equipe
+    );
+
+  if (
+    !idEquipe ||
+    !idObra
+  ) {
+    return {
+      sucesso: false,
+    };
+  }
+
+  const atribuicoes =
+    lerAtribuicoes();
+
+  const chave =
+    String(
+      idObra
+    );
+
+  atribuicoes[
+    chave
+  ] =
+    (
+      atribuicoes[
+        chave
+      ] || []
+    ).filter(
+      (id) =>
+        String(id) !==
+        String(
+          idEquipe
+        )
+    );
+
+  salvarAtribuicoes(
+    atribuicoes
+  );
+
+  return {
+    sucesso: true,
+  };
+}
+
+// =====================================================
+// BUSCAR RECURSOS DA OBRA
+// =====================================================
+
+export async function buscarRecursosDaObra(
+  idObra
+) {
+  const idConstrutora =
+    localStorage.getItem(
+      "idconstrutora"
+    ) ||
+    localStorage.getItem(
+      "id_construtora"
+    );
+
+  const equipes =
+    await listarEquipesEmpresa(
+      idConstrutora
+    );
+
+  const idsEquipes =
+    obterIdsEquipesDaObra(
+      idObra
+    );
+
+  const equipesDaObra =
+    equipes.filter(
+      (equipe) =>
+        idsEquipes.some(
+          (id) =>
+            String(id) ===
+            String(
+              obterIdEquipe(
+                equipe
+              )
+            )
+        )
+    );
+
+  let insumos = [];
+  let maquinarios = [];
+
+  try {
+    const dados =
+      await requisitar(
+        `/insumos?idobra=${idObra}`
+      );
+
+    insumos =
+      extrairLista(
+        dados,
+        ["insumos"]
+      );
+  } catch (error) {
+    console.warn(
+      "Não foi possível carregar insumos:",
+      error?.message ||
+        error
+    );
+  }
+
+  try {
+    const dados =
+      await requisitar(
+        `/maquinarios?idobra=${idObra}`
+      );
+
+    maquinarios =
+      extrairLista(
+        dados,
+        ["maquinarios"]
+      );
+  } catch (error) {
+    console.warn(
+      "Não foi possível carregar maquinários:",
+      error?.message ||
+        error
+    );
+  }
+
+  return {
+    equipes:
+      equipesDaObra,
+
+    insumos,
+
+    maquinarios,
+  };
+}
+
+// =====================================================
+// CATÁLOGO GERAL DE RECURSOS
 // =====================================================
 
 export async function buscarCatalogoRecursos(
   obras = []
 ) {
-  const [
-    equipes,
-    insumos,
-    maquinarios,
-  ] = await Promise.all([
-    listarEquipesTerceirizadas(),
+  const idConstrutora =
+    localStorage.getItem(
+      "idconstrutora"
+    ) ||
+    localStorage.getItem(
+      "id_construtora"
+    );
 
-    buscarInsumosDasObras(
-      obras
-    ),
+  const equipes =
+    await listarEquipesEmpresa(
+      idConstrutora
+    );
 
-    buscarMaquinariosDasObras(
+  const insumos = [];
+  const maquinarios = [];
+
+  if (
+    Array.isArray(
       obras
-    ),
-  ]);
+    )
+  ) {
+    await Promise.all(
+      obras.map(
+        async (obra) => {
+          const idObra =
+            obra?.id_obra;
+
+          if (!idObra) {
+            return;
+          }
+
+          try {
+            const dadosInsumos =
+              await requisitar(
+                `/insumos?idobra=${idObra}`
+              );
+
+            const listaInsumos =
+              extrairLista(
+                dadosInsumos,
+                [
+                  "insumos",
+                ]
+              );
+
+            listaInsumos.forEach(
+              (item) => {
+                const id =
+                  obterIdInsumo(
+                    item
+                  );
+
+                const existe =
+                  insumos.some(
+                    (
+                      existente
+                    ) =>
+                      String(
+                        obterIdInsumo(
+                          existente
+                        )
+                      ) ===
+                      String(id)
+                  );
+
+                if (!existe) {
+                  insumos.push({
+                    ...item,
+
+                    idobra:
+                      item.idobra ??
+                      idObra,
+                  });
+                }
+              }
+            );
+          } catch {
+            // ignora obra
+            // sem rota de insumos
+          }
+
+          try {
+            const dadosMaquinas =
+              await requisitar(
+                `/maquinarios?idobra=${idObra}`
+              );
+
+            const listaMaquinas =
+              extrairLista(
+                dadosMaquinas,
+                [
+                  "maquinarios",
+                ]
+              );
+
+            listaMaquinas.forEach(
+              (item) => {
+                const id =
+                  obterIdMaquinario(
+                    item
+                  );
+
+                const existe =
+                  maquinarios.some(
+                    (
+                      existente
+                    ) =>
+                      String(
+                        obterIdMaquinario(
+                          existente
+                        )
+                      ) ===
+                      String(id)
+                  );
+
+                if (!existe) {
+                  maquinarios.push({
+                    ...item,
+
+                    idobra:
+                      item.idobra ??
+                      idObra,
+                  });
+                }
+              }
+            );
+          } catch {
+            // ignora obra
+            // sem rota de maquinários
+          }
+        }
+      )
+    );
+  }
 
   return {
     equipes,
@@ -623,77 +954,7 @@ export async function buscarCatalogoRecursos(
 }
 
 // =====================================================
-// ATRIBUIR EQUIPE
-// =====================================================
-
-export async function atribuirEquipe(
-  equipe,
-  idObra
-) {
-  const id =
-    obterIdEquipe(
-      equipe
-    );
-
-  if (!id) {
-    throw new Error(
-      "Não foi possível identificar a equipe."
-    );
-  }
-
-  const payload = {
-    nome_equipe:
-      equipe.nome_equipe,
-
-    custo_diario_total:
-      Number(
-        equipe.custo_diario_total ??
-        equipe.custo_diario ??
-        0
-      ),
-
-    id_obra:
-      Number(
-        idObra
-      ),
-  };
-
-  const resposta =
-    await requisitar(
-      `/equipes-terceirizadas/insert/${id}`,
-      {
-        method: "PUT",
-
-        body: JSON.stringify(
-          payload
-        ),
-      }
-    );
-
-  salvarDadosExtrasEquipe(
-    {
-      ...equipe,
-
-      id_obra:
-        idObra,
-
-      idobra:
-        idObra,
-    },
-    {
-      area_atuacao:
-        equipe.area_atuacao,
-
-      quantidade_profissionais:
-        equipe.quantidade_profissionais,
-    }
-  );
-
-  return resposta;
-}
-
-// =====================================================
-// ATRIBUIR INSUMO
+// COMPATIBILIDADE - INSUMOS
 // =====================================================
 
 export async function atribuirInsumo(
@@ -707,7 +968,7 @@ export async function atribuirInsumo(
 
   if (!id) {
     throw new Error(
-      "Não foi possível identificar o insumo."
+      "Insumo não identificado."
     );
   }
 
@@ -716,33 +977,26 @@ export async function atribuirInsumo(
     {
       method: "PUT",
 
-      body: JSON.stringify({
-        nome:
-          insumo.nome,
+      body:
+        JSON.stringify({
+          ...insumo,
 
-        quantidade_disponivel:
-          Number(
-            insumo.quantidade_disponivel ||
-            0
-          ),
+          idobra:
+            Number(
+              idObra
+            ),
 
-        valor_unitario:
-          Number(
-            insumo.valor_unitario ||
-            0
-          ),
-
-        idobra:
-          Number(
-            idObra
-          ),
-      }),
+          id_obra:
+            Number(
+              idObra
+            ),
+        }),
     }
   );
 }
 
 // =====================================================
-// ATRIBUIR MAQUINÁRIO
+// COMPATIBILIDADE - MAQUINÁRIOS
 // =====================================================
 
 export async function atribuirMaquinario(
@@ -756,7 +1010,7 @@ export async function atribuirMaquinario(
 
   if (!id) {
     throw new Error(
-      "Não foi possível identificar o maquinário."
+      "Maquinário não identificado."
     );
   }
 
@@ -765,83 +1019,20 @@ export async function atribuirMaquinario(
     {
       method: "PUT",
 
-      body: JSON.stringify({
-        nome:
-          maquinario.nome,
+      body:
+        JSON.stringify({
+          ...maquinario,
 
-        quantidade:
-          Number(
-            maquinario.quantidade ||
-            0
-          ),
+          idobra:
+            Number(
+              idObra
+            ),
 
-        etapa_atuacao:
-          maquinario.etapa_atuacao ||
-          "",
-
-        custo_diario:
-          Number(
-            maquinario.custo_diario ||
-            0
-          ),
-
-        status:
-          maquinario.status ||
-          "Ativo",
-
-        idobra:
-          Number(
-            idObra
-          ),
-      }),
+          id_obra:
+            Number(
+              idObra
+            ),
+        }),
     }
   );
-}
-
-// =====================================================
-// RECURSOS DE UMA OBRA
-// =====================================================
-
-export async function buscarRecursosDaObra(
-  idObra
-) {
-  const [
-    equipes,
-    insumos,
-    maquinarios,
-  ] = await Promise.all([
-    listarEquipesTerceirizadas(
-      idObra
-    ).catch(
-      () => []
-    ),
-
-    requisitar(
-      `/insumos?idobra=${idObra}`
-    ).catch(
-      () => []
-    ),
-
-    requisitar(
-      `/maquinarios?idobra=${idObra}`
-    ).catch(
-      () => []
-    ),
-  ]);
-
-  return {
-    equipes,
-
-    insumos:
-      extrairLista(
-        insumos,
-        ["insumos"]
-      ),
-
-    maquinarios:
-      extrairLista(
-        maquinarios,
-        ["maquinarios"]
-      ),
-  };
 }

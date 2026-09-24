@@ -1873,3 +1873,653 @@ button {
     grid-template-columns: 1fr;
   }
 }
+
+
+/* =====================================================
+   MENU ATIVO DA SIDEBAR
+===================================================== */
+
+.sidebar-menu button.ativo {
+  background: #020617;
+  color: #ffffff;
+  font-weight: 700;
+
+  box-shadow:
+    inset 4px 0 0 #3b82f6;
+}
+
+.sidebar-menu button.ativo:hover {
+  background: #020617;
+  color: #ffffff;
+}
+
+
+/* =====================================================
+   FILTROS DA PÁGINA EQUIPES
+===================================================== */
+
+.filtros-equipes {
+  width: 100%;
+
+  display: grid;
+
+  grid-template-columns:
+    minmax(300px, 1.5fr)
+    minmax(220px, 1fr);
+
+  gap: 16px;
+
+  align-items: end;
+
+  margin-bottom: 24px;
+}
+
+.filtro-pesquisa,
+.filtro-area {
+  display: flex;
+
+  flex-direction: column;
+
+  gap: 7px;
+
+  min-width: 0;
+}
+
+.filtro-pesquisa label,
+.filtro-area label {
+  font-size: 13px;
+
+  font-weight: 600;
+
+  color: #334155;
+}
+
+.filtro-pesquisa input,
+.filtro-area select {
+  width: 100%;
+
+  min-width: 0;
+
+  height: 44px;
+
+  box-sizing: border-box;
+
+  padding: 0 14px;
+
+  border:
+    1px solid #d7dce3;
+
+  border-radius: 8px;
+
+  background: #ffffff;
+
+  color: #0f172a;
+
+  font-size: 14px;
+
+  font-family: inherit;
+
+  outline: none;
+}
+
+.filtro-pesquisa input:focus,
+.filtro-area select:focus {
+  border-color: #3b82f6;
+
+  box-shadow:
+    0 0 0 3px
+    rgba(59, 130, 246, 0.1);
+}
+
+.filtro-pesquisa input::placeholder {
+  color: #94a3b8;
+}
+
+
+/* =====================================================
+   TABLET
+===================================================== */
+
+@media (max-width: 850px) {
+
+  .filtros-equipes {
+    grid-template-columns:
+      1fr 1fr;
+  }
+
+}
+
+
+/* =====================================================
+   CELULAR
+===================================================== */
+
+@media (max-width: 600px) {
+
+  .filtros-equipes {
+    grid-template-columns:
+      1fr;
+  }
+
+}
+
+
+/* =====================================================
+   SIDEBAR
+===================================================== */
+
+.sidebar-menu {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.sidebar-item {
+  width: 100%;
+  min-height: 46px;
+
+  display: flex;
+  align-items: center;
+
+  padding: 0 16px;
+
+  border: none;
+  border-radius: 8px;
+
+  background: transparent;
+
+  color: #a8bbd8;
+
+  font-size: 16px;
+  font-weight: 500;
+
+  text-align: left;
+
+  cursor: pointer;
+
+  transition:
+    background 0.2s ease,
+    color 0.2s ease;
+}
+
+.sidebar-item:hover {
+  background: #172238;
+  color: #ffffff;
+}
+
+.sidebar-item.ativo {
+  background: #1e293b;
+  color: #ffffff;
+  font-weight: 700;
+}
+
+
+/* =====================================================
+   SIDEBAR - PÁGINA ATIVA
+===================================================== */
+
+.sidebar-menu {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.sidebar-item {
+  width: 100%;
+  min-height: 46px;
+
+  display: flex;
+  align-items: center;
+
+  padding: 0 16px;
+
+  border: 0;
+  border-radius: 8px;
+
+  background: transparent;
+
+  color: #a8bbd8;
+
+  font-size: 15px;
+  font-weight: 500;
+
+  text-align: left;
+
+  cursor: pointer;
+
+  transition: 0.2s ease;
+}
+
+.sidebar-item:hover {
+  background: #172238;
+  color: #ffffff;
+}
+
+.sidebar-item.ativo {
+  background: #1e293b;
+  color: #ffffff;
+  font-weight: 700;
+}
+
+
+/* =====================================================
+   MENSAGEM SUCESSO
+===================================================== */
+
+.mensagem-sucesso {
+  margin-bottom: 20px;
+  padding: 13px 16px;
+
+  border: 1px solid #bbf7d0;
+  border-radius: 9px;
+
+  background: #f0fdf4;
+  color: #166534;
+
+  font-size: 13px;
+  font-weight: 600;
+}
+
+
+/* =====================================================
+   FILTROS EQUIPES
+===================================================== */
+
+.filtros-equipes {
+  display: grid;
+
+  grid-template-columns:
+    minmax(280px, 1.5fr)
+    minmax(210px, 1fr);
+
+  gap: 16px;
+
+  width: 100%;
+  margin-bottom: 24px;
+}
+
+.filtro-pesquisa,
+.filtro-area {
+  display: flex;
+  flex-direction: column;
+
+  gap: 7px;
+
+  min-width: 0;
+}
+
+.filtro-pesquisa label,
+.filtro-area label {
+  font-size: 12px;
+  font-weight: 700;
+
+  color: #475569;
+}
+
+.filtro-pesquisa input,
+.filtro-area select {
+  box-sizing: border-box;
+
+  width: 100%;
+  height: 44px;
+
+  padding: 0 14px;
+
+  border: 1px solid #dbe2ea;
+  border-radius: 8px;
+
+  background: #ffffff;
+
+  outline: none;
+}
+
+
+/* =====================================================
+   AÇÕES
+===================================================== */
+
+.acoes-inline {
+  display: flex;
+  flex-wrap: wrap;
+
+  gap: 7px;
+}
+
+
+/* =====================================================
+   TABELA DE OBRAS SEM SCROLL HORIZONTAL
+===================================================== */
+
+.obras-listagem {
+  overflow: hidden;
+}
+
+.obras-table-wrapper {
+  width: 100%;
+
+  overflow: visible;
+}
+
+.obras-table {
+  width: 100%;
+
+  table-layout: fixed;
+
+  border-collapse: collapse;
+}
+
+.obras-table th,
+.obras-table td {
+  box-sizing: border-box;
+
+  padding: 11px 7px;
+
+  border-bottom: 1px solid #e8edf3;
+
+  vertical-align: middle;
+
+  overflow-wrap: anywhere;
+
+  font-size: 11px;
+}
+
+.obras-table th {
+  background: #f8fafc;
+
+  color: #64748b;
+
+  font-size: 10px;
+  font-weight: 800;
+
+  text-transform: uppercase;
+
+  letter-spacing: 0.3px;
+}
+
+.obras-table th:nth-child(1),
+.obras-table td:nth-child(1) {
+  width: 14%;
+}
+
+.obras-table th:nth-child(2),
+.obras-table td:nth-child(2) {
+  width: 14%;
+}
+
+.obras-table th:nth-child(3),
+.obras-table td:nth-child(3) {
+  width: 10%;
+}
+
+.obras-table th:nth-child(4),
+.obras-table td:nth-child(4) {
+  width: 6%;
+}
+
+.obras-table th:nth-child(5),
+.obras-table td:nth-child(5) {
+  width: 12%;
+}
+
+.obras-table th:nth-child(6),
+.obras-table td:nth-child(6) {
+  width: 13%;
+}
+
+.obras-table th:nth-child(7),
+.obras-table td:nth-child(7) {
+  width: 8%;
+}
+
+.obras-table th:nth-child(8),
+.obras-table td:nth-child(8) {
+  width: 23%;
+}
+
+.obra-nome {
+  color: #0f172a;
+
+  font-weight: 700;
+}
+
+.prazo-obra {
+  display: flex;
+  flex-direction: column;
+
+  gap: 2px;
+}
+
+.prazo-obra small {
+  color: #94a3b8;
+
+  font-size: 9px;
+}
+
+
+/* =====================================================
+   STATUS EDITÁVEL
+===================================================== */
+
+.status-select {
+  box-sizing: border-box;
+
+  width: 100%;
+  min-width: 0;
+
+  padding: 7px 5px;
+
+  border: 1px solid #dbe2ea;
+  border-radius: 7px;
+
+  background: #ffffff;
+
+  font-size: 10px;
+  font-weight: 700;
+
+  outline: none;
+
+  cursor: pointer;
+}
+
+.status-planejamento {
+  background: #fffbeb;
+  color: #92400e;
+
+  border-color: #fde68a;
+}
+
+.status-em-andamento {
+  background: #eff6ff;
+  color: #1d4ed8;
+
+  border-color: #bfdbfe;
+}
+
+.status-paralisada {
+  background: #fef2f2;
+  color: #b91c1c;
+
+  border-color: #fecaca;
+}
+
+.status-concluida {
+  background: #f0fdf4;
+  color: #15803d;
+
+  border-color: #bbf7d0;
+}
+
+
+/* =====================================================
+   RECURSOS
+===================================================== */
+
+.recursos-resumo {
+  display: flex;
+  flex-wrap: wrap;
+
+  gap: 4px;
+}
+
+.recursos-resumo span {
+  padding: 4px 6px;
+
+  border-radius: 6px;
+
+  background: #f1f5f9;
+
+  color: #475569;
+
+  font-size: 10px;
+  font-weight: 700;
+}
+
+
+/* =====================================================
+   AÇÕES DAS OBRAS
+===================================================== */
+
+.acoes-obras {
+  display: grid;
+
+  grid-template-columns:
+    repeat(2, minmax(0, 1fr));
+
+  gap: 5px;
+}
+
+.acao-obra {
+  box-sizing: border-box;
+
+  width: 100%;
+
+  padding: 6px 4px !important;
+
+  font-size: 9px !important;
+
+  white-space: normal;
+}
+
+
+/* =====================================================
+   MODAL RECURSOS
+===================================================== */
+
+.modal-recursos {
+  width: min(900px, 94vw);
+
+  max-height: 90vh;
+
+  overflow-y: auto;
+}
+
+
+/* =====================================================
+   EVITAR ESTOURO DA PÁGINA
+===================================================== */
+
+html,
+body,
+#root {
+  max-width: 100%;
+
+  overflow-x: hidden;
+}
+
+.layout,
+.layout-body,
+.main-content,
+.dashboard {
+  min-width: 0;
+
+  max-width: 100%;
+}
+
+
+/* =====================================================
+   TABLET
+===================================================== */
+
+@media (max-width: 1000px) {
+
+  .obras-table th,
+  .obras-table td {
+    padding: 9px 5px;
+
+    font-size: 10px;
+  }
+
+  .status-select {
+    font-size: 9px;
+  }
+
+  .acao-obra {
+    font-size: 8px !important;
+  }
+
+}
+
+
+/* =====================================================
+   CELULAR
+===================================================== */
+
+@media (max-width: 700px) {
+
+  .filtros-equipes {
+    grid-template-columns: 1fr;
+  }
+
+  .obras-table thead {
+    display: none;
+  }
+
+  .obras-table,
+  .obras-table tbody,
+  .obras-table tr,
+  .obras-table td {
+    display: block;
+
+    width: 100% !important;
+  }
+
+  .obras-table tr {
+    margin-bottom: 14px;
+    padding: 12px;
+
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
+
+    background: #ffffff;
+  }
+
+  .obras-table td {
+    display: grid;
+
+    grid-template-columns:
+      110px 1fr;
+
+    gap: 10px;
+
+    padding: 7px 0;
+
+    border: 0;
+  }
+
+  .obras-table td::before {
+    content: attr(data-label);
+
+    color: #64748b;
+
+    font-size: 10px;
+    font-weight: 800;
+
+    text-transform: uppercase;
+  }
+
+  .acoes-obras {
+    grid-template-columns:
+      repeat(2, 1fr);
+  }
+
+}

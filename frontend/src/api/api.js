@@ -1,83 +1,123 @@
-const BASE_URL = "http://localhost:3000/api";
+const API_URL =
+  "http://localhost:3000/api";
 
-export async function requisitar(caminho, opcoes = {}) {
-  const resposta = await fetch(`${BASE_URL}${caminho}`, {
-    ...opcoes,
-    headers: {
-      "Content-Type": "application/json",
-      ...(opcoes.headers || {}),
-    },
-  });
+export async function requisitar(
+  endpoint,
+  opcoes = {}
+) {
+  const resposta =
+    await fetch(
+      `${API_URL}${endpoint}`,
+      {
+        ...opcoes,
 
-  const texto = await resposta.text();
+        headers: {
+          "Content-Type":
+            "application/json",
+
+          ...(opcoes.headers ||
+            {}),
+        },
+      }
+    );
+
+  const texto =
+    await resposta.text();
 
   let dados = null;
 
   if (texto) {
     try {
-      dados = JSON.parse(texto);
+      dados =
+        JSON.parse(texto);
     } catch {
       dados = texto;
     }
   }
 
   if (!resposta.ok) {
-    throw new Error(
-      dados?.mensagem ||
-        dados?.message ||
-        dados?.erro ||
-        `Erro ${resposta.status} na requisição`
-    );
+    const mensagem =
+      typeof dados === "string"
+        ? dados
+        : dados?.message ||
+          dados?.mensagem ||
+          dados?.error ||
+          dados?.erro ||
+          `Erro ${resposta.status} na requisição`;
+
+    const erro =
+      new Error(mensagem);
+
+    erro.status =
+      resposta.status;
+
+    erro.dados =
+      dados;
+
+    throw erro;
   }
 
   return dados;
 }
 
 export async function requisicaoOpcional(
-  caminho,
+  endpoint,
   opcoes = {},
-  valorPadrao = null
+  fallback = null
 ) {
   try {
-    return await requisitar(caminho, opcoes);
+    return await requisitar(
+      endpoint,
+      opcoes
+    );
   } catch (erro) {
     console.warn(
-      `Requisição opcional falhou: ${caminho}`,
-      erro.message || erro
+      `Falha opcional em ${endpoint}:`,
+      erro?.message ||
+        erro
     );
 
-    return valorPadrao;
+    return fallback;
   }
 }
 
-export function extrairLista(dados, chaves = []) {
+export function extrairLista(
+  dados,
+  chaves = []
+) {
   if (Array.isArray(dados)) {
     return dados;
   }
 
-  if (!dados || typeof dados !== "object") {
-    return [];
-  }
-
   for (const chave of chaves) {
-    if (Array.isArray(dados[chave])) {
+    if (
+      Array.isArray(
+        dados?.[chave]
+      )
+    ) {
       return dados[chave];
     }
   }
 
-  if (Array.isArray(dados.dados)) {
+  if (
+    Array.isArray(
+      dados?.dados
+    )
+  ) {
     return dados.dados;
   }
 
-  if (Array.isArray(dados.resultados)) {
-    return dados.resultados;
-  }
-
-  if (Array.isArray(dados.lista)) {
-    return dados.lista;
+  if (
+    Array.isArray(
+      dados?.resultado
+    )
+  ) {
+    return dados.resultado;
   }
 
   return [];
 }
 
-export { BASE_URL };
+export {
+  API_URL,
+};

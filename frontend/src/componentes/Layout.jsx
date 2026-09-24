@@ -8,7 +8,7 @@ import Sidebar from "./Sidebar";
 
 import {
   requisitar,
-} from "../api/api";
+} from "../api/api.js";
 
 function Layout({
   children,
@@ -49,29 +49,31 @@ function Layout({
           `/usuarios/${idUsuario}`
         );
 
-      const usuarioAtual =
-        dados?.usuario ||
+      const atual =
+        dados?.usuario ??
         dados;
 
       setUsuario(
-        usuarioAtual
+        atual
       );
 
       localStorage.setItem(
         "usuario",
         JSON.stringify(
-          usuarioAtual
+          atual
         )
       );
 
       localStorage.setItem(
         "nome_usuario",
-        usuarioAtual?.nome || ""
+        atual?.nome ??
+          ""
       );
     } catch (erro) {
       console.warn(
-        "Não foi possível atualizar o usuário do cabeçalho:",
-        erro.message || erro
+        "Não foi possível carregar usuário:",
+        erro?.message ||
+          erro
       );
     }
   }
@@ -88,6 +90,7 @@ function Layout({
       "id_construtora",
       "usuario",
       "obra_selecionada",
+      "pagina_atual",
     ].forEach(
       (chave) =>
         localStorage.removeItem(
@@ -99,27 +102,41 @@ function Layout({
       typeof onNavegar ===
       "function"
     ) {
-      onNavegar("login");
+      onNavegar(
+        "login"
+      );
     }
   }
 
   return (
     <div className="layout">
+
       <Header
-        usuario={usuario}
-        onNavegar={onNavegar}
-        onSair={sair}
+        usuario={
+          usuario
+        }
+        onNavegar={
+          onNavegar
+        }
+        onSair={
+          sair
+        }
       />
 
       <div className="layout-body">
+
         <Sidebar
-          onNavegar={onNavegar}
+          onNavegar={
+            onNavegar
+          }
         />
 
         <main className="main-content">
           {children}
         </main>
+
       </div>
+
     </div>
   );
 }
