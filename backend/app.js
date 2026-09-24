@@ -37,6 +37,9 @@ const registroRelatoriosRoutes = require("./routes/registroRelatoriosRoutes");
 const usuarioRoutes = require("./routes/usuarioRoutes");
 const consumoInsumoRoutes = require("./routes/consumoInsumoRoutes");
 const atrasoRoutes = require("./routes/atrasoRoutes");
+const paralisacaoRoutes = require("./routes/paralisacaoRoutes");
+const custoRealizadoRoutes = require("./routes/custoRealizadoRoutes");
+const projecaoFinanceiraRoutes = require("./routes/projecaoFinanceiraRoutes");
 
 // =============================================================
 // VINCULAÇÃO DOS ENDPOINTS DA API
@@ -63,6 +66,9 @@ app.use("/api/registro-relatorios", registroRelatoriosRoutes);
 app.use("/api/usuarios", usuarioRoutes);
 app.use("/api/consumos-insumos", consumoInsumoRoutes);
 app.use("/api/atrasos", atrasoRoutes);
+app.use("/api/paralisacoes", paralisacaoRoutes);
+app.use("/api/custos-realizados", custoRealizadoRoutes);
+app.use("/api/projecoes-financeiras", projecaoFinanceiraRoutes);
 
 // Módulo RDO (Relatório Diário de Obra)
 app.use("/api/rdo", rdoRoutes);
