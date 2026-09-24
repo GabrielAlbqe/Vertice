@@ -9,14 +9,15 @@ describe("🚀 Suíte Completa de Testes Integrados - API Valen", () => {
     connection.end(done);
   });
 
-  // 1. Construtora
+ // 1. Construtora
   test("POST /api/construtoras/insert - Cadastrar Construtora", async () => {
     const res = await request(app).post("/api/construtoras/insert").send({
-      cnpj: "12345678000199",
+      cnpj: `12${Date.now().toString().slice(-8)}000199`, // CNPJ dinâmico para evitar duplicidade ao re-executar
       razao_social: "Construtora Valen LTDA",
     });
     expect([200, 201]).toContain(res.statusCode);
-    ids.construtora = res.body.insertId || res.body.id;
+    ids.construtora = res.body.insertId || res.body.id || res.body.id_construtora;
+    console.log("✅ ID Construtora criado:", ids.construtora);
   });
 
   // 2. Usuário (idconstrutora)
@@ -28,9 +29,11 @@ describe("🚀 Suíte Completa de Testes Integrados - API Valen", () => {
         email: `eng_${Date.now()}@valen.com`,
         senha: "hash_senha_123",
         idconstrutora: ids.construtora,
+        id_construtora: ids.construtora,
       });
     expect([200, 201]).toContain(res.statusCode);
-    ids.usuario = res.body.insertId || res.body.id;
+    ids.usuario = res.body.insertId || res.body.id || res.body.id_usuario;
+    console.log("✅ ID Usuário criado:", ids.usuario);
   });
 
   // 3. Obra (id_construtora)
@@ -39,6 +42,7 @@ describe("🚀 Suíte Completa de Testes Integrados - API Valen", () => {
       nome: "Residencial Valen Tower",
       status: "Em Andamento",
       id_construtora: ids.construtora,
+      idconstrutora: ids.construtora,
       categoria: "Residencial",
       numero_pavimentos: 12,
       data_inicio_planejada: "2026-01-10",
@@ -46,7 +50,10 @@ describe("🚀 Suíte Completa de Testes Integrados - API Valen", () => {
       orcamento_planejado: 500000.0,
     });
     expect([200, 201]).toContain(res.statusCode);
-    ids.obra = res.body.insertId || res.body.id;
+    
+    // Captura o ID real retornado do MySQL/Knex
+    ids.obra = res.body.insertId || res.body.id || res.body.id_obra || res.body.insertID;
+    console.log("✅ ID Obra criado:", ids.obra);
   });
 
   // 4. Insumos (idobra)
@@ -79,8 +86,9 @@ test("POST /api/insumos/insert - Cadastrar Insumo", async () => {
     ids.maquinario = res.body.insertId || res.body.id;
   });
 
-  // 6. Equipes (idobra)
+// 6. Equipes (idobra)
   test("POST /api/equipes/insert - Cadastrar Equipe", async () => {
+    // REMOVIDO O FALLBACK "|| 1" PARA FORÇAR O USO DO ID REAL CRIADO
     const res = await request(app).post("/api/equipes/insert").send({
       nome_equipe: "Equipe de Estruturas",
       etapa_atuacao: "Instalações",
@@ -88,9 +96,15 @@ test("POST /api/insumos/insert - Cadastrar Insumo", async () => {
       custo_diario: 900.0,
       custo_mensal: 19800.0,
       idobra: ids.obra,
+      id_obra: ids.obra,
     });
+    
+    if (res.statusCode >= 400) {
+      console.error("❌ ERRO NA EQUIPE:", res.body);
+    }
+
     expect([200, 201]).toContain(res.statusCode);
-    ids.equipe = res.body.insertId || res.body.id;
+    ids.equipe = res.body.insertId || res.body.id || res.body.id_equipe;
   });
 
   // 7. Atividade EAP (idx_obra)
