@@ -10,18 +10,19 @@ import Card from "../componentes/Card";
 import {
   atualizarObra,
   criarObra,
+  excluirObra,
   listarObras,
-} from "../api/obras.js";
+} from "../api/obras";
 
 import {
-  atribuirEquipe,
-  desatribuirEquipe,
-  listarEquipesEmpresa,
-  obterIdEquipe,
-  obterIdsEquipesDaObra,
-} from "../api/recursos.js";
+  buscarRecursosDaObra,
+} from "../api/recursos";
 
-const FORMULARIO_VAZIO = {
+// =====================================================
+// FORMULÁRIO
+// =====================================================
+
+const formularioObraVazio = {
   nome: "",
   status: "Planejamento",
   categoria: "Residencial",
@@ -31,16 +32,17 @@ const FORMULARIO_VAZIO = {
   orcamento_planejado: "",
 };
 
-const STATUS = [
-  "Planejamento",
-  "Em Andamento",
-  "Paralisada",
-  "Concluída",
-];
+const recursosVazios = {
+  equipes: [],
+  insumos: [],
+  maquinarios: [],
+};
 
-function formatarReal(
-  valor
-) {
+// =====================================================
+// AUXILIARES
+// =====================================================
+
+function formatarReal(valor) {
   return Number(
     valor || 0
   ).toLocaleString(
@@ -52,62 +54,55 @@ function formatarReal(
   );
 }
 
-function limparData(
-  data
-) {
+function formatarData(data) {
   if (!data) {
-    return "";
-  }
-
-  return String(data)
-    .split("T")[0];
-}
-
-function formatarData(
-  data
-) {
-  const limpa =
-    limparData(data);
-
-  if (!limpa) {
     return "-";
   }
 
-  const [
-    ano,
-    mes,
-    dia,
-  ] =
+  const limpa =
+    String(data).split("T")[0];
+
+  const [ano, mes, dia] =
     limpa.split("-");
 
-  if (
-    !ano ||
-    !mes ||
-    !dia
-  ) {
+  if (!ano || !mes || !dia) {
     return limpa;
   }
 
   return `${dia}/${mes}/${ano}`;
 }
 
-function normalizarStatus(
-  status
-) {
-  return String(
-    status || ""
-  )
-    .normalize("NFD")
-    .replace(
-      /[\u0300-\u036f]/g,
-      ""
-    )
-    .toLowerCase()
-    .replaceAll(
-      " ",
-      "-"
-    );
+function statusParaBanco(status) {
+  if (
+    status === "Concluída"
+  ) {
+    return "Concluida";
+  }
+
+  return status || "";
 }
+
+function statusParaTela(status) {
+  if (
+    status === "Concluida"
+  ) {
+    return "Concluída";
+  }
+
+  return status || "";
+}
+
+function limparData(data) {
+  if (!data) {
+    return "";
+  }
+
+  return String(data).split("T")[0];
+}
+
+// =====================================================
+// COMPONENTE
+// =====================================================
 
 function Obras({
   onNavegar,
@@ -116,11 +111,6 @@ function Obras({
   const [
     obras,
     setObras,
-  ] = useState([]);
-
-  const [
-    equipes,
-    setEquipes,
   ] = useState([]);
 
   const [
@@ -134,23 +124,17 @@ function Obras({
   ] = useState(false);
 
   const [
-    statusSalvando,
-    setStatusSalvando,
-  ] = useState(null);
-
-  const [
     erro,
     setErro,
   ] = useState("");
 
-  const [
-    sucesso,
-    setSucesso,
-  ] = useState("");
+  // ===================================================
+  // MODAL OBRA
+  // ===================================================
 
   const [
-    modalAberto,
-    setModalAberto,
+    modalObraAberto,
+    setModalObraAberto,
   ] = useState(false);
 
   const [
@@ -161,9 +145,13 @@ function Obras({
   const [
     formulario,
     setFormulario,
-  ] = useState({
-    ...FORMULARIO_VAZIO,
-  });
+  ] = useState(
+    formularioObraVazio
+  );
+
+  // ===================================================
+  // MODAL RECURSOS - CONSULTA
+  // ===================================================
 
   const [
     modalRecursos,
@@ -176,359 +164,257 @@ function Obras({
   ] = useState(null);
 
   const [
-    idEquipeSelecionada,
-    setIdEquipeSelecionada,
-  ] = useState("");
+    abaRecursos,
+    setAbaRecursos,
+  ] = useState("resumo");
 
   const [
-    versaoAtribuicoes,
-    setVersaoAtribuicoes,
-  ] = useState(0);
+    recursos,
+    setRecursos,
+  ] = useState(
+    recursosVazios
+  );
 
-  useEffect(() => {
-    localStorage.setItem(
-      "pagina_atual",
-      "obras"
+  const [
+    carregandoRecursos,
+    setCarregandoRecursos,
+  ] = useState(false);
+
+  const [
+    erroRecursos,
+    setErroRecursos,
+  ] = useState("");
+
+  const idConstrutora =
+    localStorage.getItem(
+      "idconstrutora"
+    ) ||
+    localStorage.getItem(
+      "id_construtora"
     );
 
-    carregar();
+  // ===================================================
+  // CARREGAR OBRAS
+  // ===================================================
 
-    const abrir =
-      localStorage.getItem(
-        "abrir_cadastro_obra"
-      );
-
-    if (abrir === "1") {
-      localStorage.removeItem(
-        "abrir_cadastro_obra"
-      );
-
-      abrirCadastro();
-    }
+  useEffect(() => {
+    carregarObras();
   }, []);
 
-  async function obterConstrutora() {
-    const id =
-      localStorage.getItem(
-        "idconstrutora"
-      ) ||
-      localStorage.getItem(
-        "id_construtora"
-      );
-
-    if (!id) {
-      throw new Error(
-        "Construtora não identificada."
-      );
-    }
-
-    return Number(id);
-  }
-
-  async function carregar() {
+  async function carregarObras() {
     try {
-      setCarregando(
-        true
-      );
-
+      setCarregando(true);
       setErro("");
 
-      const id =
-        await obterConstrutora();
+      if (!idConstrutora) {
+        throw new Error(
+          "ID da construtora não encontrado. Faça login novamente."
+        );
+      }
 
-      const [
-        listaObras,
-        listaEquipes,
-      ] =
-        await Promise.all([
-          listarObras(id),
-          listarEquipesEmpresa(
-            id
-          ),
-        ]);
+      // IMPORTANTE:
+      // não chamamos GET /obras/ diretamente.
+      // listarObras() usa GET /obras/:id para contornar
+      // o erro Obra.getAll do backend sem alterar o backend.
+      const lista =
+        await listarObras(
+          idConstrutora
+        );
 
       setObras(
-        Array.isArray(
-          listaObras
-        )
-          ? listaObras
-          : []
-      );
-
-      setEquipes(
-        Array.isArray(
-          listaEquipes
-        )
-          ? listaEquipes
+        Array.isArray(lista)
+          ? lista
           : []
       );
     } catch (error) {
+      console.error(
+        "Erro ao carregar obras:",
+        error
+      );
+
       setErro(
-        error?.message ||
-        "Erro ao carregar obras."
+        error.message ||
+          "Não foi possível carregar as obras."
       );
     } finally {
-      setCarregando(
-        false
-      );
+      setCarregando(false);
     }
   }
 
-  function alterarCampo(
+  // ===================================================
+  // CADASTRAR / EDITAR
+  // ===================================================
+
+  function abrirCadastroObra() {
+    setObraEditando(null);
+    setFormulario(
+      formularioObraVazio
+    );
+    setErro("");
+    setModalObraAberto(true);
+  }
+
+  function abrirEdicaoObra(
+    obra
+  ) {
+    setObraEditando(obra);
+
+    setFormulario({
+      nome:
+        obra.nome ||
+        obra.obra ||
+        "",
+
+      status:
+        statusParaBanco(
+          obra.status ||
+          "Planejamento"
+        ),
+
+      categoria:
+        obra.categoria ||
+        "Residencial",
+
+      numero_pavimentos:
+        obra.numero_pavimentos ??
+        obra.pavimentos ??
+        "",
+
+      data_inicio_planejada:
+        limparData(
+          obra.data_inicio_planejada
+        ),
+
+      data_termino_planejada:
+        limparData(
+          obra.data_termino_planejada
+        ),
+
+      orcamento_planejado:
+        obra.orcamento_planejado ??
+        "",
+    });
+
+    setErro("");
+    setModalObraAberto(true);
+  }
+
+  function fecharModalObra() {
+    if (salvando) {
+      return;
+    }
+
+    setModalObraAberto(false);
+    setObraEditando(null);
+    setFormulario(
+      formularioObraVazio
+    );
+  }
+
+  function alterarFormulario(
     event
   ) {
-    const {
-      name,
-      value,
-    } =
+    const { name, value } =
       event.target;
 
     setFormulario(
       (anterior) => ({
         ...anterior,
-
-        [name]:
-          value ?? "",
+        [name]: value,
       })
     );
   }
 
-  function abrirCadastro() {
-    setObraEditando(
-      null
-    );
-
-    setFormulario({
-      ...FORMULARIO_VAZIO,
-    });
-
-    setErro("");
-
-    setModalAberto(
-      true
-    );
-  }
-
-  function editarObra(
-    obra
-  ) {
-    setObraEditando(
-      obra
-    );
-
-    setFormulario({
-      nome:
-        obra?.nome ??
-        obra?.obra ??
-        "",
-
-      status:
-        obra?.status ??
-        "Planejamento",
-
-      categoria:
-        obra?.categoria ??
-        "",
-
-      numero_pavimentos:
-        obra?.numero_pavimentos ??
-        obra?.pavimentos ??
-        "",
-
-      data_inicio_planejada:
-        limparData(
-          obra?.data_inicio_planejada
-        ),
-
-      data_termino_planejada:
-        limparData(
-          obra?.data_termino_planejada
-        ),
-
-      orcamento_planejado:
-        obra?.orcamento_planejado ??
-        "",
-    });
-
-    setModalAberto(
-      true
-    );
-  }
-
-  function fecharModal() {
-    setModalAberto(
-      false
-    );
-
-    setObraEditando(
-      null
-    );
-
-    setFormulario({
-      ...FORMULARIO_VAZIO,
-    });
-  }
-
-  function montarDados(
-    obra,
-    alteracoes = {}
-  ) {
-    return {
-      nome:
-        alteracoes.nome ??
-        obra?.nome ??
-        obra?.obra ??
-        "",
-
-      status:
-        alteracoes.status ??
-        obra?.status ??
-        "Planejamento",
-
-      id_construtora:
-        Number(
-          obra?.id_construtora ??
-          localStorage.getItem(
-            "idconstrutora"
-          ) ??
-          localStorage.getItem(
-            "id_construtora"
-          )
-        ),
-
-      categoria:
-        alteracoes.categoria ??
-        obra?.categoria ??
-        "",
-
-      numero_pavimentos:
-        Number(
-          alteracoes.numero_pavimentos ??
-          obra?.numero_pavimentos ??
-          obra?.pavimentos ??
-          0
-        ),
-
-      data_inicio_planejada:
-        limparData(
-          alteracoes.data_inicio_planejada ??
-          obra?.data_inicio_planejada
-        ),
-
-      data_termino_planejada:
-        limparData(
-          alteracoes.data_termino_planejada ??
-          obra?.data_termino_planejada
-        ),
-
-      orcamento_planejado:
-        Number(
-          alteracoes.orcamento_planejado ??
-          obra?.orcamento_planejado ??
-          0
-        ),
-    };
-  }
-
-  async function salvar(
+  async function salvarObra(
     event
   ) {
     event.preventDefault();
 
     try {
-      setSalvando(
-        true
-      );
-
+      setSalvando(true);
       setErro("");
-      setSucesso("");
 
-      const idConstrutora =
-        await obterConstrutora();
-
-      if (
-        formulario.data_inicio_planejada &&
-        formulario.data_termino_planejada &&
-        formulario.data_termino_planejada <
-          formulario.data_inicio_planejada
-      ) {
+      if (!idConstrutora) {
         throw new Error(
-          "A data final não pode ser anterior à inicial."
+          "Construtora não identificada."
         );
       }
 
-      const dados = {
+      if (
+        formulario
+          .data_termino_planejada <
+        formulario
+          .data_inicio_planejada
+      ) {
+        throw new Error(
+          "A data de término não pode ser anterior à data de início."
+        );
+      }
+
+      const payload = {
         nome:
-          String(
-            formulario.nome ??
-            ""
-          ).trim(),
+          formulario.nome.trim(),
 
         status:
-          formulario.status ??
-          "Planejamento",
+          statusParaBanco(
+            formulario.status
+          ),
 
         id_construtora:
-          idConstrutora,
+          Number(
+            idConstrutora
+          ),
 
         categoria:
-          formulario.categoria ??
-          "",
+          formulario.categoria,
 
         numero_pavimentos:
           Number(
-            formulario.numero_pavimentos ??
-            0
+            formulario
+              .numero_pavimentos
           ),
 
         data_inicio_planejada:
-          formulario.data_inicio_planejada ??
-          "",
+          formulario
+            .data_inicio_planejada,
 
         data_termino_planejada:
-          formulario.data_termino_planejada ??
-          "",
+          formulario
+            .data_termino_planejada,
 
         orcamento_planejado:
           Number(
-            formulario.orcamento_planejado ??
-            0
+            formulario
+              .orcamento_planejado
           ),
       };
 
-      if (
-        obraEditando
-      ) {
+      if (obraEditando) {
         await atualizarObra(
           obraEditando.id_obra,
-          dados
-        );
-
-        setSucesso(
-          "Obra atualizada."
+          payload
         );
       } else {
         await criarObra(
-          dados
-        );
-
-        setSucesso(
-          "Obra cadastrada."
+          payload
         );
       }
 
-      fecharModal();
+      fecharModalObra();
 
-      await carregar();
+      await carregarObras();
     } catch (error) {
+      console.error(
+        "Erro ao salvar obra:",
+        error
+      );
+
       setErro(
-        error?.message ||
-        "Erro ao salvar obra."
+        error.message ||
+          "Não foi possível salvar a obra."
       );
     } finally {
-      setSalvando(
-        false
-      );
+      setSalvando(false);
     }
   }
 
@@ -536,244 +422,353 @@ function Obras({
     obra,
     novoStatus
   ) {
-    const anterior =
+    const statusAnterior =
       obra.status;
 
-    try {
-      setStatusSalvando(
-        obra.id_obra
-      );
-
-      setErro("");
-
-      setObras(
-        (lista) =>
-          lista.map(
-            (item) =>
-              item.id_obra ===
+    setObras(
+      (lista) =>
+        lista.map(
+          (item) =>
+            Number(
+              item.id_obra
+            ) ===
+            Number(
               obra.id_obra
-                ? {
-                    ...item,
-                    status:
-                      novoStatus,
-                  }
-                : item
-          )
-      );
+            )
+              ? {
+                  ...item,
+                  status:
+                    novoStatus,
+                }
+              : item
+        )
+    );
+
+    try {
+      const payload = {
+        nome:
+          obra.nome ||
+          obra.obra ||
+          "",
+
+        status:
+          statusParaBanco(
+            novoStatus
+          ),
+
+        id_construtora:
+          Number(
+            obra.id_construtora ??
+            idConstrutora
+          ),
+
+        categoria:
+          obra.categoria ||
+          "",
+
+        numero_pavimentos:
+          Number(
+            obra.numero_pavimentos ??
+            obra.pavimentos ??
+            0
+          ),
+
+        data_inicio_planejada:
+          limparData(
+            obra.data_inicio_planejada
+          ),
+
+        data_termino_planejada:
+          limparData(
+            obra.data_termino_planejada
+          ),
+
+        orcamento_planejado:
+          Number(
+            obra.orcamento_planejado ||
+            0
+          ),
+      };
 
       await atualizarObra(
         obra.id_obra,
-        montarDados(
-          obra,
-          {
-            status:
-              novoStatus,
-          }
-        )
-      );
-
-      setSucesso(
-        "Status atualizado."
+        payload
       );
     } catch (error) {
+      console.error(
+        "Erro ao alterar status:",
+        error
+      );
+
       setObras(
         (lista) =>
           lista.map(
             (item) =>
-              item.id_obra ===
-              obra.id_obra
+              Number(
+                item.id_obra
+              ) ===
+              Number(
+                obra.id_obra
+              )
                 ? {
                     ...item,
                     status:
-                      anterior,
+                      statusAnterior,
                   }
                 : item
           )
       );
 
       setErro(
-        error?.message ||
-        "Erro ao atualizar status."
-      );
-    } finally {
-      setStatusSalvando(
-        null
+        error.message ||
+          "Não foi possível alterar o status."
       );
     }
   }
 
-  function tentarExcluir() {
-    setErro(
-      "A exclusão de obras está temporariamente indisponível porque a rota do backend está retornando erro 500."
-    );
-  }
+  // ===================================================
+  // EXCLUIR
+  // ===================================================
 
-  function abrirRecursos(
+  async function removerObra(
     obra
   ) {
-    setObraRecursos(
-      obra
-    );
-
-    setIdEquipeSelecionada(
-      ""
-    );
-
-    setModalRecursos(
-      true
-    );
-  }
-
-  const idsEquipes =
-    useMemo(() => {
-      if (!obraRecursos) {
-        return [];
-      }
-
-      return obterIdsEquipesDaObra(
-        obraRecursos.id_obra
-      );
-    }, [
-      obraRecursos,
-      versaoAtribuicoes,
-    ]);
-
-  const equipesDaObra =
-    useMemo(
-      () =>
-        equipes.filter(
-          (equipe) =>
-            idsEquipes.some(
-              (id) =>
-                String(id) ===
-                String(
-                  obterIdEquipe(
-                    equipe
-                  )
-                )
-            )
-        ),
-      [
-        equipes,
-        idsEquipes,
-      ]
-    );
-
-  const equipesDisponiveis =
-    useMemo(
-      () =>
-        equipes.filter(
-          (equipe) =>
-            !idsEquipes.some(
-              (id) =>
-                String(id) ===
-                String(
-                  obterIdEquipe(
-                    equipe
-                  )
-                )
-            )
-        ),
-      [
-        equipes,
-        idsEquipes,
-      ]
-    );
-
-  async function adicionarEquipe(
-    event
-  ) {
-    event.preventDefault();
-
-    const equipe =
-      equipes.find(
-        (item) =>
-          String(
-            obterIdEquipe(
-              item
-            )
-          ) ===
-          String(
-            idEquipeSelecionada
-          )
+    const confirmar =
+      window.confirm(
+        `Deseja realmente excluir a obra "${obra.obra}"?`
       );
 
-    if (
-      !equipe ||
-      !obraRecursos
-    ) {
+    if (!confirmar) {
       return;
     }
 
-    await atribuirEquipe(
-      equipe,
-      obraRecursos.id_obra
-    );
+    try {
+      setErro("");
 
-    setVersaoAtribuicoes(
-      (valor) =>
-        valor + 1
-    );
+      await excluirObra(
+        obra.id_obra
+      );
 
-    setIdEquipeSelecionada(
-      ""
-    );
+      const obraSelecionada =
+        localStorage.getItem(
+          "obra_selecionada"
+        );
+
+      if (obraSelecionada) {
+        try {
+          const dados =
+            JSON.parse(
+              obraSelecionada
+            );
+
+          if (
+            Number(
+              dados?.id_obra
+            ) ===
+            Number(
+              obra.id_obra
+            )
+          ) {
+            localStorage.removeItem(
+              "obra_selecionada"
+            );
+          }
+        } catch {
+          localStorage.removeItem(
+            "obra_selecionada"
+          );
+        }
+      }
+
+      await carregarObras();
+    } catch (error) {
+      console.error(
+        "Erro ao excluir obra:",
+        error
+      );
+
+      setErro(
+        error.message ||
+          "Não foi possível excluir a obra."
+      );
+    }
   }
 
-  async function removerEquipe(
-    equipe
+  // ===================================================
+  // ABRIR OBRA
+  // ===================================================
+
+  function abrirObra(
+    obra
   ) {
+    localStorage.setItem(
+      "obra_selecionada",
+      JSON.stringify(obra)
+    );
+
+    if (
+      typeof onAbrirObra ===
+      "function"
+    ) {
+      onAbrirObra(obra);
+    }
+  }
+
+  // ===================================================
+  // RECURSOS - SOMENTE CONSULTA
+  // ===================================================
+
+  async function abrirRecursos(
+    obra
+  ) {
+    setObraRecursos(obra);
+    setAbaRecursos("resumo");
+    setRecursos(
+      recursosVazios
+    );
+    setErroRecursos("");
+    setModalRecursos(true);
+
+    try {
+      setCarregandoRecursos(
+        true
+      );
+
+      const dados =
+        await buscarRecursosDaObra(
+          obra.id_obra
+        );
+
+      setRecursos({
+        equipes:
+          dados?.equipes ||
+          [],
+
+        insumos:
+          dados?.insumos ||
+          [],
+
+        maquinarios:
+          dados?.maquinarios ||
+          [],
+      });
+    } catch (error) {
+      console.error(
+        "Erro ao consultar recursos:",
+        error
+      );
+
+      setErroRecursos(
+        error.message ||
+          "Não foi possível carregar os recursos desta obra."
+      );
+    } finally {
+      setCarregandoRecursos(
+        false
+      );
+    }
+  }
+
+  function fecharRecursos() {
+    setModalRecursos(false);
+    setObraRecursos(null);
+    setRecursos(
+      recursosVazios
+    );
+    setErroRecursos("");
+  }
+
+  function gerenciarNaObra() {
     if (!obraRecursos) {
       return;
     }
 
-    await desatribuirEquipe(
-      equipe,
-      obraRecursos.id_obra
-    );
+    const obra =
+      obraRecursos;
 
-    setVersaoAtribuicoes(
-      (valor) =>
-        valor + 1
-    );
+    fecharRecursos();
+    abrirObra(obra);
   }
 
-  function qtdEquipes(
-    idObra
-  ) {
-    return obterIdsEquipesDaObra(
-      idObra
-    ).length;
-  }
+  // ===================================================
+  // INDICADORES
+  // ===================================================
 
-  const obrasAtivas =
-    obras.filter(
-      (obra) =>
-        [
-          "Planejamento",
-          "Em Andamento",
-        ].includes(
-          obra.status
-        )
-    ).length;
+  const indicadores =
+    useMemo(() => {
+      const ativas =
+        obras.filter(
+          (obra) => {
+            const status =
+              String(
+                obra.status ||
+                  ""
+              )
+                .trim()
+                .toLowerCase();
 
-  const paralisadas =
-    obras.filter(
-      (obra) =>
-        obra.status ===
-        "Paralisada"
-    ).length;
+            return [
+              "planejamento",
+              "em andamento",
+            ].includes(
+              status
+            );
+          }
+        ).length;
 
-  const orcamento =
-    obras.reduce(
-      (total, obra) =>
-        total +
-        Number(
-          obra.orcamento_planejado ||
+      const paralisadas =
+        obras.filter(
+          (obra) =>
+            String(
+              obra.status ||
+                ""
+            )
+              .trim()
+              .toLowerCase() ===
+            "paralisada"
+        ).length;
+
+      const concluidas =
+        obras.filter(
+          (obra) =>
+            [
+              "concluida",
+              "concluída",
+            ].includes(
+              String(
+                obra.status ||
+                  ""
+              )
+                .trim()
+                .toLowerCase()
+            )
+        ).length;
+
+      const orcamento =
+        obras.reduce(
+          (
+            total,
+            obra
+          ) =>
+            total +
+            Number(
+              obra.orcamento_planejado ||
+                0
+            ),
           0
-        ),
-      0
-    );
+        );
+
+      return {
+        ativas,
+        paralisadas,
+        concluidas,
+        orcamento,
+      };
+    }, [obras]);
+
+  // ===================================================
+  // JSX
+  // ===================================================
 
   return (
     <Layout
@@ -781,13 +776,12 @@ function Obras({
         onNavegar
       }
     >
-
       <div className="dashboard">
 
+        {/* CABEÇALHO */}
+
         <section className="dashboard-header">
-
           <div>
-
             <span className="dashboard-eyebrow">
               PORTFÓLIO
             </span>
@@ -797,22 +791,21 @@ function Obras({
             </h1>
 
             <p>
-              Cadastre obras e atribua
-              equipes aos projetos.
+              Consulte as obras e abra cada projeto para gerenciar seus recursos.
             </p>
-
           </div>
 
-          <button
-            type="button"
-            className="button"
-            onClick={
-              abrirCadastro
-            }
-          >
-            + Nova obra
-          </button>
-
+          <div className="dashboard-header-actions">
+            <button
+              type="button"
+              className="button"
+              onClick={
+                abrirCadastroObra
+              }
+            >
+              + Nova obra
+            </button>
+          </div>
         </section>
 
         {erro && (
@@ -821,52 +814,51 @@ function Obras({
           </div>
         )}
 
-        {sucesso && (
-          <div className="mensagem-sucesso">
-            {sucesso}
-          </div>
-        )}
+        {/* CARDS */}
 
         <section className="cards-grid">
-
           <Card
-            title="Total"
-            value={obras.length}
-            description="Obras"
+            title="Total de obras"
+            value={
+              obras.length
+            }
+            description="Obras cadastradas"
           />
 
           <Card
-            title="Ativas"
-            value={obrasAtivas}
-            description="Em acompanhamento"
+            title="Obras ativas"
+            value={
+              indicadores.ativas
+            }
+            description="Planejamento ou execução"
           />
 
           <Card
             title="Paralisadas"
-            value={paralisadas}
-            description="Atenção"
+            value={
+              indicadores.paralisadas
+            }
+            description="Necessitam acompanhamento"
           />
 
           <Card
-            title="Orçamento"
+            title="Orçamento total"
             value={
               formatarReal(
-                orcamento
+                indicadores.orcamento
               )
             }
-            description="Planejado"
+            description={`${indicadores.concluidas} obra(s) concluída(s)`}
           />
-
         </section>
 
-        <section className="dashboard-section obras-listagem">
+        {/* TABELA */}
 
+        <section className="dashboard-section">
           <div className="section-header">
-
             <div>
-
               <span className="section-label">
-                PORTFÓLIO
+                PORTFÓLIO DE OBRAS
               </span>
 
               <h2>
@@ -874,20 +866,14 @@ function Obras({
               </h2>
 
               <p>
-                Altere o status diretamente
-                na tabela.
+                Recursos serve somente para consulta rápida. Para atribuir ou alterar recursos, abra a obra.
               </p>
-
             </div>
-
           </div>
 
-          <div className="obras-table-wrapper">
-
-            <table className="obras-table">
-
+          <div className="tabela-container obras-table-wrapper">
+            <table className="table">
               <thead>
-
                 <tr>
                   <th>Obra</th>
                   <th>Status</th>
@@ -895,150 +881,117 @@ function Obras({
                   <th>Pav.</th>
                   <th>Prazo</th>
                   <th>Orçamento</th>
-                  <th>Equipe</th>
                   <th>Ações</th>
                 </tr>
-
               </thead>
 
               <tbody>
-
                 {carregando ? (
-
                   <tr>
                     <td
-                      colSpan="8"
+                      colSpan="7"
                       className="tabela-vazia"
                     >
-                      Carregando...
+                      Carregando obras...
                     </td>
                   </tr>
-
-                ) : obras.length ===
-                  0 ? (
-
+                ) : obras.length === 0 ? (
                   <tr>
                     <td
-                      colSpan="8"
+                      colSpan="7"
                       className="tabela-vazia"
                     >
-                      Nenhuma obra cadastrada.
+                      Nenhuma obra encontrada.
                     </td>
                   </tr>
-
                 ) : (
-
                   obras.map(
                     (obra) => (
-
                       <tr
                         key={
-                          `obra-${obra.id_obra}`
+                          obra.id_obra
                         }
                       >
-
-                        <td
-                          data-label="Obra"
-                          className="obra-nome"
-                        >
-                          {obra.nome ||
-                            obra.obra ||
-                            "-"}
+                        <td>
+                          <strong className="obra-nome-tabela">
+                            {obra.obra}
+                          </strong>
                         </td>
 
-                        <td data-label="Status">
-
+                        <td>
                           <select
-                            className={`status-select status-${normalizarStatus(
-                              obra.status
-                            )}`}
+                            className="status-select-tabela"
                             value={
-                              obra.status ??
-                              "Planejamento"
-                            }
-                            disabled={
-                              statusSalvando ===
-                              obra.id_obra
-                            }
-                            onChange={(event) =>
-                              alterarStatus(
-                                obra,
-                                event.target.value
+                              statusParaBanco(
+                                obra.status
                               )
+                            }
+                            onChange={
+                              (
+                                event
+                              ) =>
+                                alterarStatus(
+                                  obra,
+                                  event.target.value
+                                )
                             }
                           >
+                            <option value="Planejamento">
+                              Planejamento
+                            </option>
 
-                            {STATUS.map(
-                              (status) => (
+                            <option value="Em Andamento">
+                              Em Andamento
+                            </option>
 
-                                <option
-                                  key={status}
-                                  value={status}
-                                >
-                                  {status}
-                                </option>
+                            <option value="Concluida">
+                              Concluída
+                            </option>
 
-                              )
-                            )}
-
+                            <option value="Paralisada">
+                              Paralisada
+                            </option>
                           </select>
-
                         </td>
 
-                        <td data-label="Categoria">
-                          {obra.categoria ||
-                            "-"}
+                        <td>
+                          {obra.categoria || "-"}
                         </td>
 
-                        <td data-label="Pav.">
-                          {obra.numero_pavimentos ??
-                            "-"}
+                        <td>
+                          {obra.numero_pavimentos ?? 0}
                         </td>
 
-                        <td
-                          data-label="Prazo"
-                          className="prazo-obra"
-                        >
-                          <span>
+                        <td>
+                          <span className="obra-prazo">
                             {formatarData(
                               obra.data_inicio_planejada
                             )}
-                          </span>
-
-                          <small>
-                            até
-                          </small>
-
-                          <span>
+                            {" até "}
                             {formatarData(
                               obra.data_termino_planejada
                             )}
                           </span>
                         </td>
 
-                        <td data-label="Orçamento">
-                          {formatarReal(
-                            obra.orcamento_planejado
-                          )}
+                        <td>
+                          <span className="obra-orcamento">
+                            {formatarReal(
+                              obra.orcamento_planejado
+                            )}
+                          </span>
                         </td>
 
-                        <td data-label="Equipe">
-                          {qtdEquipes(
-                            obra.id_obra
-                          )}
-                        </td>
-
-                        <td data-label="Ações">
-
+                        <td>
                           <div className="acoes-obras">
-
                             <button
                               type="button"
-                              className="button acao-obra"
-                              onClick={() =>
-                                onAbrirObra?.(
-                                  obra
-                                )
+                              className="button"
+                              onClick={
+                                () =>
+                                  abrirObra(
+                                    obra
+                                  )
                               }
                             >
                               Abrir
@@ -1046,11 +999,12 @@ function Obras({
 
                             <button
                               type="button"
-                              className="secondary-button acao-obra"
-                              onClick={() =>
-                                abrirRecursos(
-                                  obra
-                                )
+                              className="secondary-button"
+                              onClick={
+                                () =>
+                                  abrirRecursos(
+                                    obra
+                                  )
                               }
                             >
                               Recursos
@@ -1058,11 +1012,12 @@ function Obras({
 
                             <button
                               type="button"
-                              className="secondary-button acao-obra"
-                              onClick={() =>
-                                editarObra(
-                                  obra
-                                )
+                              className="secondary-button"
+                              onClick={
+                                () =>
+                                  abrirEdicaoObra(
+                                    obra
+                                  )
                               }
                             >
                               Editar
@@ -1070,44 +1025,40 @@ function Obras({
 
                             <button
                               type="button"
-                              className="cancel-button acao-obra"
+                              className="secondary-button"
                               onClick={
-                                tentarExcluir
+                                () =>
+                                  removerObra(
+                                    obra
+                                  )
                               }
                             >
                               Excluir
                             </button>
-
                           </div>
-
                         </td>
-
                       </tr>
-
                     )
                   )
-
                 )}
-
               </tbody>
-
             </table>
-
           </div>
-
         </section>
 
-        {modalAberto && (
+        {/* =================================================
+            MODAL OBRA
+        ================================================= */}
 
+        {modalObraAberto && (
           <div className="modal-overlay">
-
             <div className="modal-container modal-obra">
-
               <div className="modal-header">
-
                 <div>
                   <span className="section-label">
-                    OBRA
+                    {obraEditando
+                      ? "EDITAR OBRA"
+                      : "NOVA OBRA"}
                   </span>
 
                   <h2>
@@ -1121,45 +1072,40 @@ function Obras({
                   type="button"
                   className="modal-close"
                   onClick={
-                    fecharModal
+                    fecharModalObra
                   }
                 >
                   ×
                 </button>
-
               </div>
 
               <form
                 className="obra-form"
                 onSubmit={
-                  salvar
+                  salvarObra
                 }
               >
-
                 <div className="obra-form-grid">
 
                   <div className="form-group">
-
                     <label>
-                      Nome
+                      Nome da obra
                     </label>
 
                     <input
+                      type="text"
                       name="nome"
                       value={
-                        formulario.nome ??
-                        ""
+                        formulario.nome
                       }
                       onChange={
-                        alterarCampo
+                        alterarFormulario
                       }
                       required
                     />
-
                   </div>
 
                   <div className="form-group">
-
                     <label>
                       Status
                     </label>
@@ -1167,33 +1113,32 @@ function Obras({
                     <select
                       name="status"
                       value={
-                        formulario.status ??
-                        "Planejamento"
+                        formulario.status
                       }
                       onChange={
-                        alterarCampo
+                        alterarFormulario
                       }
+                      required
                     >
+                      <option value="Planejamento">
+                        Planejamento
+                      </option>
 
-                      {STATUS.map(
-                        (status) => (
+                      <option value="Em Andamento">
+                        Em Andamento
+                      </option>
 
-                          <option
-                            key={status}
-                            value={status}
-                          >
-                            {status}
-                          </option>
+                      <option value="Concluida">
+                        Concluída
+                      </option>
 
-                        )
-                      )}
-
+                      <option value="Paralisada">
+                        Paralisada
+                      </option>
                     </select>
-
                   </div>
 
                   <div className="form-group">
-
                     <label>
                       Categoria
                     </label>
@@ -1201,19 +1146,13 @@ function Obras({
                     <select
                       name="categoria"
                       value={
-                        formulario.categoria ??
-                        ""
+                        formulario.categoria
                       }
                       onChange={
-                        alterarCampo
+                        alterarFormulario
                       }
                       required
                     >
-
-                      <option value="">
-                        Selecione
-                      </option>
-
                       <option value="Residencial">
                         Residencial
                       </option>
@@ -1229,107 +1168,94 @@ function Obras({
                       <option value="Reforma">
                         Reforma
                       </option>
-
                     </select>
-
                   </div>
 
                   <div className="form-group">
-
                     <label>
-                      Pavimentos
+                      Número de pavimentos
                     </label>
 
                     <input
                       type="number"
-                      min="1"
                       name="numero_pavimentos"
+                      min="1"
                       value={
-                        formulario.numero_pavimentos ??
-                        ""
+                        formulario.numero_pavimentos
                       }
                       onChange={
-                        alterarCampo
+                        alterarFormulario
                       }
                       required
                     />
-
                   </div>
 
                   <div className="form-group">
-
                     <label>
-                      Início
+                      Data de início planejada
                     </label>
 
                     <input
                       type="date"
                       name="data_inicio_planejada"
                       value={
-                        formulario.data_inicio_planejada ??
-                        ""
+                        formulario.data_inicio_planejada
                       }
                       onChange={
-                        alterarCampo
+                        alterarFormulario
                       }
                       required
                     />
-
                   </div>
 
                   <div className="form-group">
-
                     <label>
-                      Término
+                      Data de término planejada
                     </label>
 
                     <input
                       type="date"
                       name="data_termino_planejada"
                       value={
-                        formulario.data_termino_planejada ??
-                        ""
+                        formulario.data_termino_planejada
                       }
                       onChange={
-                        alterarCampo
+                        alterarFormulario
                       }
                       required
                     />
-
                   </div>
 
                   <div className="form-group">
-
                     <label>
-                      Orçamento
+                      Orçamento planejado
                     </label>
 
                     <input
                       type="number"
+                      name="orcamento_planejado"
                       min="0"
                       step="0.01"
-                      name="orcamento_planejado"
                       value={
-                        formulario.orcamento_planejado ??
-                        ""
+                        formulario.orcamento_planejado
                       }
                       onChange={
-                        alterarCampo
+                        alterarFormulario
                       }
                       required
                     />
-
                   </div>
-
                 </div>
 
                 <div className="modal-actions">
-
                   <button
                     type="button"
                     className="cancel-button"
                     onClick={
-                      fecharModal
+                      fecharModalObra
+                    }
+                    disabled={
+                      salvando
                     }
                   >
                     Cancelar
@@ -1344,245 +1270,457 @@ function Obras({
                   >
                     {salvando
                       ? "Salvando..."
-                      : "Salvar"}
+                      : obraEditando
+                        ? "Salvar alterações"
+                        : "Cadastrar obra"}
                   </button>
-
                 </div>
-
               </form>
-
             </div>
-
           </div>
-
         )}
+
+        {/* =================================================
+            MODAL RECURSOS - CONSULTA
+        ================================================= */}
 
         {modalRecursos &&
           obraRecursos && (
-
           <div className="modal-overlay">
-
-            <div className="modal-container modal-recursos">
+            <div className="modal-container modal-recursos-consulta">
 
               <div className="modal-header">
-
                 <div>
-
                   <span className="section-label">
-                    EQUIPES
+                    RECURSOS DA OBRA
                   </span>
 
                   <h2>
-                    {obraRecursos.nome ||
-                      obraRecursos.obra}
+                    {obraRecursos.obra}
                   </h2>
 
                   <p>
-                    Atribua equipes já cadastradas
-                    para a empresa.
+                    Consulte os recursos atualmente utilizados. Nenhuma atribuição é feita nesta janela.
                   </p>
-
                 </div>
 
                 <button
                   type="button"
                   className="modal-close"
-                  onClick={() =>
-                    setModalRecursos(
-                      false
-                    )
+                  onClick={
+                    fecharRecursos
                   }
                 >
                   ×
                 </button>
-
               </div>
 
-              <form
-                className="obra-form"
-                onSubmit={
-                  adicionarEquipe
-                }
-              >
+              {erroRecursos && (
+                <div className="auth-error">
+                  {erroRecursos}
+                </div>
+              )}
 
-                <div className="form-group">
+              {carregandoRecursos ? (
+                <div className="recursos-carregando">
+                  Carregando recursos...
+                </div>
+              ) : (
+                <>
+                  <div className="recursos-resumo-grid">
+                    <div className="recurso-resumo-card">
+                      <span>
+                        Equipes
+                      </span>
 
-                  <label>
-                    Equipe disponível
-                  </label>
+                      <strong>
+                        {recursos.equipes.length}
+                      </strong>
 
-                  <select
-                    value={
-                      idEquipeSelecionada ??
-                      ""
-                    }
-                    onChange={(event) =>
-                      setIdEquipeSelecionada(
-                        event.target.value
-                      )
-                    }
-                  >
+                      <small>
+                        Equipes utilizadas
+                      </small>
+                    </div>
 
-                    <option value="">
-                      Selecione
-                    </option>
+                    <div className="recurso-resumo-card">
+                      <span>
+                        Materiais
+                      </span>
 
-                    {equipesDisponiveis.map(
-                      (equipe) => {
+                      <strong>
+                        {recursos.insumos.length}
+                      </strong>
 
-                        const id =
-                          obterIdEquipe(
-                            equipe
-                          );
+                      <small>
+                        Materiais e insumos
+                      </small>
+                    </div>
 
-                        return (
+                    <div className="recurso-resumo-card">
+                      <span>
+                        Maquinários
+                      </span>
 
-                          <option
-                            key={
-                              `opcao-${id}`
-                            }
-                            value={id}
-                          >
-                            {equipe.nome_equipe}
-                            {" — "}
-                            {equipe.area_atuacao}
-                          </option>
+                      <strong>
+                        {recursos.maquinarios.length}
+                      </strong>
 
-                        );
+                      <small>
+                        Equipamentos utilizados
+                      </small>
+                    </div>
+                  </div>
+
+                  <div className="recursos-tabs">
+                    <button
+                      type="button"
+                      className={
+                        abaRecursos === "resumo"
+                          ? "button"
+                          : "secondary-button"
                       }
-                    )}
+                      onClick={
+                        () =>
+                          setAbaRecursos(
+                            "resumo"
+                          )
+                      }
+                    >
+                      Visão geral
+                    </button>
 
-                  </select>
+                    <button
+                      type="button"
+                      className={
+                        abaRecursos === "equipes"
+                          ? "button"
+                          : "secondary-button"
+                      }
+                      onClick={
+                        () =>
+                          setAbaRecursos(
+                            "equipes"
+                          )
+                      }
+                    >
+                      Equipes
+                    </button>
 
-                </div>
+                    <button
+                      type="button"
+                      className={
+                        abaRecursos === "insumos"
+                          ? "button"
+                          : "secondary-button"
+                      }
+                      onClick={
+                        () =>
+                          setAbaRecursos(
+                            "insumos"
+                          )
+                      }
+                    >
+                      Materiais
+                    </button>
 
-                <div className="modal-actions">
+                    <button
+                      type="button"
+                      className={
+                        abaRecursos === "maquinarios"
+                          ? "button"
+                          : "secondary-button"
+                      }
+                      onClick={
+                        () =>
+                          setAbaRecursos(
+                            "maquinarios"
+                          )
+                      }
+                    >
+                      Maquinários
+                    </button>
+                  </div>
 
-                  <button
-                    type="submit"
-                    className="button"
-                    disabled={
-                      !idEquipeSelecionada
-                    }
-                  >
-                    + Atribuir equipe
-                  </button>
+                  {abaRecursos === "resumo" && (
+                    <div className="recursos-visao-geral">
+                      <div className="consulta-info">
+                        <strong>
+                          Consulta rápida
+                        </strong>
 
-                </div>
+                        <p>
+                          Para cadastrar, atribuir, remover ou editar recursos, use o botão "Gerenciar recursos na obra".
+                        </p>
+                      </div>
 
-              </form>
+                      <div className="recursos-lista-resumo">
+                        <div>
+                          <span>
+                            Equipes utilizadas
+                          </span>
 
-              <div className="tabela-container">
+                          <strong>
+                            {recursos.equipes.length}
+                          </strong>
+                        </div>
 
-                <table>
+                        <div>
+                          <span>
+                            Materiais / insumos
+                          </span>
 
-                  <thead>
+                          <strong>
+                            {recursos.insumos.length}
+                          </strong>
+                        </div>
 
-                    <tr>
-                      <th>Equipe</th>
-                      <th>Área</th>
-                      <th>Profissionais</th>
-                      <th>Custo/dia</th>
-                      <th>Ações</th>
-                    </tr>
+                        <div>
+                          <span>
+                            Maquinários
+                          </span>
 
-                  </thead>
+                          <strong>
+                            {recursos.maquinarios.length}
+                          </strong>
+                        </div>
+                      </div>
+                    </div>
+                  )}
 
-                  <tbody>
+                  {abaRecursos === "equipes" && (
+                    <div className="recursos-tabela">
+                      {recursos.equipes.length === 0 ? (
+                        <div className="recursos-vazio">
+                          Nenhuma equipe vinculada a esta obra.
+                        </div>
+                      ) : (
+                        <div className="table-container">
+                          <table className="table">
+                            <thead>
+                              <tr>
+                                <th>Equipe</th>
+                                <th>Etapa</th>
+                                <th>Profissionais</th>
+                                <th>Custo diário</th>
+                                <th>Custo mensal</th>
+                              </tr>
+                            </thead>
 
-                    {equipesDaObra.length ===
-                    0 ? (
+                            <tbody>
+                              {recursos.equipes.map(
+                                (
+                                  equipe,
+                                  index
+                                ) => (
+                                  <tr
+                                    key={
+                                      equipe.id_cadastro_equipes ??
+                                      equipe.id_equipe_terceirizada ??
+                                      equipe.id_equipe ??
+                                      index
+                                    }
+                                  >
+                                    <td>
+                                      {equipe.nome_equipe || "-"}
+                                    </td>
 
-                      <tr>
+                                    <td>
+                                      {equipe.etapa_atuacao || "-"}
+                                    </td>
 
-                        <td
-                          colSpan="5"
-                          className="tabela-vazia"
-                        >
-                          Nenhuma equipe atribuída.
-                        </td>
+                                    <td>
+                                      {equipe.quantidade_profissionais ?? "-"}
+                                    </td>
 
-                      </tr>
+                                    <td>
+                                      {formatarReal(
+                                        equipe.custo_diario ??
+                                        equipe.custo_diario_total
+                                      )}
+                                    </td>
 
-                    ) : (
+                                    <td>
+                                      {equipe.custo_mensal !== undefined
+                                        ? formatarReal(
+                                            equipe.custo_mensal
+                                          )
+                                        : "-"}
+                                    </td>
+                                  </tr>
+                                )
+                              )}
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
+                    </div>
+                  )}
 
-                      equipesDaObra.map(
-                        (
-                          equipe,
-                          index
-                        ) => {
+                  {abaRecursos === "insumos" && (
+                    <div className="recursos-tabela">
+                      {recursos.insumos.length === 0 ? (
+                        <div className="recursos-vazio">
+                          Nenhum material ou insumo vinculado a esta obra.
+                        </div>
+                      ) : (
+                        <div className="table-container">
+                          <table className="table">
+                            <thead>
+                              <tr>
+                                <th>Material</th>
+                                <th>Quantidade disponível</th>
+                                <th>Valor unitário</th>
+                                <th>Valor total</th>
+                              </tr>
+                            </thead>
 
-                          const id =
-                            obterIdEquipe(
-                              equipe
-                            );
+                            <tbody>
+                              {recursos.insumos.map(
+                                (
+                                  insumo,
+                                  index
+                                ) => {
+                                  const quantidade =
+                                    Number(
+                                      insumo.quantidade_disponivel ||
+                                      0
+                                    );
 
-                          return (
+                                  const valor =
+                                    Number(
+                                      insumo.valor_unitario ||
+                                      0
+                                    );
 
-                            <tr
-                              key={
-                                id != null
-                                  ? `atribuida-${obraRecursos.id_obra}-${id}`
-                                  : `atribuida-${index}`
-                              }
-                            >
+                                  return (
+                                    <tr
+                                      key={
+                                        insumo.id_insumos ??
+                                        insumo.id_insumo ??
+                                        index
+                                      }
+                                    >
+                                      <td>
+                                        {insumo.nome || "-"}
+                                      </td>
 
-                              <td>
-                                {equipe.nome_equipe}
-                              </td>
+                                      <td>
+                                        {quantidade}
+                                      </td>
 
-                              <td>
-                                {equipe.area_atuacao}
-                              </td>
+                                      <td>
+                                        {formatarReal(
+                                          valor
+                                        )}
+                                      </td>
 
-                              <td>
-                                {equipe.quantidade_profissionais}
-                              </td>
+                                      <td>
+                                        {formatarReal(
+                                          quantidade *
+                                          valor
+                                        )}
+                                      </td>
+                                    </tr>
+                                  );
+                                }
+                              )}
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
+                    </div>
+                  )}
 
-                              <td>
-                                {formatarReal(
-                                  equipe.custo_diario_total
-                                )}
-                              </td>
+                  {abaRecursos === "maquinarios" && (
+                    <div className="recursos-tabela">
+                      {recursos.maquinarios.length === 0 ? (
+                        <div className="recursos-vazio">
+                          Nenhum maquinário vinculado a esta obra.
+                        </div>
+                      ) : (
+                        <div className="table-container">
+                          <table className="table">
+                            <thead>
+                              <tr>
+                                <th>Maquinário</th>
+                                <th>Quantidade</th>
+                                <th>Etapa</th>
+                                <th>Custo diário</th>
+                                <th>Status</th>
+                              </tr>
+                            </thead>
 
-                              <td>
+                            <tbody>
+                              {recursos.maquinarios.map(
+                                (
+                                  item,
+                                  index
+                                ) => (
+                                  <tr
+                                    key={
+                                      item.id_maquina ??
+                                      item.id_maquinario ??
+                                      index
+                                    }
+                                  >
+                                    <td>
+                                      {item.nome || "-"}
+                                    </td>
 
-                                <button
-                                  type="button"
-                                  className="cancel-button"
-                                  onClick={() =>
-                                    removerEquipe(
-                                      equipe
-                                    )
-                                  }
-                                >
-                                  Remover
-                                </button>
+                                    <td>
+                                      {item.quantidade ?? "-"}
+                                    </td>
 
-                              </td>
+                                    <td>
+                                      {item.etapa_atuacao || "-"}
+                                    </td>
 
-                            </tr>
+                                    <td>
+                                      {formatarReal(
+                                        item.custo_diario
+                                      )}
+                                    </td>
 
-                          );
-                        }
-                      )
+                                    <td>
+                                      {item.status || "-"}
+                                    </td>
+                                  </tr>
+                                )
+                              )}
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
+                    </div>
+                  )}
 
-                    )}
+                  <div className="modal-actions recursos-modal-actions">
+                    <button
+                      type="button"
+                      className="secondary-button"
+                      onClick={
+                        fecharRecursos
+                      }
+                    >
+                      Fechar
+                    </button>
 
-                  </tbody>
-
-                </table>
-
-              </div>
-
+                    <button
+                      type="button"
+                      className="button"
+                      onClick={
+                        gerenciarNaObra
+                      }
+                    >
+                      Gerenciar recursos na obra
+                    </button>
+                  </div>
+                </>
+              )}
             </div>
-
           </div>
-
         )}
-
       </div>
-
     </Layout>
   );
 }

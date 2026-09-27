@@ -1,94 +1,20 @@
-import {
-  extrairLista,
-  requisitar,
-} from "./api.js";
+import { requisitar } from "./api.js";
 
-const CHAVE_IDS_OBRAS =
-  "vertice_ids_obras_conhecidas";
+const CHAVE_IDS_OBRAS = "vertice_ids_obras_conhecidas";
 
-// =====================================================
-// AUXILIARES
-// =====================================================
+// O GET /obras/ do backend atual chama Obra.getAll(), mas o model
+// não possui esse método. Como não vamos mexer no backend, o frontend
+// lista as obras usando o GET /obras/:id, que funciona.
+const LIMITE_VARREDURA = 120;
+const TAMANHO_LOTE = 12;
+const LOTES_VAZIOS_PARA_PARAR = 3;
 
 function limparData(data) {
-  if (!data) {
-    return "";
-  }
-
-  return String(data)
-    .split("T")[0];
+  if (!data) return "";
+  return String(data).split("T")[0];
 }
 
-function statusCanonico(
-  status
-) {
-  const original =
-    String(
-      status || ""
-    ).trim();
-
-  const valor =
-    original.toLowerCase();
-
-  if (
-    valor ===
-    "planejamento"
-  ) {
-    return "Planejamento";
-  }
-
-  if (
-    valor ===
-      "em andamento" ||
-    valor === "ativo" ||
-    valor === "ativa" ||
-    valor === "iniciado" ||
-    valor === "iniciada"
-  ) {
-    return "Em Andamento";
-  }
-
-  if (
-    valor === "paralisada" ||
-    valor === "paralisado"
-  ) {
-    return "Paralisada";
-  }
-
-  if (
-    valor === "concluída" ||
-    valor === "concluida" ||
-    valor === "concluído" ||
-    valor === "concluido"
-  ) {
-    return "Concluída";
-  }
-
-  return (
-    original ||
-    "Planejamento"
-  );
-}
-
-// =====================================================
-// NORMALIZAR
-// =====================================================
-
-export function normalizarObra(
-  item = {}
-) {
-  const nome =
-    item.nome ??
-    item.nome_obra ??
-    item.obra ??
-    "";
-
-  const pavimentos =
-    item.numero_pavimentos ??
-    item.numero_pavimento ??
-    item.pavimentos ??
-    0;
-
+export function normalizarObra(item = {}) {
   return {
     ...item,
 
@@ -96,24 +22,37 @@ export function normalizarObra(
       item.id_obra ??
       item.id,
 
-    nome,
-
     obra:
-      nome,
+      item.nome ??
+      item.nome_obra ??
+      item.obra ??
+      "",
+
+    nome:
+      item.nome ??
+      item.nome_obra ??
+      item.obra ??
+      "",
 
     status:
-      statusCanonico(
-        item.status
-      ),
+      item.status ??
+      "",
 
     categoria:
       item.categoria ??
       "",
 
     numero_pavimentos:
-      pavimentos,
+      item.numero_pavimentos ??
+      item.numero_pavimento ??
+      item.pavimentos ??
+      0,
 
-    pavimentos,
+    pavimentos:
+      item.numero_pavimentos ??
+      item.numero_pavimento ??
+      item.pavimentos ??
+      0,
 
     data_inicio_planejada:
       limparData(
@@ -141,8 +80,7 @@ export function normalizarObra(
 
     orcamento_planejado:
       Number(
-        item.orcamento_planejado ||
-          0
+        item.orcamento_planejado || 0
       ),
 
     id_construtora:
@@ -152,22 +90,15 @@ export function normalizarObra(
   };
 }
 
-// =====================================================
-// IDS CONHECIDOS
-// =====================================================
-
 function lerIdsConhecidos() {
   try {
-    const dados =
-      JSON.parse(
-        localStorage.getItem(
-          CHAVE_IDS_OBRAS
-        ) || "[]"
-      );
+    const dados = JSON.parse(
+      localStorage.getItem(
+        CHAVE_IDS_OBRAS
+      ) || "[]"
+    );
 
-    if (
-      !Array.isArray(dados)
-    ) {
+    if (!Array.isArray(dados)) {
       return [];
     }
 
@@ -177,9 +108,7 @@ function lerIdsConhecidos() {
           .map(Number)
           .filter(
             (id) =>
-              Number.isInteger(
-                id
-              ) &&
+              Number.isInteger(id) &&
               id > 0
           )
       ),
@@ -189,39 +118,30 @@ function lerIdsConhecidos() {
   }
 }
 
-function salvarIdsConhecidos(
-  ids
-) {
+function salvarIdsConhecidos(ids) {
+  const limpos = [
+    ...new Set(
+      ids
+        .map(Number)
+        .filter(
+          (id) =>
+            Number.isInteger(id) &&
+            id > 0
+        )
+    ),
+  ];
+
   localStorage.setItem(
     CHAVE_IDS_OBRAS,
-    JSON.stringify(
-      [
-        ...new Set(
-          ids
-            .map(Number)
-            .filter(
-              (id) =>
-                Number.isInteger(
-                  id
-                ) &&
-                id > 0
-            )
-        ),
-      ]
-    )
+    JSON.stringify(limpos)
   );
 }
 
-export function lembrarIdObra(
-  id
-) {
-  const numero =
-    Number(id);
+export function lembrarIdObra(id) {
+  const numero = Number(id);
 
   if (
-    !Number.isInteger(
-      numero
-    ) ||
+    !Number.isInteger(numero) ||
     numero <= 0
   ) {
     return;
@@ -233,37 +153,23 @@ export function lembrarIdObra(
   ]);
 }
 
-export function esquecerIdObra(
-  id
-) {
-  const numero =
-    Number(id);
+export function esquecerIdObra(id) {
+  const numero = Number(id);
 
   salvarIdsConhecidos(
     lerIdsConhecidos().filter(
-      (item) =>
-        item !== numero
+      (item) => item !== numero
     )
   );
 }
 
-// =====================================================
-// BUSCAR POR ID
-// =====================================================
-
-export async function buscarObraPorId(
-  id
-) {
-  const dados =
-    await requisitar(
-      `/obras/${id}`
-    );
+export async function buscarObraPorId(id) {
+  const dados = await requisitar(
+    `/obras/${id}`
+  );
 
   const obra =
-    normalizarObra(
-      dados?.obra ??
-        dados
-    );
+    normalizarObra(dados);
 
   if (obra.id_obra) {
     lembrarIdObra(
@@ -274,77 +180,69 @@ export async function buscarObraPorId(
   return obra;
 }
 
-// =====================================================
-// LISTAR
-// =====================================================
-
-export async function listarObras(
+async function buscarIdsConhecidos(
   idConstrutora
 ) {
-  try {
-    const dados =
-      await requisitar(
-        `/obras?id_construtora=${encodeURIComponent(
-          idConstrutora ?? ""
-        )}`
-      );
-
-    const lista =
-      extrairLista(
-        dados,
-        ["obras"]
-      );
-
-    const obras =
-      lista
-        .map(
-          normalizarObra
-        )
-        .filter(
-          (obra) =>
-            !idConstrutora ||
-            !obra.id_construtora ||
-            Number(
-              obra.id_construtora
-            ) ===
-              Number(
-                idConstrutora
-              )
-        );
-
-    obras.forEach(
-      (obra) => {
-        lembrarIdObra(
-          obra.id_obra
-        );
-      }
+  const respostas =
+    await Promise.all(
+      lerIdsConhecidos().map(
+        async (id) => {
+          try {
+            return await buscarObraPorId(id);
+          } catch {
+            return null;
+          }
+        }
+      )
     );
 
-    return obras;
-  } catch (erro) {
-    console.warn(
-      "Listagem geral de obras indisponível. Usando IDs conhecidos.",
-      erro?.message ||
-        erro
+  return respostas.filter(
+    (obra) =>
+      obra &&
+      (
+        !idConstrutora ||
+        Number(
+          obra.id_construtora
+        ) ===
+          Number(
+            idConstrutora
+          )
+      )
+  );
+}
+
+async function varrerObrasPorId(
+  idConstrutora
+) {
+  const encontradas =
+    new Map();
+
+  let lotesVazios = 0;
+
+  for (
+    let inicio = 1;
+    inicio <= LIMITE_VARREDURA;
+    inicio += TAMANHO_LOTE
+  ) {
+    const ids = Array.from(
+      {
+        length: Math.min(
+          TAMANHO_LOTE,
+          LIMITE_VARREDURA -
+            inicio +
+            1
+        ),
+      },
+      (_, indice) =>
+        inicio + indice
     );
 
-    const ids =
-      lerIdsConhecidos();
-
-    if (
-      ids.length === 0
-    ) {
-      return [];
-    }
-
-    const respostas =
+    const lote =
       await Promise.all(
         ids.map(
           async (id) => {
             try {
-              return await buscarObraPorId(
-                id
-              );
+              return await buscarObraPorId(id);
             } catch {
               return null;
             }
@@ -352,25 +250,104 @@ export async function listarObras(
         )
       );
 
-    return respostas
-      .filter(Boolean)
-      .filter(
-        (obra) =>
+    const existentes =
+      lote.filter(Boolean);
+
+    existentes.forEach(
+      (obra) => {
+        if (
           !idConstrutora ||
-          !obra.id_construtora ||
           Number(
             obra.id_construtora
           ) ===
             Number(
               idConstrutora
             )
-      );
+        ) {
+          encontradas.set(
+            Number(
+              obra.id_obra
+            ),
+            obra
+          );
+        }
+      }
+    );
+
+    if (existentes.length > 0) {
+      lotesVazios = 0;
+    } else {
+      lotesVazios += 1;
+
+      if (
+        encontradas.size > 0 &&
+        lotesVazios >=
+          LOTES_VAZIOS_PARA_PARAR
+      ) {
+        break;
+      }
+    }
   }
+
+  return Array.from(
+    encontradas.values()
+  );
 }
 
-// =====================================================
-// CRIAR
-// =====================================================
+export async function listarObras(
+  idConstrutora
+) {
+  const mapa = new Map();
+
+  // Primeiro usa os IDs que o navegador já conhece.
+  const conhecidas =
+    await buscarIdsConhecidos(
+      idConstrutora
+    );
+
+  conhecidas.forEach(
+    (obra) => {
+      mapa.set(
+        Number(obra.id_obra),
+        obra
+      );
+    }
+  );
+
+  // Depois faz a varredura pelo endpoint /obras/:id.
+  // Assim também encontra obras já existentes no banco.
+  const varridas =
+    await varrerObrasPorId(
+      idConstrutora
+    );
+
+  varridas.forEach(
+    (obra) => {
+      mapa.set(
+        Number(obra.id_obra),
+        obra
+      );
+    }
+  );
+
+  const lista =
+    Array.from(
+      mapa.values()
+    );
+
+  salvarIdsConhecidos([
+    ...lerIdsConhecidos(),
+    ...lista.map(
+      (obra) => obra.id_obra
+    ),
+  ]);
+
+  return lista.sort(
+    (a, b) =>
+      Number(b.id_obra) -
+      Number(a.id_obra)
+  );
+}
 
 export async function criarObra(
   dadosObra
@@ -380,7 +357,6 @@ export async function criarObra(
       "/obras/insert",
       {
         method: "POST",
-
         body:
           JSON.stringify(
             dadosObra
@@ -388,21 +364,17 @@ export async function criarObra(
       }
     );
 
-  const id =
+  const idCriado =
     resposta?.insertId ??
     resposta?.id_obra ??
     resposta?.id;
 
-  if (id) {
-    lembrarIdObra(id);
+  if (idCriado) {
+    lembrarIdObra(idCriado);
   }
 
   return resposta;
 }
-
-// =====================================================
-// ATUALIZAR
-// =====================================================
 
 export async function atualizarObra(
   id,
@@ -413,7 +385,6 @@ export async function atualizarObra(
       `/obras/insert/${id}`,
       {
         method: "PUT",
-
         body:
           JSON.stringify(
             dadosObra
@@ -426,16 +397,16 @@ export async function atualizarObra(
   return resposta;
 }
 
-// =====================================================
-// EXCLUIR
-// =====================================================
+export async function excluirObra(id) {
+  const resposta =
+    await requisitar(
+      `/obras/del/${id}`,
+      {
+        method: "DELETE",
+      }
+    );
 
-// A rota atual do backend está retornando 500.
-// Enquanto o backend não for alterado,
-// evitamos disparar uma requisição quebrada.
+  esquecerIdObra(id);
 
-export async function excluirObra() {
-  throw new Error(
-    "A exclusão de obras está temporariamente indisponível no backend."
-  );
+  return resposta;
 }

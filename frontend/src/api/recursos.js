@@ -1,87 +1,56 @@
 import {
-  extrairLista,
   requisitar,
-} from "./api.js";
+} from "./api";
 
-// =====================================================
-// CHAVES DO LOCALSTORAGE
-// =====================================================
+const LIMITE_EQUIPES = 100;
+const TAMANHO_LOTE = 10;
+const LOTES_VAZIOS_PARA_PARAR = 2;
 
-const CHAVE_EQUIPES =
-  "vertice_catalogo_equipes_empresa";
-
-const CHAVE_ATRIBUICOES =
-  "vertice_atribuicoes_equipes_obras";
-
-// =====================================================
-// JSON LOCAL
-// =====================================================
-
-function lerJSON(
-  chave,
-  padrao
+function removerDuplicados(
+  lista,
+  obterId
 ) {
-  try {
-    const salvo =
-      localStorage.getItem(
-        chave
-      );
+  const mapa = new Map();
 
-    if (!salvo) {
-      return padrao;
+  lista.forEach(
+    (item) => {
+      const id = obterId(item);
+
+      if (
+        id !== undefined &&
+        id !== null
+      ) {
+        mapa.set(
+          String(id),
+          item
+        );
+      }
     }
+  );
 
-    return JSON.parse(
-      salvo
-    );
-  } catch {
-    return padrao;
-  }
-}
-
-function salvarJSON(
-  chave,
-  valor
-) {
-  localStorage.setItem(
-    chave,
-    JSON.stringify(
-      valor
-    )
+  return Array.from(
+    mapa.values()
   );
 }
 
-// =====================================================
-// IDS
-// =====================================================
-
-export function obterIdEquipe(
-  item
-) {
+export function obterIdEquipe(item) {
   return (
-    item?.id_equipe ??
-    item?.id_equipe_catalogo ??
     item?.id_cadastro_equipes ??
-    item?.id_equipe_terceirizad ??
     item?.id_equipe_terceirizada ??
+    item?.id_equipe ??
     item?.id
   );
 }
 
-export function obterIdInsumo(
-  item
-) {
+export function obterIdInsumo(item) {
   return (
     item?.id_insumos ??
     item?.id_insumo ??
-    item?.id_cadastro_de_insumos ??
     item?.id
   );
 }
 
-export function obterIdMaquinario(
-  item
-) {
+export function obterIdMaquinario(item) {
   return (
     item?.id_maquina ??
     item?.id_maquinario ??
@@ -90,861 +59,181 @@ export function obterIdMaquinario(
 }
 
 // =====================================================
-// EQUIPES DA EMPRESA
+// EQUIPES INTERNAS
+// =====================================================
+// O GET /equipes/ do backend atual também chama getAll(),
+// que não existe no model. Por isso buscamos por /equipes/:id.
 // =====================================================
 
-function lerEquipes() {
-  const dados =
-    lerJSON(
-      CHAVE_EQUIPES,
-      []
-    );
+async function buscarEquipesPorId() {
+  const encontrados = [];
 
-  return Array.isArray(
-    dados
-  )
-    ? dados
-    : [];
-}
+  let lotesVazios = 0;
 
-function salvarEquipes(
-  equipes
-) {
-  salvarJSON(
-    CHAVE_EQUIPES,
-    equipes
-  );
-}
-
-function normalizarEquipe(
-  equipe = {}
-) {
-  return {
-    ...equipe,
-
-    id_equipe:
-      obterIdEquipe(
-        equipe
-      ),
-
-    nome_equipe:
-      equipe.nome_equipe ??
-      equipe.nome ??
-      "",
-
-    area_atuacao:
-      equipe.area_atuacao ??
-      equipe.etapa_atuacao ??
-      "",
-
-    quantidade_profissionais:
-      Number(
-        equipe.quantidade_profissionais ??
-        0
-      ),
-
-    custo_diario_total:
-      Number(
-        equipe.custo_diario_total ??
-        equipe.custo_diario ??
-        0
-      ),
-
-    id_construtora:
-      equipe.id_construtora ??
-      equipe.idconstrutora ??
-      null,
-  };
-}
-
-// =====================================================
-// LISTAR EQUIPES DA EMPRESA
-// =====================================================
-
-export async function listarEquipesEmpresa(
-  idConstrutora = null
-) {
-  const equipes =
-    lerEquipes().map(
-      normalizarEquipe
-    );
-
-  if (!idConstrutora) {
-    return equipes;
-  }
-
-  return equipes.filter(
-    (equipe) =>
-      Number(
-        equipe.id_construtora
-      ) ===
-      Number(
-        idConstrutora
-      )
-  );
-}
-
-// =====================================================
-// COMPATIBILIDADE COM CÓDIGOS ANTIGOS
-// =====================================================
-
-export async function listarEquipesTerceirizadas() {
-  const idConstrutora =
-    localStorage.getItem(
-      "idconstrutora"
-    ) ||
-    localStorage.getItem(
-      "id_construtora"
-    );
-
-  return listarEquipesEmpresa(
-    idConstrutora
-  );
-}
-
-// =====================================================
-// CRIAR EQUIPE
-// =====================================================
-
-export async function criarEquipe(
-  dados
-) {
-  const equipes =
-    lerEquipes();
-
-  const idConstrutora =
-    dados.id_construtora ??
-    localStorage.getItem(
-      "idconstrutora"
-    ) ??
-    localStorage.getItem(
-      "id_construtora"
-    );
-
-  if (!idConstrutora) {
-    throw new Error(
-      "Construtora não identificada."
-    );
-  }
-
-  let id =
-    Date.now();
-
-  while (
-    equipes.some(
-      (equipe) =>
-        String(
-          obterIdEquipe(
-            equipe
-          )
-        ) ===
-        String(id)
-    )
+  for (
+    let inicio = 1;
+    inicio <= LIMITE_EQUIPES;
+    inicio += TAMANHO_LOTE
   ) {
-    id += 1;
-  }
-
-  const novaEquipe = {
-    id_equipe: id,
-
-    nome_equipe:
-      String(
-        dados.nome_equipe ??
-        ""
-      ).trim(),
-
-    area_atuacao:
-      String(
-        dados.area_atuacao ??
-        ""
-      ),
-
-    quantidade_profissionais:
-      Number(
-        dados.quantidade_profissionais ??
-        0
-      ),
-
-    custo_diario_total:
-      Number(
-        dados.custo_diario_total ??
-        0
-      ),
-
-    id_construtora:
-      Number(
-        idConstrutora
-      ),
-  };
-
-  if (
-    !novaEquipe.nome_equipe
-  ) {
-    throw new Error(
-      "Informe o nome da equipe."
-    );
-  }
-
-  if (
-    !novaEquipe.area_atuacao
-  ) {
-    throw new Error(
-      "Selecione a área de atuação."
-    );
-  }
-
-  if (
-    novaEquipe
-      .quantidade_profissionais <=
-    0
-  ) {
-    throw new Error(
-      "Informe a quantidade de profissionais."
-    );
-  }
-
-  equipes.push(
-    novaEquipe
-  );
-
-  salvarEquipes(
-    equipes
-  );
-
-  return novaEquipe;
-}
-
-// =====================================================
-// ATUALIZAR EQUIPE
-// =====================================================
-
-export async function atualizarEquipe(
-  id,
-  dados
-) {
-  const equipes =
-    lerEquipes();
-
-  const indice =
-    equipes.findIndex(
-      (equipe) =>
-        String(
-          obterIdEquipe(
-            equipe
-          )
-        ) ===
-        String(id)
+    const ids = Array.from(
+      {
+        length: Math.min(
+          TAMANHO_LOTE,
+          LIMITE_EQUIPES -
+            inicio +
+            1
+        ),
+      },
+      (_, indice) =>
+        inicio + indice
     );
 
-  if (indice === -1) {
-    throw new Error(
-      "Equipe não encontrada."
-    );
-  }
-
-  equipes[indice] = {
-    ...equipes[indice],
-
-    nome_equipe:
-      String(
-        dados.nome_equipe ??
-        ""
-      ).trim(),
-
-    area_atuacao:
-      String(
-        dados.area_atuacao ??
-        ""
-      ),
-
-    quantidade_profissionais:
-      Number(
-        dados.quantidade_profissionais ??
-        0
-      ),
-
-    custo_diario_total:
-      Number(
-        dados.custo_diario_total ??
-        0
-      ),
-  };
-
-  salvarEquipes(
-    equipes
-  );
-
-  return equipes[
-    indice
-  ];
-}
-
-// =====================================================
-// EXCLUIR EQUIPE
-// =====================================================
-
-export async function excluirEquipe(
-  equipeOuId
-) {
-  const id =
-    typeof equipeOuId ===
-    "object"
-      ? obterIdEquipe(
-          equipeOuId
+    const lote =
+      await Promise.all(
+        ids.map(
+          async (id) => {
+            try {
+              return await requisitar(
+                `/equipes/${id}`
+              );
+            } catch {
+              return null;
+            }
+          }
         )
-      : equipeOuId;
+      );
 
-  if (!id) {
-    throw new Error(
-      "Equipe não identificada."
-    );
-  }
+    const existentes =
+      lote.filter(Boolean);
 
-  const novasEquipes =
-    lerEquipes().filter(
-      (equipe) =>
-        String(
-          obterIdEquipe(
-            equipe
-          )
-        ) !==
-        String(id)
+    encontrados.push(
+      ...existentes
     );
 
-  salvarEquipes(
-    novasEquipes
-  );
-
-  const atribuicoes =
-    lerAtribuicoes();
-
-  Object.keys(
-    atribuicoes
-  ).forEach(
-    (idObra) => {
-      atribuicoes[
-        idObra
-      ] =
-        (
-          atribuicoes[
-            idObra
-          ] || []
-        ).filter(
-          (idEquipe) =>
-            String(
-              idEquipe
-            ) !==
-            String(id)
-        );
-    }
-  );
-
-  salvarAtribuicoes(
-    atribuicoes
-  );
-
-  return {
-    sucesso: true,
-  };
-}
-
-// =====================================================
-// ATRIBUIÇÕES
-// =====================================================
-
-function lerAtribuicoes() {
-  const dados =
-    lerJSON(
-      CHAVE_ATRIBUICOES,
-      {}
-    );
-
-  if (
-    !dados ||
-    typeof dados !==
-      "object" ||
-    Array.isArray(dados)
-  ) {
-    return {};
-  }
-
-  const valores =
-    Object.values(
-      dados
-    );
-
-  // Formato antigo:
-  // {
-  //   idEquipe: idObra
-  // }
-
-  const formatoAntigo =
-    valores.length > 0 &&
-    valores.every(
-      (valor) =>
-        !Array.isArray(
-          valor
-        )
-    );
-
-  if (!formatoAntigo) {
-    return dados;
-  }
-
-  // Novo formato:
-  // {
-  //   idObra: [idEquipe]
-  // }
-
-  const convertido = {};
-
-  Object.entries(
-    dados
-  ).forEach(
-    ([
-      idEquipe,
-      idObra,
-    ]) => {
-      if (!idObra) {
-        return;
-      }
-
-      const chave =
-        String(
-          idObra
-        );
+    if (existentes.length > 0) {
+      lotesVazios = 0;
+    } else {
+      lotesVazios += 1;
 
       if (
-        !Array.isArray(
-          convertido[
-            chave
-          ]
-        )
+        encontrados.length > 0 &&
+        lotesVazios >=
+          LOTES_VAZIOS_PARA_PARAR
       ) {
-        convertido[
-          chave
-        ] = [];
+        break;
       }
 
-      convertido[
-        chave
-      ].push(
-        String(
-          idEquipe
-        )
-      );
+      if (
+        encontrados.length === 0 &&
+        inicio >= 30
+      ) {
+        break;
+      }
     }
-  );
-
-  salvarAtribuicoes(
-    convertido
-  );
-
-  return convertido;
-}
-
-function salvarAtribuicoes(
-  atribuicoes
-) {
-  salvarJSON(
-    CHAVE_ATRIBUICOES,
-    atribuicoes
-  );
-}
-
-// =====================================================
-// IDS DAS EQUIPES DE UMA OBRA
-// =====================================================
-
-export function obterIdsEquipesDaObra(
-  idObra
-) {
-  const atribuicoes =
-    lerAtribuicoes();
-
-  const lista =
-    atribuicoes[
-      String(
-        idObra
-      )
-    ];
-
-  return Array.isArray(
-    lista
-  )
-    ? lista
-    : [];
-}
-
-// =====================================================
-// ATRIBUIR EQUIPE À OBRA
-// =====================================================
-
-export async function atribuirEquipe(
-  equipe,
-  idObra
-) {
-  const idEquipe =
-    obterIdEquipe(
-      equipe
-    );
-
-  if (!idEquipe) {
-    throw new Error(
-      "Equipe não identificada."
-    );
   }
 
-  if (!idObra) {
-    throw new Error(
-      "Obra não identificada."
-    );
-  }
-
-  const atribuicoes =
-    lerAtribuicoes();
-
-  const chave =
-    String(
-      idObra
-    );
-
-  const lista =
-    Array.isArray(
-      atribuicoes[
-        chave
-      ]
-    )
-      ? [
-          ...atribuicoes[
-            chave
-          ],
-        ]
-      : [];
-
-  const jaExiste =
-    lista.some(
-      (id) =>
-        String(id) ===
-        String(
-          idEquipe
-        )
-    );
-
-  if (!jaExiste) {
-    lista.push(
-      String(
-        idEquipe
-      )
-    );
-  }
-
-  atribuicoes[
-    chave
-  ] = lista;
-
-  salvarAtribuicoes(
-    atribuicoes
+  return removerDuplicados(
+    encontrados,
+    obterIdEquipe
   );
-
-  return {
-    sucesso: true,
-
-    id_obra:
-      Number(
-        idObra
-      ),
-
-    id_equipe:
-      idEquipe,
-  };
 }
 
 // =====================================================
-// REMOVER EQUIPE DA OBRA
+// INSUMOS / MAQUINÁRIOS
 // =====================================================
 
-export async function desatribuirEquipe(
-  equipe,
-  idObra
+async function buscarRecursosPorObras(
+  obras,
+  endpoint,
+  obterId
 ) {
-  const idEquipe =
-    obterIdEquipe(
-      equipe
-    );
+  const respostas =
+    await Promise.all(
+      obras.map(
+        async (obra) => {
+          try {
+            const idObra =
+              obra.id_obra;
 
-  if (
-    !idEquipe ||
-    !idObra
-  ) {
-    return {
-      sucesso: false,
-    };
-  }
+            const dados =
+              await requisitar(
+                `${endpoint}?idobra=${idObra}`
+              );
 
-  const atribuicoes =
-    lerAtribuicoes();
-
-  const chave =
-    String(
-      idObra
-    );
-
-  atribuicoes[
-    chave
-  ] =
-    (
-      atribuicoes[
-        chave
-      ] || []
-    ).filter(
-      (id) =>
-        String(id) !==
-        String(
-          idEquipe
-        )
-    );
-
-  salvarAtribuicoes(
-    atribuicoes
-  );
-
-  return {
-    sucesso: true,
-  };
-}
-
-// =====================================================
-// BUSCAR RECURSOS DA OBRA
-// =====================================================
-
-export async function buscarRecursosDaObra(
-  idObra
-) {
-  const idConstrutora =
-    localStorage.getItem(
-      "idconstrutora"
-    ) ||
-    localStorage.getItem(
-      "id_construtora"
-    );
-
-  const equipes =
-    await listarEquipesEmpresa(
-      idConstrutora
-    );
-
-  const idsEquipes =
-    obterIdsEquipesDaObra(
-      idObra
-    );
-
-  const equipesDaObra =
-    equipes.filter(
-      (equipe) =>
-        idsEquipes.some(
-          (id) =>
-            String(id) ===
-            String(
-              obterIdEquipe(
-                equipe
-              )
+            return Array.isArray(
+              dados
             )
+              ? dados
+              : [];
+          } catch {
+            return [];
+          }
+        }
+      )
+    );
+
+  let lista =
+    respostas.flat();
+
+  if (lista.length === 0) {
+    const tentativas =
+      await Promise.all(
+        Array.from(
+          { length: 30 },
+          (_, i) => i + 1
+        ).map(
+          async (id) => {
+            try {
+              return await requisitar(
+                `${endpoint}/${id}`
+              );
+            } catch {
+              return null;
+            }
+          }
         )
-    );
-
-  let insumos = [];
-  let maquinarios = [];
-
-  try {
-    const dados =
-      await requisitar(
-        `/insumos?idobra=${idObra}`
       );
 
-    insumos =
-      extrairLista(
-        dados,
-        ["insumos"]
+    lista =
+      tentativas.filter(
+        Boolean
       );
-  } catch (error) {
-    console.warn(
-      "Não foi possível carregar insumos:",
-      error?.message ||
-        error
-    );
   }
 
-  try {
-    const dados =
-      await requisitar(
-        `/maquinarios?idobra=${idObra}`
-      );
-
-    maquinarios =
-      extrairLista(
-        dados,
-        ["maquinarios"]
-      );
-  } catch (error) {
-    console.warn(
-      "Não foi possível carregar maquinários:",
-      error?.message ||
-        error
-    );
-  }
-
-  return {
-    equipes:
-      equipesDaObra,
-
-    insumos,
-
-    maquinarios,
-  };
+  return removerDuplicados(
+    lista,
+    obterId
+  );
 }
 
 // =====================================================
-// CATÁLOGO GERAL DE RECURSOS
+// CATÁLOGO COMPLETO
+// Mantido porque outras telas do frontend podem usar.
 // =====================================================
 
 export async function buscarCatalogoRecursos(
   obras = []
 ) {
-  const idConstrutora =
-    localStorage.getItem(
-      "idconstrutora"
-    ) ||
-    localStorage.getItem(
-      "id_construtora"
-    );
+  const [
+    equipes,
+    insumos,
+    maquinarios,
+  ] =
+    await Promise.all([
+      buscarEquipesPorId(),
 
-  const equipes =
-    await listarEquipesEmpresa(
-      idConstrutora
-    );
+      buscarRecursosPorObras(
+        obras,
+        "/insumos",
+        obterIdInsumo
+      ),
 
-  const insumos = [];
-  const maquinarios = [];
-
-  if (
-    Array.isArray(
-      obras
-    )
-  ) {
-    await Promise.all(
-      obras.map(
-        async (obra) => {
-          const idObra =
-            obra?.id_obra;
-
-          if (!idObra) {
-            return;
-          }
-
-          try {
-            const dadosInsumos =
-              await requisitar(
-                `/insumos?idobra=${idObra}`
-              );
-
-            const listaInsumos =
-              extrairLista(
-                dadosInsumos,
-                [
-                  "insumos",
-                ]
-              );
-
-            listaInsumos.forEach(
-              (item) => {
-                const id =
-                  obterIdInsumo(
-                    item
-                  );
-
-                const existe =
-                  insumos.some(
-                    (
-                      existente
-                    ) =>
-                      String(
-                        obterIdInsumo(
-                          existente
-                        )
-                      ) ===
-                      String(id)
-                  );
-
-                if (!existe) {
-                  insumos.push({
-                    ...item,
-
-                    idobra:
-                      item.idobra ??
-                      idObra,
-                  });
-                }
-              }
-            );
-          } catch {
-            // ignora obra
-            // sem rota de insumos
-          }
-
-          try {
-            const dadosMaquinas =
-              await requisitar(
-                `/maquinarios?idobra=${idObra}`
-              );
-
-            const listaMaquinas =
-              extrairLista(
-                dadosMaquinas,
-                [
-                  "maquinarios",
-                ]
-              );
-
-            listaMaquinas.forEach(
-              (item) => {
-                const id =
-                  obterIdMaquinario(
-                    item
-                  );
-
-                const existe =
-                  maquinarios.some(
-                    (
-                      existente
-                    ) =>
-                      String(
-                        obterIdMaquinario(
-                          existente
-                        )
-                      ) ===
-                      String(id)
-                  );
-
-                if (!existe) {
-                  maquinarios.push({
-                    ...item,
-
-                    idobra:
-                      item.idobra ??
-                      idObra,
-                  });
-                }
-              }
-            );
-          } catch {
-            // ignora obra
-            // sem rota de maquinários
-          }
-        }
-      )
-    );
-  }
+      buscarRecursosPorObras(
+        obras,
+        "/maquinarios",
+        obterIdMaquinario
+      ),
+    ]);
 
   return {
     equipes,
@@ -954,50 +243,108 @@ export async function buscarCatalogoRecursos(
 }
 
 // =====================================================
-// COMPATIBILIDADE - INSUMOS
+// ATRIBUIÇÕES
+// Mantidas para a página interna da obra / outras telas.
 // =====================================================
+
+export async function atribuirEquipe(
+  equipe,
+  idObra
+) {
+  const id =
+    obterIdEquipe(equipe);
+
+  if (!id) {
+    throw new Error(
+      "Não foi possível identificar a equipe selecionada."
+    );
+  }
+
+  const payload = {
+    nome_equipe:
+      equipe.nome_equipe,
+
+    etapa_atuacao:
+      equipe.etapa_atuacao,
+
+    quantidade_profissionais:
+      Number(
+        equipe.quantidade_profissionais ||
+          0
+      ),
+
+    custo_diario:
+      Number(
+        equipe.custo_diario ||
+          0
+      ),
+
+    custo_mensal:
+      Number(
+        equipe.custo_mensal ||
+          0
+      ),
+
+    idobra:
+      Number(idObra),
+  };
+
+  return requisitar(
+    `/equipes/insert/${id}`,
+    {
+      method: "PUT",
+      body:
+        JSON.stringify(
+          payload
+        ),
+    }
+  );
+}
 
 export async function atribuirInsumo(
   insumo,
   idObra
 ) {
   const id =
-    obterIdInsumo(
-      insumo
-    );
+    obterIdInsumo(insumo);
 
   if (!id) {
     throw new Error(
-      "Insumo não identificado."
+      "Não foi possível identificar o insumo selecionado."
     );
   }
+
+  const payload = {
+    nome:
+      insumo.nome,
+
+    quantidade_disponivel:
+      Number(
+        insumo.quantidade_disponivel ||
+          0
+      ),
+
+    valor_unitario:
+      Number(
+        insumo.valor_unitario ||
+          0
+      ),
+
+    idobra:
+      Number(idObra),
+  };
 
   return requisitar(
     `/insumos/insert/${id}`,
     {
       method: "PUT",
-
       body:
-        JSON.stringify({
-          ...insumo,
-
-          idobra:
-            Number(
-              idObra
-            ),
-
-          id_obra:
-            Number(
-              idObra
-            ),
-        }),
+        JSON.stringify(
+          payload
+        ),
     }
   );
 }
-
-// =====================================================
-// COMPATIBILIDADE - MAQUINÁRIOS
-// =====================================================
 
 export async function atribuirMaquinario(
   maquinario,
@@ -1010,29 +357,121 @@ export async function atribuirMaquinario(
 
   if (!id) {
     throw new Error(
-      "Maquinário não identificado."
+      "Não foi possível identificar o maquinário selecionado."
     );
   }
+
+  const payload = {
+    nome:
+      maquinario.nome,
+
+    quantidade:
+      Number(
+        maquinario.quantidade ||
+          0
+      ),
+
+    etapa_atuacao:
+      maquinario.etapa_atuacao,
+
+    custo_diario:
+      Number(
+        maquinario.custo_diario ||
+          0
+      ),
+
+    status:
+      maquinario.status ||
+      "Ativo",
+
+    idobra:
+      Number(idObra),
+  };
 
   return requisitar(
     `/maquinarios/insert/${id}`,
     {
       method: "PUT",
-
       body:
-        JSON.stringify({
-          ...maquinario,
-
-          idobra:
-            Number(
-              idObra
-            ),
-
-          id_obra:
-            Number(
-              idObra
-            ),
-        }),
+        JSON.stringify(
+          payload
+        ),
     }
   );
+}
+
+// =====================================================
+// RECURSOS JÁ LIGADOS À OBRA
+// =====================================================
+
+export async function buscarRecursosDaObra(
+  idObra
+) {
+  const [
+    insumosResposta,
+    maquinariosResposta,
+    terceirizadasResposta,
+  ] =
+    await Promise.all([
+      requisitar(
+        `/insumos?idobra=${idObra}`
+      ).catch(() => []),
+
+      requisitar(
+        `/maquinarios?idobra=${idObra}`
+      ).catch(() => []),
+
+      // Esta rota do backend funciona filtrando por id_obra.
+      requisitar(
+        `/equipes-terceirizadas?id_obra=${idObra}`
+      ).catch(() => []),
+    ]);
+
+  // As equipes da tabela cadastro_de_equipes são buscadas
+  // por ID porque /equipes/ está quebrado no backend atual.
+  const equipesInternas =
+    await buscarEquipesPorId();
+
+  const internasDaObra =
+    equipesInternas.filter(
+      (equipe) =>
+        Number(
+          equipe.idobra
+        ) ===
+        Number(
+          idObra
+        )
+    );
+
+  const terceirizadas =
+    Array.isArray(
+      terceirizadasResposta
+    )
+      ? terceirizadasResposta
+      : [];
+
+  return {
+    equipes:
+      removerDuplicados(
+        [
+          ...internasDaObra,
+          ...terceirizadas,
+        ],
+        obterIdEquipe
+      ),
+
+    insumos:
+      Array.isArray(
+        insumosResposta
+      )
+        ? insumosResposta
+        : [],
+
+    maquinarios:
+      Array.isArray(
+        maquinariosResposta
+      )
+        ? maquinariosResposta
+        : [],
+  };
 }
