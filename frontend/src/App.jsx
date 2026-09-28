@@ -1,6 +1,4 @@
-import {
-  useState,
-} from "react";
+import { useState } from "react";
 
 import Login from "./pages/Login";
 import Cadastro from "./pages/Cadastro";
@@ -9,62 +7,87 @@ import Obras from "./pages/Obras";
 import Equipes from "./pages/Equipes";
 import ObraDetalhes from "./pages/ObraDetalhes";
 import Perfil from "./pages/Perfil";
+import AnalyticsFinanceiro from "./pages/AnalyticsFinanceiro";
 
 import "./styles.css";
 
 function App() {
-  const [
-    pagina,
-    setPagina,
-  ] = useState(() => {
+  // =====================================================
+  // PÁGINA ATUAL
+  // =====================================================
+
+  const [pagina, setPagina] = useState(() => {
     const idUsuario =
-      localStorage.getItem(
-        "id_usuario"
-      );
+      localStorage.getItem("id_usuario");
 
     if (!idUsuario) {
+      localStorage.setItem(
+        "pagina_atual",
+        "login"
+      );
+
       return "login";
     }
 
-    const obraSalva =
-      localStorage.getItem(
-        "obra_selecionada"
-      );
-
-    if (obraSalva) {
-      return "obra-detalhes";
+    const salva = localStorage.getItem("pagina_atual");
+    const paginas = ["dashboard", "obras", "equipes", "perfil", "obra-detalhes", "analytics-financeiro"];
+    let destino = paginas.includes(salva) ? salva : "dashboard";
+    if (destino === "obra-detalhes") {
+      try {
+        if (!JSON.parse(localStorage.getItem("obra_selecionada") || "null")?.id_obra) destino = "obras";
+      } catch { destino = "obras"; }
     }
-
-    return "dashboard";
+    localStorage.setItem("pagina_atual", destino);
+    return destino;
   });
+
+  // =====================================================
+  // NAVEGAÇÃO CENTRAL
+  // =====================================================
+
+  function navegar(
+    paginaDestino
+  ) {
+    localStorage.setItem(
+      "pagina_atual",
+      paginaDestino
+    );
+
+    setPagina(
+      paginaDestino
+    );
+  }
+
+
+  // =====================================================
+  // OBRA SELECIONADA
+  // =====================================================
 
   const [
     obraSelecionada,
     setObraSelecionada,
   ] = useState(() => {
+    const obraSalva =
+      localStorage.getItem(
+        "obra_selecionada"
+      );
+
+    if (!obraSalva) {
+      return null;
+    }
+
     try {
       return JSON.parse(
-        localStorage.getItem(
-          "obra_selecionada"
-        ) || "null"
+        obraSalva
       );
     } catch {
       return null;
     }
   });
 
-  function navegar(
-    novaPagina
-  ) {
-    localStorage.setItem(
-      "pagina_atual",
-      novaPagina
-    );
-
-    setPagina(
-      novaPagina
-    );
-  }
+  // =====================================================
+  // ABRIR OBRA
+  // =====================================================
 
   function abrirObra(
     obra
@@ -75,15 +98,17 @@ function App() {
 
     localStorage.setItem(
       "obra_selecionada",
-      JSON.stringify(
-        obra
-      )
+      JSON.stringify(obra)
     );
 
     navegar(
       "obra-detalhes"
     );
   }
+
+  // =====================================================
+  // VOLTAR PARA OBRAS
+  // =====================================================
 
   function voltarParaObras() {
     setObraSelecionada(
@@ -98,6 +123,10 @@ function App() {
       "obras"
     );
   }
+
+  // =====================================================
+  // LOGIN
+  // =====================================================
 
   if (
     pagina === "login"
@@ -118,8 +147,13 @@ function App() {
     );
   }
 
+  // =====================================================
+  // CADASTRO
+  // =====================================================
+
   if (
-    pagina === "cadastro"
+    pagina ===
+    "cadastro"
   ) {
     return (
       <Cadastro
@@ -137,6 +171,10 @@ function App() {
     );
   }
 
+  // =====================================================
+  // DASHBOARD
+  // =====================================================
+
   if (
     pagina ===
     "dashboard"
@@ -148,6 +186,14 @@ function App() {
         }
       />
     );
+  }
+
+  // =====================================================
+  // OBRAS
+  // =====================================================
+
+  if (pagina === "analytics-financeiro") {
+    return <AnalyticsFinanceiro onNavegar={navegar} />;
   }
 
   if (
@@ -165,17 +211,9 @@ function App() {
     );
   }
 
-  if (
-    pagina === "equipes"
-  ) {
-    return (
-      <Equipes
-        onNavegar={
-          navegar
-        }
-      />
-    );
-  }
+  // =====================================================
+  // DETALHES DA OBRA
+  // =====================================================
 
   if (
     pagina ===
@@ -196,8 +234,13 @@ function App() {
     );
   }
 
+  // =====================================================
+  // PERFIL
+  // =====================================================
+
   if (
-    pagina === "perfil"
+    pagina ===
+    "perfil"
   ) {
     return (
       <Perfil
@@ -207,6 +250,27 @@ function App() {
       />
     );
   }
+
+  // =====================================================
+  // EQUIPES
+  // =====================================================
+
+  if (
+    pagina ===
+    "equipes"
+  ) {
+    return (
+      <Equipes
+        onNavegar={
+          navegar
+        }
+      />
+    );
+  }
+
+  // =====================================================
+  // FALLBACK
+  // =====================================================
 
   return (
     <Dashboard

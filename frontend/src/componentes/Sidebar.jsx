@@ -1,34 +1,31 @@
+import iconeVertice from "../assets/icone-vertice.png";
+
 function Sidebar({
   onNavegar,
 }) {
-  const paginaAtual =
+  const paginaSalva =
     localStorage.getItem(
       "pagina_atual"
     ) || "dashboard";
 
-  function estaAtiva(
-    pagina
-  ) {
-    if (
-      pagina === "obras"
-    ) {
-      return (
-        paginaAtual ===
-          "obras" ||
-        paginaAtual ===
-          "obra-detalhes"
-      );
-    }
+  // Quando está dentro de uma obra,
+  // mantemos "Obras" aceso no menu.
+  const paginaInicial =
+    paginaSalva ===
+    "obra-detalhes"
+      ? "obras"
+      : paginaSalva;
 
-    return (
-      paginaAtual ===
-      pagina
-    );
-  }
+  const paginaAtiva = paginaInicial;
 
   function navegar(
     pagina
   ) {
+    localStorage.setItem(
+      "pagina_atual",
+      pagina
+    );
+
     if (
       typeof onNavegar ===
       "function"
@@ -39,19 +36,44 @@ function Sidebar({
     }
   }
 
+  function classeBotao(
+    pagina
+  ) {
+    return paginaAtiva ===
+      pagina
+      ? "sidebar-item ativo"
+      : "sidebar-item";
+  }
+
   return (
     <aside className="sidebar">
 
-      <nav className="sidebar-menu">
+      <div className="sidebar-brand">
+        <img
+          src={iconeVertice}
+          alt=""
+          className="sidebar-brand-icon"
+        />
+
+        <div className="sidebar-brand-text">
+          <strong>
+            VÉRTICE
+          </strong>
+
+          <span>
+            Engenharia & Obras
+          </span>
+        </div>
+      </div>
+
+      <div className="sidebar-menu">
 
         <button
           type="button"
           className={
-            estaAtiva(
+            classeBotao(
               "dashboard"
             )
-              ? "sidebar-item ativo"
-              : "sidebar-item"
           }
           onClick={() =>
             navegar(
@@ -59,17 +81,16 @@ function Sidebar({
             )
           }
         >
+          <span className="sidebar-dot" />
           Dashboard
         </button>
 
         <button
           type="button"
           className={
-            estaAtiva(
+            classeBotao(
               "obras"
             )
-              ? "sidebar-item ativo"
-              : "sidebar-item"
           }
           onClick={() =>
             navegar(
@@ -77,17 +98,16 @@ function Sidebar({
             )
           }
         >
+          <span className="sidebar-dot" />
           Obras
         </button>
 
         <button
           type="button"
           className={
-            estaAtiva(
+            classeBotao(
               "equipes"
             )
-              ? "sidebar-item ativo"
-              : "sidebar-item"
           }
           onClick={() =>
             navegar(
@@ -95,10 +115,26 @@ function Sidebar({
             )
           }
         >
+          <span className="sidebar-dot" />
           Equipes
         </button>
 
-      </nav>
+        <button type="button" className={classeBotao("analytics-financeiro")} onClick={() => navegar("analytics-financeiro")}>
+          <span className="sidebar-dot" />
+          Analytics Financeiro
+        </button>
+
+      </div>
+
+      <div className="sidebar-footer">
+        <span>
+          SISTEMA VÉRTICE
+        </span>
+
+        <small>
+          Gestão inteligente de obras
+        </small>
+      </div>
 
     </aside>
   );

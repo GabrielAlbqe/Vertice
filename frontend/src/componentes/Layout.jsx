@@ -1,28 +1,13 @@
-import {
-  useEffect,
-  useState,
-} from "react";
-
+import { useEffect, useState } from "react";
 import Header from "./Header";
 import Sidebar from "./Sidebar";
+import { requisitar } from "../api/api";
 
-import {
-  requisitar,
-} from "../api/api.js";
-
-function Layout({
-  children,
-  onNavegar,
-}) {
-  const [
-    usuario,
-    setUsuario,
-  ] = useState(() => {
+function Layout({ children, onNavegar }) {
+  const [usuario, setUsuario] = useState(() => {
     try {
       return JSON.parse(
-        localStorage.getItem(
-          "usuario"
-        ) || "null"
+        localStorage.getItem("usuario") || "null"
       );
     } catch {
       return null;
@@ -35,9 +20,7 @@ function Layout({
 
   async function buscarUsuario() {
     const idUsuario =
-      localStorage.getItem(
-        "id_usuario"
-      );
+      localStorage.getItem("id_usuario");
 
     if (!idUsuario) {
       return;
@@ -49,31 +32,24 @@ function Layout({
           `/usuarios/${idUsuario}`
         );
 
-      const atual =
-        dados?.usuario ??
-        dados;
+      const usuarioAtual =
+        dados?.usuario || dados;
 
-      setUsuario(
-        atual
-      );
+      setUsuario(usuarioAtual);
 
       localStorage.setItem(
         "usuario",
-        JSON.stringify(
-          atual
-        )
+        JSON.stringify(usuarioAtual)
       );
 
       localStorage.setItem(
         "nome_usuario",
-        atual?.nome ??
-          ""
+        usuarioAtual?.nome || ""
       );
     } catch (erro) {
       console.warn(
-        "Não foi possível carregar usuário:",
-        erro?.message ||
-          erro
+        "Não foi possível atualizar o usuário do cabeçalho:",
+        erro.message || erro
       );
     }
   }
@@ -90,47 +66,37 @@ function Layout({
       "id_construtora",
       "usuario",
       "obra_selecionada",
-      "pagina_atual",
-    ].forEach(
-      (chave) =>
-        localStorage.removeItem(
-          chave
-        )
+    ].forEach((chave) =>
+      localStorage.removeItem(chave)
     );
 
     if (
-      typeof onNavegar ===
-      "function"
+      typeof onNavegar === "function"
     ) {
-      onNavegar(
-        "login"
-      );
+      onNavegar("login");
     }
   }
 
   return (
     <div className="layout">
 
-      <Header
-        usuario={
-          usuario
-        }
-        onNavegar={
-          onNavegar
-        }
-        onSair={
-          sair
-        }
-      />
-
-      <div className="layout-body">
-
+      {/* LATERAL FIXA */}
+      <div className="layout-sidebar">
         <Sidebar
-          onNavegar={
-            onNavegar
-          }
+          onNavegar={onNavegar}
+        />
+      </div>
+
+      {/* ÁREA DIREITA */}
+      <div className="layout-main">
+
+        <Header
+          usuario={usuario}
+          onNavegar={onNavegar}
+          onSair={sair}
         />
 
+        {/* SOMENTE ESTA ÁREA ROLA */}
         <main className="main-content">
           {children}
         </main>

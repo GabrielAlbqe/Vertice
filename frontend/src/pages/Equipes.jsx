@@ -4,6 +4,8 @@ import {
   useState,
 } from "react";
 
+import { listarObras } from "../api/obras.js";
+
 import Layout from "../componentes/Layout";
 
 import {
@@ -24,14 +26,16 @@ const AREAS_ATUACAO = [
   "Supraestrutura e Alvenaria",
   "Instalações",
   "Revestimentos",
-  "Acabamento",
+  "Acabamentos",
 ];
 
 const FORMULARIO_VAZIO = {
   nome_equipe: "",
-  area_atuacao: "",
+  etapa_atuacao: "",
   quantidade_profissionais: "",
-  custo_diario_total: "",
+  custo_diario: "",
+  custo_mensal: "",
+  idobra: "",
 };
 
 function formatarReal(
@@ -51,6 +55,8 @@ function formatarReal(
 function Equipes({
   onNavegar,
 }) {
+  const [obras, setObras] = useState([]);
+  const [aviso, setAviso] = useState("");
   const [
     equipes,
     setEquipes,
@@ -179,6 +185,9 @@ function Equipes({
           id
         );
 
+      const projetos = await listarObras(id);
+      setObras(projetos);
+      setAviso([lista.aviso, projetos.aviso].filter(Boolean).join(" "));
       setEquipes(
         Array.isArray(lista)
           ? lista
@@ -240,20 +249,21 @@ function Equipes({
     );
 
     setFormulario({
+      ...equipe,
       nome_equipe:
         equipe?.nome_equipe ??
         "",
 
-      area_atuacao:
-        equipe?.area_atuacao ??
+      etapa_atuacao:
+        equipe?.etapa_atuacao ??
         "",
 
       quantidade_profissionais:
         equipe?.quantidade_profissionais ??
         "",
 
-      custo_diario_total:
-        equipe?.custo_diario_total ??
+      custo_diario:
+        equipe?.custo_diario ??
         "",
     });
 
@@ -296,14 +306,15 @@ function Equipes({
         await obterConstrutora();
 
       const dados = {
+        ...formulario,
         nome_equipe:
           String(
             formulario.nome_equipe ??
             ""
           ).trim(),
 
-        area_atuacao:
-          formulario.area_atuacao ??
+        etapa_atuacao:
+          formulario.etapa_atuacao ??
           "",
 
         quantidade_profissionais:
@@ -312,9 +323,9 @@ function Equipes({
             0
           ),
 
-        custo_diario_total:
+        custo_diario:
           Number(
-            formulario.custo_diario_total ??
+            formulario.custo_diario ??
             0
           ),
 
@@ -331,7 +342,7 @@ function Equipes({
       }
 
       if (
-        !dados.area_atuacao
+        !dados.etapa_atuacao
       ) {
         throw new Error(
           "Selecione a área de atuação."
@@ -339,7 +350,7 @@ function Equipes({
       }
 
       if (
-        dados.quantidade_profissionais <=
+        !Number.isInteger(dados.quantidade_profissionais) || dados.quantidade_profissionais <=
         0
       ) {
         throw new Error(
@@ -396,15 +407,17 @@ function Equipes({
       return;
     }
 
-    await excluirEquipe(
-      equipe
-    );
-
-    setSucesso(
-      "Equipe excluída."
-    );
-
-    await carregarEquipes();
+    setSalvando(true);
+    setErro("");
+    setSucesso("");
+    try {
+      await excluirEquipe(equipe);
+      if (obterIdEquipe(equipeEditando) === obterIdEquipe(equipe)) cancelar();
+      await carregarEquipes();
+      setSucesso("Equipe excluída.");
+    } catch (error) {
+      setErro(error.message || "Não foi possível excluir a equipe.");
+    } finally { setSalvando(false); }
   }
 
   const equipesFiltradas =
@@ -426,7 +439,7 @@ function Equipes({
 
           const area =
             String(
-              equipe.area_atuacao ||
+              equipe.etapa_atuacao ||
               ""
             ).toLowerCase();
 
@@ -442,7 +455,7 @@ function Equipes({
             ) &&
             (
               !filtroArea ||
-              equipe.area_atuacao ===
+              equipe.etapa_atuacao ===
                 filtroArea
             )
           );
@@ -470,7 +483,7 @@ function Equipes({
       (total, equipe) =>
         total +
         Number(
-          equipe.custo_diario_total ||
+          equipe.custo_diario ||
           0
         ),
       0
@@ -498,8 +511,8 @@ function Equipes({
             </h1>
 
             <p>
-              Equipes pertencem à empresa.
-              A atribuição é feita em Obras.
+              Cadastre e edite equipes. Uma obra é obrigatória no cadastro atual.
+              Transfira equipes nos detalhes da obra de destino.
             </p>
 
           </div>
@@ -508,6 +521,7 @@ function Equipes({
 
             <button
               type="button"
+              disabled={salvando}
               className="secondary-button"
               onClick={
                 carregarEquipes
@@ -518,6 +532,7 @@ function Equipes({
 
             <button
               type="button"
+              disabled={salvando}
               className="button"
               onClick={
                 abrirCadastro
@@ -530,6 +545,7 @@ function Equipes({
 
         </section>
 
+        {aviso && <p role="status">{aviso}</p>}
         {erro && (
           <div className="auth-error">
             {erro}
@@ -571,7 +587,19 @@ function Equipes({
               }
             >
 
-              <div className="obra-form-grid">
+              <fieldset disabled={salvando} className="obra-form-grid" style={{ border: 0, padding: 0 }}>
+                <div className="form-group">
+                  <label htmlFor="obra-equipe">Obra</label>
+                  <select id="obra-equipe" name="idobra" value={formulario.idobra ?? ""} onChange={alterarCampo} required>
+                    <option value="">Selecione uma obra</option>
+                    {obras.map(item => <option key={item.id_obra} value={item.id_obra}>{item.nome || item.obra}</option>)}
+                    {formulario.idobra && !obras.some(item => Number(item.id_obra) === Number(formulario.idobra)) && <option value={formulario.idobra}>Obra {formulario.idobra}</option>}
+                  </select>
+                </div>
+                <div className="form-group">
+                  <label htmlFor="custo-mensal">Custo mensal</label>
+                  <input id="custo-mensal" type="number" min="0" step="0.01" name="custo_mensal" value={formulario.custo_mensal ?? ""} onChange={alterarCampo} required />
+                </div>
 
                 <div className="form-group">
 
@@ -600,9 +628,9 @@ function Equipes({
                   </label>
 
                   <select
-                    name="area_atuacao"
+                    name="etapa_atuacao"
                     value={
-                      formulario.area_atuacao ??
+                      formulario.etapa_atuacao ??
                       ""
                     }
                     onChange={
@@ -664,9 +692,9 @@ function Equipes({
                     type="number"
                     min="0"
                     step="0.01"
-                    name="custo_diario_total"
+                    name="custo_diario"
                     value={
-                      formulario.custo_diario_total ??
+                      formulario.custo_diario ??
                       ""
                     }
                     onChange={
@@ -677,12 +705,13 @@ function Equipes({
 
                 </div>
 
-              </div>
+              </fieldset>
 
               <div className="modal-actions">
 
                 <button
                   type="button"
+              disabled={salvando}
                   className="cancel-button"
                   onClick={
                     cancelar
@@ -874,7 +903,7 @@ function Equipes({
                           </td>
 
                           <td>
-                            {equipe.area_atuacao}
+                            {equipe.etapa_atuacao}
                           </td>
 
                           <td>
@@ -883,7 +912,7 @@ function Equipes({
 
                           <td>
                             {formatarReal(
-                              equipe.custo_diario_total
+                              equipe.custo_diario
                             )}
                           </td>
 
@@ -893,6 +922,7 @@ function Equipes({
 
                               <button
                                 type="button"
+              disabled={salvando}
                                 className="secondary-button"
                                 onClick={() =>
                                   abrirEdicao(
@@ -905,6 +935,7 @@ function Equipes({
 
                               <button
                                 type="button"
+              disabled={salvando}
                                 className="cancel-button"
                                 onClick={() =>
                                   remover(

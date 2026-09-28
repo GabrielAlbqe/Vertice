@@ -1,20 +1,69 @@
-import { requisitar } from "./api.js";
+import { listarEquipesEmpresa } from "./recursos.js";
 
-const CHAVE_IDS_OBRAS = "vertice_ids_obras_conhecidas";
+import {
+  requisitar,
+} from "./api.js";
 
-// O GET /obras/ do backend atual chama Obra.getAll(), mas o model
-// não possui esse método. Como não vamos mexer no backend, o frontend
-// lista as obras usando o GET /obras/:id, que funciona.
-const LIMITE_VARREDURA = 120;
-const TAMANHO_LOTE = 12;
-const LOTES_VAZIOS_PARA_PARAR = 3;
+// =====================================================
+// CACHE LOCAL DE IDS DE OBRAS
+// =====================================================
+
+const CHAVE_IDS_OBRAS =
+  "vertice_ids_obras_conhecidas";
+
+// =====================================================
+// AUXILIARES
+// =====================================================
 
 function limparData(data) {
-  if (!data) return "";
-  return String(data).split("T")[0];
+  if (!data) {
+    return "";
+  }
+
+  return String(data)
+    .split("T")[0];
 }
 
-export function normalizarObra(item = {}) {
+function extrairArray(
+  dados,
+  chaves = []
+) {
+  if (Array.isArray(dados)) {
+    return dados;
+  }
+
+  for (const chave of chaves) {
+    if (
+      Array.isArray(
+        dados?.[chave]
+      )
+    ) {
+      return dados[chave];
+    }
+  }
+
+  if (
+    Array.isArray(
+      dados?.dados
+    )
+  ) {
+    return dados.dados;
+  }
+
+  if (
+    Array.isArray(
+      dados?.resultado
+    )
+  ) {
+    return dados.resultado;
+  }
+
+  return [];
+}
+
+export function normalizarObra(
+  item = {}
+) {
   return {
     ...item,
 
@@ -80,7 +129,8 @@ export function normalizarObra(item = {}) {
 
     orcamento_planejado:
       Number(
-        item.orcamento_planejado || 0
+        item.orcamento_planejado ||
+        0
       ),
 
     id_construtora:
@@ -90,13 +140,18 @@ export function normalizarObra(item = {}) {
   };
 }
 
+// =====================================================
+// IDS CONHECIDOS
+// =====================================================
+
 function lerIdsConhecidos() {
   try {
-    const dados = JSON.parse(
-      localStorage.getItem(
-        CHAVE_IDS_OBRAS
-      ) || "[]"
-    );
+    const dados =
+      JSON.parse(
+        localStorage.getItem(
+          CHAVE_IDS_OBRAS
+        ) || "[]"
+      );
 
     if (!Array.isArray(dados)) {
       return [];
@@ -118,7 +173,9 @@ function lerIdsConhecidos() {
   }
 }
 
-function salvarIdsConhecidos(ids) {
+function salvarIdsConhecidos(
+  ids
+) {
   const limpos = [
     ...new Set(
       ids
@@ -137,8 +194,11 @@ function salvarIdsConhecidos(ids) {
   );
 }
 
-export function lembrarIdObra(id) {
-  const numero = Number(id);
+export function lembrarIdObra(
+  id
+) {
+  const numero =
+    Number(id);
 
   if (
     !Number.isInteger(numero) ||
@@ -153,23 +213,37 @@ export function lembrarIdObra(id) {
   ]);
 }
 
-export function esquecerIdObra(id) {
-  const numero = Number(id);
+export function esquecerIdObra(
+  id
+) {
+  const numero =
+    Number(id);
 
   salvarIdsConhecidos(
-    lerIdsConhecidos().filter(
-      (item) => item !== numero
-    )
+    lerIdsConhecidos()
+      .filter(
+        (item) =>
+          item !== numero
+      )
   );
 }
 
-export async function buscarObraPorId(id) {
-  const dados = await requisitar(
-    `/obras/${id}`
-  );
+// =====================================================
+// BUSCAR UMA OBRA
+// =====================================================
+
+export async function buscarObraPorId(
+  id
+) {
+  const dados =
+    await requisitar(
+      `/obras/${id}`
+    );
 
   const obra =
-    normalizarObra(dados);
+    normalizarObra(
+      dados
+    );
 
   if (obra.id_obra) {
     lembrarIdObra(
@@ -180,174 +254,203 @@ export async function buscarObraPorId(id) {
   return obra;
 }
 
-async function buscarIdsConhecidos(
-  idConstrutora
-) {
-  const respostas =
-    await Promise.all(
-      lerIdsConhecidos().map(
-        async (id) => {
-          try {
-            return await buscarObraPorId(id);
-          } catch {
-            return null;
-          }
-        }
-      )
+// =====================================================
+// DESCOBRIR IDS EXISTENTES
+// =====================================================
+//
+// IMPORTANTE:
+// O GET /api/obras do backend atual está quebrado porque
+// o controller chama Obra.getAll(), mas o model não possui getAll().
+//
+// Como o backend não será alterado, o frontend descobre IDs por
+// outras rotas JÁ FUNCIONAIS que possuem id_obra:
+//   /etapas
+//   /equipes-terceirizadas
+//   /custos-planejados
+//
+// Também preserva os IDs de obras que o navegador já conhece.
+// Isso elimina a antiga varredura /obras/1, /obras/2, /obras/3...
+// e, consequentemente, os vários 404 do console.
+// =====================================================
+
+async function descobrirIdsObras() {
+  const ids =
+    new Set(
+      lerIdsConhecidos()
     );
 
-  return respostas.filter(
-    (obra) =>
-      obra &&
-      (
-        !idConstrutora ||
-        Number(
-          obra.id_construtora
-        ) ===
-          Number(
-            idConstrutora
-          )
-      )
-  );
-}
-
-async function varrerObrasPorId(
-  idConstrutora
-) {
-  const encontradas =
-    new Map();
-
-  let lotesVazios = 0;
-
-  for (
-    let inicio = 1;
-    inicio <= LIMITE_VARREDURA;
-    inicio += TAMANHO_LOTE
-  ) {
-    const ids = Array.from(
-      {
-        length: Math.min(
-          TAMANHO_LOTE,
-          LIMITE_VARREDURA -
-            inicio +
-            1
-        ),
-      },
-      (_, indice) =>
-        inicio + indice
-    );
-
-    const lote =
-      await Promise.all(
-        ids.map(
-          async (id) => {
-            try {
-              return await buscarObraPorId(id);
-            } catch {
-              return null;
-            }
-          }
-        )
+  // Se havia uma obra aberta anteriormente,
+  // aproveitamos o ID salvo no navegador.
+  try {
+    const selecionada =
+      JSON.parse(
+        localStorage.getItem(
+          "obra_selecionada"
+        ) || "null"
       );
 
-    const existentes =
-      lote.filter(Boolean);
+    const id =
+      Number(
+        selecionada?.id_obra ??
+        selecionada?.id
+      );
 
-    existentes.forEach(
-      (obra) => {
-        if (
-          !idConstrutora ||
-          Number(
-            obra.id_construtora
-          ) ===
-            Number(
-              idConstrutora
-            )
-        ) {
-          encontradas.set(
-            Number(
-              obra.id_obra
-            ),
-            obra
-          );
-        }
-      }
-    );
-
-    if (existentes.length > 0) {
-      lotesVazios = 0;
-    } else {
-      lotesVazios += 1;
-
-      if (
-        encontradas.size > 0 &&
-        lotesVazios >=
-          LOTES_VAZIOS_PARA_PARAR
-      ) {
-        break;
-      }
+    if (
+      Number.isInteger(id) &&
+      id > 0
+    ) {
+      ids.add(id);
     }
+  } catch {
+    // Ignora JSON antigo inválido.
   }
 
-  return Array.from(
-    encontradas.values()
+  const resultados =
+    await Promise.allSettled([
+      requisitar(
+        "/etapas"
+      ),
+
+      requisitar(
+        "/equipes-terceirizadas"
+      ),
+
+      requisitar(
+        "/custos-planejados"
+      ),
+    ]);
+
+  resultados.forEach(
+    (resultado) => {
+      if (
+        resultado.status !==
+        "fulfilled"
+      ) {
+        return;
+      }
+
+      const lista =
+        extrairArray(
+          resultado.value,
+          [
+            "etapas",
+            "equipes",
+            "equipes_terceirizadas",
+            "custos",
+            "custos_planejados",
+          ]
+        );
+
+      lista.forEach(
+        (item) => {
+          const id =
+            Number(
+              item?.id_obra ??
+              item?.idobra ??
+              item?.idx_obra ??
+              item?.obrax_id
+            );
+
+          if (
+            Number.isInteger(id) &&
+            id > 0
+          ) {
+            ids.add(id);
+          }
+        }
+      );
+    }
   );
+
+  const equipes = await listarEquipesEmpresa();
+  equipes.forEach(item => { if (Number(item.idobra) > 0) ids.add(Number(item.idobra)); });
+  const listaIds = Array.from(ids);
+
+  salvarIdsConhecidos(
+    listaIds
+  );
+
+  return listaIds;
 }
+
+// =====================================================
+// LISTAR OBRAS
+// =====================================================
 
 export async function listarObras(
   idConstrutora
 ) {
-  const mapa = new Map();
+  const ids =
+    await descobrirIdsObras();
 
-  // Primeiro usa os IDs que o navegador já conhece.
-  const conhecidas =
-    await buscarIdsConhecidos(
-      idConstrutora
+  // Sem IDs conhecidos, retornamos lista vazia.
+  // Não fazemos varredura numérica e não chamamos /obras/,
+  // evitando os erros do backend e os 404 em sequência.
+
+
+  const respostas =
+    await Promise.allSettled(
+      ids.map(
+        (id) =>
+          buscarObraPorId(
+            id
+          )
+      )
     );
 
-  conhecidas.forEach(
-    (obra) => {
-      mapa.set(
-        Number(obra.id_obra),
-        obra
+  const obras =
+    respostas
+      .filter(
+        (resultado) =>
+          resultado.status ===
+          "fulfilled"
+      )
+      .map(
+        (resultado) =>
+          resultado.value
+      )
+      .filter(
+        (obra) => {
+          if (!obra) {
+            return false;
+          }
+
+          if (!idConstrutora) {
+            return true;
+          }
+
+          return (
+            Number(
+              obra.id_construtora
+            ) ===
+            Number(
+              idConstrutora
+            )
+          );
+        }
       );
-    }
-  );
 
-  // Depois faz a varredura pelo endpoint /obras/:id.
-  // Assim também encontra obras já existentes no banco.
-  const varridas =
-    await varrerObrasPorId(
-      idConstrutora
-    );
+  respostas.forEach((resultado, index) => {
+    if (resultado.status === "rejected" && resultado.reason?.status === 404) esquecerIdObra(ids[index]);
+  });
+  const falha = respostas.find(item => item.status === "rejected" && item.reason?.status !== 404);
+  if (falha) throw falha.reason;
+  obras.aviso = "A listagem de obras está parcial: o servidor não oferece a consulta completa. São exibidas obras conhecidas ou vinculadas aos registros encontrados.";
 
-  varridas.forEach(
-    (obra) => {
-      mapa.set(
-        Number(obra.id_obra),
-        obra
-      );
-    }
-  );
-
-  const lista =
-    Array.from(
-      mapa.values()
-    );
-
-  salvarIdsConhecidos([
-    ...lerIdsConhecidos(),
-    ...lista.map(
-      (obra) => obra.id_obra
-    ),
-  ]);
-
-  return lista.sort(
+  return obras.sort(
     (a, b) =>
-      Number(b.id_obra) -
-      Number(a.id_obra)
+      Number(
+        b.id_obra
+      ) -
+      Number(
+        a.id_obra
+      )
   );
 }
+
+// =====================================================
+// CRIAR
+// =====================================================
 
 export async function criarObra(
   dadosObra
@@ -356,7 +459,9 @@ export async function criarObra(
     await requisitar(
       "/obras/insert",
       {
-        method: "POST",
+        method:
+          "POST",
+
         body:
           JSON.stringify(
             dadosObra
@@ -370,11 +475,17 @@ export async function criarObra(
     resposta?.id;
 
   if (idCriado) {
-    lembrarIdObra(idCriado);
+    lembrarIdObra(
+      idCriado
+    );
   }
 
   return resposta;
 }
+
+// =====================================================
+// ATUALIZAR
+// =====================================================
 
 export async function atualizarObra(
   id,
@@ -384,7 +495,9 @@ export async function atualizarObra(
     await requisitar(
       `/obras/insert/${id}`,
       {
-        method: "PUT",
+        method:
+          "PUT",
+
         body:
           JSON.stringify(
             dadosObra
@@ -392,21 +505,32 @@ export async function atualizarObra(
       }
     );
 
-  lembrarIdObra(id);
+  lembrarIdObra(
+    id
+  );
 
   return resposta;
 }
 
-export async function excluirObra(id) {
+// =====================================================
+// EXCLUIR
+// =====================================================
+
+export async function excluirObra(
+  id
+) {
   const resposta =
     await requisitar(
       `/obras/del/${id}`,
       {
-        method: "DELETE",
+        method:
+          "DELETE",
       }
     );
 
-  esquecerIdObra(id);
+  esquecerIdObra(
+    id
+  );
 
   return resposta;
 }

@@ -6,6 +6,8 @@ import {
   requisitar,
 } from "../api/api";
 
+import logoVertice from "../assets/logo-vertice.png";
+
 const estadoInicial = {
   nome: "",
   email: "",
@@ -135,13 +137,11 @@ function Cadastro({
       <div className="auth-container">
 
         <div className="auth-brand">
-          <h1>
-            VÉRTICE
-          </h1>
-
-          <p>
-            Inteligência para construção civil
-          </p>
+          <img
+            src={logoVertice}
+            alt="Sistema Vértice - Gestão inteligente de obras"
+            className="auth-brand-logo"
+          />
         </div>
 
         <div className="auth-card">

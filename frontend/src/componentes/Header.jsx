@@ -1,16 +1,35 @@
-function Header({ usuario, onNavegar, onSair }) {
+import iconeVertice from "../assets/icone-vertice.png";
 
+function Header({
+  usuario,
+  onNavegar,
+  onSair,
+}) {
   function abrirPerfil() {
-    console.log("Abrindo perfil");
-
-    onNavegar("perfil");
+    if (
+      typeof onNavegar ===
+      "function"
+    ) {
+      onNavegar("perfil");
+    }
   }
 
   return (
     <header className="header">
 
       <div className="header-logo">
-        <h1>VÉRTICE</h1>
+        <img
+          src={iconeVertice}
+          alt=""
+          className="header-brand-icon"
+        />
+
+        <div className="header-brand-copy">
+          <strong>VÉRTICE</strong>
+          <span>
+            Gestão inteligente de obras
+          </span>
+        </div>
       </div>
 
       <div className="header-actions">
@@ -19,6 +38,7 @@ function Header({ usuario, onNavegar, onSair }) {
           type="button"
           className="header-user"
           onClick={abrirPerfil}
+          title="Abrir perfil"
         >
           <div className="header-user-avatar">
             {usuario?.nome
@@ -32,7 +52,7 @@ function Header({ usuario, onNavegar, onSair }) {
             </strong>
 
             <span>
-              {usuario?.ocupacao || ""}
+              {usuario?.ocupacao || "Usuário do sistema"}
             </span>
           </div>
         </button>

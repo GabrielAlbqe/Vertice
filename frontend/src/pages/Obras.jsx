@@ -1050,6 +1050,7 @@ function Obras({
             MODAL OBRA
         ================================================= */}
 
+        {obras.aviso && <p role="status">{obras.aviso}</p>}
         {modalObraAberto && (
           <div className="modal-overlay">
             <div className="modal-container modal-obra">
@@ -1449,7 +1450,7 @@ function Obras({
                         </strong>
 
                         <p>
-                          Para cadastrar, atribuir, remover ou editar recursos, use o botão "Gerenciar recursos na obra".
+                          Para atribuir ou excluir recursos, use o botão "Gerenciar recursos na obra". Cadastre e edite equipes pelo menu Equipes.
                         </p>
                       </div>
 

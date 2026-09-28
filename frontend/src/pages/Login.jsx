@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { requisitar } from "../api/api";
+import logoVertice from "../assets/logo-vertice.png";
 
 function Login({ onLogin, onCadastro }) {
   const [email, setEmail] = useState("");
@@ -194,15 +195,11 @@ function Login({ onLogin, onCadastro }) {
       <div className="auth-container">
 
         <div className="auth-brand">
-
-          <h1>
-            VÉRTICE
-          </h1>
-
-          <p>
-            Planejamento e Controle de Obras
-          </p>
-
+          <img
+            src={logoVertice}
+            alt="Sistema Vértice - Gestão inteligente de obras"
+            className="auth-brand-logo"
+          />
         </div>
 
         <div className="auth-card">

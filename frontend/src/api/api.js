@@ -38,7 +38,7 @@ export async function requisitar(
   if (!resposta.ok) {
     const mensagem =
       typeof dados === "string"
-        ? dados
+        ? (dados.trim().startsWith("<") ? `Erro ${resposta.status} no servidor ao acessar ${endpoint}.` : dados)
         : dados?.message ||
           dados?.mensagem ||
           dados?.error ||
