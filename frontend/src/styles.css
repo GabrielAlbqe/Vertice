@@ -6723,3 +6723,39 @@ body {
   .analytics-page .dashboard-header h1 { font-size: 26px; }
 }
 @media (prefers-reduced-motion: reduce) { .analytics-fill { transition: none; } }
+
+/* =====================================================
+   AJUSTE - SELECTS DO LOGIN / CADASTRO
+===================================================== */
+
+.auth-card .form-group select {
+  width: 100%;
+  height: 44px;
+  padding: 0 13px;
+
+  border: 1px solid #dbe2ea;
+  border-radius: 8px;
+
+  background: #ffffff;
+  color: #0f172a;
+
+  font-size: 13px;
+  outline: none;
+  cursor: pointer;
+
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.auth-card .form-group select:hover {
+  border-color: #b8c5d4;
+}
+
+.auth-card .form-group select:focus {
+  border-color: #2563eb;
+
+  box-shadow:
+    0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+

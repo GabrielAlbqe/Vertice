@@ -215,18 +215,15 @@ function Cadastro({
             </div>
 
             <div className="form-group">
-              <label>
+              <label htmlFor="ambiente">
                 Ambiente
               </label>
 
               <select
+                id="ambiente"
                 name="ambiente"
-                value={
-                  formulario.ambiente
-                }
-                onChange={
-                  alterar
-                }
+                value={formulario.ambiente}
+                onChange={alterar}
               >
                 <option value="Escritório">
                   Escritório
@@ -239,18 +236,15 @@ function Cadastro({
             </div>
 
             <div className="form-group">
-              <label>
+              <label htmlFor="status">
                 Status
               </label>
 
               <select
+                id="status"
                 name="status"
-                value={
-                  formulario.status
-                }
-                onChange={
-                  alterar
-                }
+                value={formulario.status}
+                onChange={alterar}
               >
                 <option value="Ativo">
                   Ativo

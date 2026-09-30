@@ -1,19 +1,6 @@
-import { listarEquipesEmpresa } from "./recursos.js";
-
 import {
   requisitar,
 } from "./api.js";
-
-// =====================================================
-// CACHE LOCAL DE IDS DE OBRAS
-// =====================================================
-
-const CHAVE_IDS_OBRAS =
-  "vertice_ids_obras_conhecidas";
-
-// =====================================================
-// AUXILIARES
-// =====================================================
 
 function limparData(data) {
   if (!data) {
@@ -22,43 +9,6 @@ function limparData(data) {
 
   return String(data)
     .split("T")[0];
-}
-
-function extrairArray(
-  dados,
-  chaves = []
-) {
-  if (Array.isArray(dados)) {
-    return dados;
-  }
-
-  for (const chave of chaves) {
-    if (
-      Array.isArray(
-        dados?.[chave]
-      )
-    ) {
-      return dados[chave];
-    }
-  }
-
-  if (
-    Array.isArray(
-      dados?.dados
-    )
-  ) {
-    return dados.dados;
-  }
-
-  if (
-    Array.isArray(
-      dados?.resultado
-    )
-  ) {
-    return dados.resultado;
-  }
-
-  return [];
 }
 
 export function normalizarObra(
@@ -140,97 +90,71 @@ export function normalizarObra(
   };
 }
 
-// =====================================================
-// IDS CONHECIDOS
-// =====================================================
-
-function lerIdsConhecidos() {
-  try {
-    const dados =
-      JSON.parse(
-        localStorage.getItem(
-          CHAVE_IDS_OBRAS
-        ) || "[]"
-      );
-
-    if (!Array.isArray(dados)) {
-      return [];
-    }
-
-    return [
-      ...new Set(
-        dados
-          .map(Number)
-          .filter(
-            (id) =>
-              Number.isInteger(id) &&
-              id > 0
-          )
-      ),
-    ];
-  } catch {
-    return [];
-  }
+export function lembrarIdObra() {
+  // Mantido por compatibilidade.
 }
 
-function salvarIdsConhecidos(
-  ids
+export function esquecerIdObra() {
+  // Mantido por compatibilidade.
+}
+
+export async function listarObras(
+  idConstrutora
 ) {
-  const limpos = [
-    ...new Set(
-      ids
-        .map(Number)
-        .filter(
-          (id) =>
-            Number.isInteger(id) &&
-            id > 0
+  let rota =
+    "/obras";
+
+  if (idConstrutora) {
+    rota +=
+      `?id_construtora=${encodeURIComponent(
+        idConstrutora
+      )}`;
+  }
+
+  const dados =
+    await requisitar(
+      rota
+    );
+
+  const lista =
+    Array.isArray(dados)
+      ? dados
+      : Array.isArray(
+          dados?.obras
         )
-    ),
-  ];
+        ? dados.obras
+        : [];
 
-  localStorage.setItem(
-    CHAVE_IDS_OBRAS,
-    JSON.stringify(limpos)
-  );
+  return lista
+    .map(
+      normalizarObra
+    )
+    .filter(
+      (obra) => {
+        if (!idConstrutora) {
+          return true;
+        }
+
+        return (
+          Number(
+            obra.id_construtora
+          ) ===
+          Number(
+            idConstrutora
+          )
+        );
+      }
+    )
+    .sort(
+      (a, b) =>
+        Number(
+          b.id_obra
+        ) -
+        Number(
+          a.id_obra
+        )
+    );
 }
-
-export function lembrarIdObra(
-  id
-) {
-  const numero =
-    Number(id);
-
-  if (
-    !Number.isInteger(numero) ||
-    numero <= 0
-  ) {
-    return;
-  }
-
-  salvarIdsConhecidos([
-    ...lerIdsConhecidos(),
-    numero,
-  ]);
-}
-
-export function esquecerIdObra(
-  id
-) {
-  const numero =
-    Number(id);
-
-  salvarIdsConhecidos(
-    lerIdsConhecidos()
-      .filter(
-        (item) =>
-          item !== numero
-      )
-  );
-}
-
-// =====================================================
-// BUSCAR UMA OBRA
-// =====================================================
 
 export async function buscarObraPorId(
   id
@@ -240,297 +164,52 @@ export async function buscarObraPorId(
       `/obras/${id}`
     );
 
-  const obra =
-    normalizarObra(
-      dados
-    );
-
-  if (obra.id_obra) {
-    lembrarIdObra(
-      obra.id_obra
-    );
-  }
-
-  return obra;
-}
-
-// =====================================================
-// DESCOBRIR IDS EXISTENTES
-// =====================================================
-//
-// IMPORTANTE:
-// O GET /api/obras do backend atual está quebrado porque
-// o controller chama Obra.getAll(), mas o model não possui getAll().
-//
-// Como o backend não será alterado, o frontend descobre IDs por
-// outras rotas JÁ FUNCIONAIS que possuem id_obra:
-//   /etapas
-//   /equipes-terceirizadas
-//   /custos-planejados
-//
-// Também preserva os IDs de obras que o navegador já conhece.
-// Isso elimina a antiga varredura /obras/1, /obras/2, /obras/3...
-// e, consequentemente, os vários 404 do console.
-// =====================================================
-
-async function descobrirIdsObras() {
-  const ids =
-    new Set(
-      lerIdsConhecidos()
-    );
-
-  // Se havia uma obra aberta anteriormente,
-  // aproveitamos o ID salvo no navegador.
-  try {
-    const selecionada =
-      JSON.parse(
-        localStorage.getItem(
-          "obra_selecionada"
-        ) || "null"
-      );
-
-    const id =
-      Number(
-        selecionada?.id_obra ??
-        selecionada?.id
-      );
-
-    if (
-      Number.isInteger(id) &&
-      id > 0
-    ) {
-      ids.add(id);
-    }
-  } catch {
-    // Ignora JSON antigo inválido.
-  }
-
-  const resultados =
-    await Promise.allSettled([
-      requisitar(
-        "/etapas"
-      ),
-
-      requisitar(
-        "/equipes-terceirizadas"
-      ),
-
-      requisitar(
-        "/custos-planejados"
-      ),
-    ]);
-
-  resultados.forEach(
-    (resultado) => {
-      if (
-        resultado.status !==
-        "fulfilled"
-      ) {
-        return;
-      }
-
-      const lista =
-        extrairArray(
-          resultado.value,
-          [
-            "etapas",
-            "equipes",
-            "equipes_terceirizadas",
-            "custos",
-            "custos_planejados",
-          ]
-        );
-
-      lista.forEach(
-        (item) => {
-          const id =
-            Number(
-              item?.id_obra ??
-              item?.idobra ??
-              item?.idx_obra ??
-              item?.obrax_id
-            );
-
-          if (
-            Number.isInteger(id) &&
-            id > 0
-          ) {
-            ids.add(id);
-          }
-        }
-      );
-    }
-  );
-
-  const equipes = await listarEquipesEmpresa();
-  equipes.forEach(item => { if (Number(item.idobra) > 0) ids.add(Number(item.idobra)); });
-  const listaIds = Array.from(ids);
-
-  salvarIdsConhecidos(
-    listaIds
-  );
-
-  return listaIds;
-}
-
-// =====================================================
-// LISTAR OBRAS
-// =====================================================
-
-export async function listarObras(
-  idConstrutora
-) {
-  const ids =
-    await descobrirIdsObras();
-
-  // Sem IDs conhecidos, retornamos lista vazia.
-  // Não fazemos varredura numérica e não chamamos /obras/,
-  // evitando os erros do backend e os 404 em sequência.
-
-
-  const respostas =
-    await Promise.allSettled(
-      ids.map(
-        (id) =>
-          buscarObraPorId(
-            id
-          )
-      )
-    );
-
-  const obras =
-    respostas
-      .filter(
-        (resultado) =>
-          resultado.status ===
-          "fulfilled"
-      )
-      .map(
-        (resultado) =>
-          resultado.value
-      )
-      .filter(
-        (obra) => {
-          if (!obra) {
-            return false;
-          }
-
-          if (!idConstrutora) {
-            return true;
-          }
-
-          return (
-            Number(
-              obra.id_construtora
-            ) ===
-            Number(
-              idConstrutora
-            )
-          );
-        }
-      );
-
-  respostas.forEach((resultado, index) => {
-    if (resultado.status === "rejected" && resultado.reason?.status === 404) esquecerIdObra(ids[index]);
-  });
-  const falha = respostas.find(item => item.status === "rejected" && item.reason?.status !== 404);
-  if (falha) throw falha.reason;
-  obras.aviso = "A listagem de obras está parcial: o servidor não oferece a consulta completa. São exibidas obras conhecidas ou vinculadas aos registros encontrados.";
-
-  return obras.sort(
-    (a, b) =>
-      Number(
-        b.id_obra
-      ) -
-      Number(
-        a.id_obra
-      )
+  return normalizarObra(
+    dados
   );
 }
-
-// =====================================================
-// CRIAR
-// =====================================================
 
 export async function criarObra(
   dadosObra
 ) {
-  const resposta =
-    await requisitar(
-      "/obras/insert",
-      {
-        method:
-          "POST",
+  return requisitar(
+    "/obras/insert",
+    {
+      method: "POST",
 
-        body:
-          JSON.stringify(
-            dadosObra
-          ),
-      }
-    );
-
-  const idCriado =
-    resposta?.insertId ??
-    resposta?.id_obra ??
-    resposta?.id;
-
-  if (idCriado) {
-    lembrarIdObra(
-      idCriado
-    );
-  }
-
-  return resposta;
+      body:
+        JSON.stringify(
+          dadosObra
+        ),
+    }
+  );
 }
-
-// =====================================================
-// ATUALIZAR
-// =====================================================
 
 export async function atualizarObra(
   id,
   dadosObra
 ) {
-  const resposta =
-    await requisitar(
-      `/obras/insert/${id}`,
-      {
-        method:
-          "PUT",
+  return requisitar(
+    `/obras/insert/${id}`,
+    {
+      method: "PUT",
 
-        body:
-          JSON.stringify(
-            dadosObra
-          ),
-      }
-    );
-
-  lembrarIdObra(
-    id
+      body:
+        JSON.stringify(
+          dadosObra
+        ),
+    }
   );
-
-  return resposta;
 }
-
-// =====================================================
-// EXCLUIR
-// =====================================================
 
 export async function excluirObra(
   id
 ) {
-  const resposta =
-    await requisitar(
-      `/obras/del/${id}`,
-      {
-        method:
-          "DELETE",
-      }
-    );
-
-  esquecerIdObra(
-    id
+  return requisitar(
+    `/obras/del/${id}`,
+    {
+      method:
+        "DELETE",
+    }
   );
-
-  return resposta;
 }

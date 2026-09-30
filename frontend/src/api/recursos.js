@@ -3,40 +3,8 @@ import {
 } from "./api.js";
 
 // =====================================================
-// CHAVES LOCAIS
-// =====================================================
-
-const CHAVE_IDS_EQUIPES =
-  "vertice_ids_equipes_conhecidos";
-
-// =====================================================
 // AUXILIARES
 // =====================================================
-
-function removerDuplicados(
-  lista,
-  obterId
-) {
-  const mapa = new Map();
-
-  lista.forEach((item) => {
-    const id = obterId(item);
-
-    if (
-      id !== undefined &&
-      id !== null
-    ) {
-      mapa.set(
-        String(id),
-        item
-      );
-    }
-  });
-
-  return Array.from(
-    mapa.values()
-  );
-}
 
 function extrairArray(
   dados,
@@ -73,6 +41,35 @@ function extrairArray(
   }
 
   return [];
+}
+
+function removerDuplicados(
+  lista,
+  obterId
+) {
+  const mapa =
+    new Map();
+
+  lista.forEach(
+    (item) => {
+      const id =
+        obterId(item);
+
+      if (
+        id !== undefined &&
+        id !== null
+      ) {
+        mapa.set(
+          String(id),
+          item
+        );
+      }
+    }
+  );
+
+  return Array.from(
+    mapa.values()
+  );
 }
 
 // =====================================================
@@ -112,95 +109,7 @@ export function obterIdMaquinario(
 }
 
 // =====================================================
-// CACHE DOS IDS DAS EQUIPES
-// =====================================================
-
-function lerIdsEquipesConhecidos() {
-  try {
-    const dados =
-      JSON.parse(
-        localStorage.getItem(
-          CHAVE_IDS_EQUIPES
-        ) || "[]"
-      );
-
-    if (!Array.isArray(dados)) {
-      return [];
-    }
-
-    return [
-      ...new Set(
-        dados
-          .map(Number)
-          .filter(
-            (id) =>
-              Number.isInteger(id) &&
-              id > 0
-          )
-      ),
-    ];
-  } catch {
-    return [];
-  }
-}
-
-function salvarIdsEquipesConhecidos(
-  ids
-) {
-  const limpos = [
-    ...new Set(
-      ids
-        .map(Number)
-        .filter(
-          (id) =>
-            Number.isInteger(id) &&
-            id > 0
-        )
-    ),
-  ];
-
-  localStorage.setItem(
-    CHAVE_IDS_EQUIPES,
-    JSON.stringify(limpos)
-  );
-}
-
-function lembrarIdEquipe(
-  id
-) {
-  const numero =
-    Number(id);
-
-  if (
-    !Number.isInteger(numero) ||
-    numero <= 0
-  ) {
-    return;
-  }
-
-  salvarIdsEquipesConhecidos([
-    ...lerIdsEquipesConhecidos(),
-    numero,
-  ]);
-}
-
-function esquecerIdEquipe(
-  id
-) {
-  const numero =
-    Number(id);
-
-  salvarIdsEquipesConhecidos(
-    lerIdsEquipesConhecidos()
-      .filter(
-        (item) =>
-          item !== numero
-      )
-  );
-}
-
-// =====================================================
-// EQUIPE POR ID
+// EQUIPES
 // =====================================================
 
 export async function buscarEquipePorId(
@@ -212,187 +121,102 @@ export async function buscarEquipePorId(
     );
   }
 
-  const equipe =
-    await requisitar(
-      `/equipes/${id}`
-    );
-
-  const idEncontrado =
-    obterIdEquipe(
-      equipe
-    );
-
-  if (idEncontrado) {
-    lembrarIdEquipe(
-      idEncontrado
-    );
-  }
-
-  return equipe;
-}
-
-// =====================================================
-// DESCOBRIR IDS SEM VARRER /equipes/1...100
-// =====================================================
-//
-// O backend atual não possui um GET /equipes funcional para
-// listar todas as equipes, pois o controller chama getAll()
-// e o model não tem esse método.
-//
-// Para NÃO gerar dezenas de 404 no console, o frontend:
-// 1. usa IDs que já conhece no localStorage;
-// 2. aproveita IDs existentes em /equipes-etapas;
-// 3. faz apenas um fallback opcional para a equipe ID 1.
-// =====================================================
-
-async function descobrirIdsEquipes() {
-  const ids =
-    new Set(
-      lerIdsEquipesConhecidos()
-    );
-
-  try {
-    const resposta =
-      await requisitar(
-        "/equipes-etapas"
-      );
-
-    const etapas =
-      extrairArray(
-        resposta,
-        [
-          "equipes_etapas",
-          "etapas",
-        ]
-      );
-
-    etapas.forEach(
-      (item) => {
-        const id =
-          Number(
-            item?.id_equipe
-          );
-
-        if (
-          Number.isInteger(id) &&
-          id > 0
-        ) {
-          ids.add(id);
-        }
-      }
-    );
-  } catch {
-    // Se não houver registros em equipe_etapa,
-    // seguimos somente com os IDs conhecidos.
-  }
-
-  // Compatibilidade com projetos que já possuem a primeira equipe.
-  // É UMA única tentativa, não uma varredura de IDs.
-  if (ids.size === 0) {
-    try {
-      const primeira =
-        await requisitar(
-          "/equipes/1"
-        );
-
-      const id =
-        obterIdEquipe(
-          primeira
-        );
-
-      if (id) {
-        ids.add(
-          Number(id)
-        );
-      }
-    } catch (error) {
-      if (error.status !== 404) throw error;
-      // Não gera uma sequência de requisições 404.
-    }
-  }
-
-  const lista =
-    Array.from(ids);
-
-  salvarIdsEquipesConhecidos(
-    lista
+  return requisitar(
+    `/equipes/${id}`
   );
-
-  return lista;
 }
 
-// =====================================================
-// LISTAR EQUIPES DA EMPRESA
-// =====================================================
-
-export async function listarEquipesEmpresa(idConstrutora = null) {
-  const ids =
-    await descobrirIdsEquipes();
-
-
-
-  const respostas =
-    await Promise.all(
-      ids.map(
-        async (id) => {
-          try {
-            return await buscarEquipePorId(
-              id
-            );
-          } catch (error) {
-            if (error.status !== 404) throw error;
-            esquecerIdEquipe(id);
-            return null;
-          }
-        }
-      )
+export async function listarEquipesEmpresa(
+  idConstrutora = null
+) {
+  const dados =
+    await requisitar(
+      "/equipes"
     );
 
   const equipes =
-    respostas.filter(Boolean);
+    extrairArray(
+      dados,
+      [
+        "equipes",
+      ]
+    );
 
-  salvarIdsEquipesConhecidos(
-    equipes
-      .map(
-        obterIdEquipe
+  const lista =
+    removerDuplicados(
+      equipes,
+      obterIdEquipe
+    );
+
+  if (!idConstrutora) {
+    return lista;
+  }
+
+  const dadosObras =
+    await requisitar(
+      `/obras?id_construtora=${encodeURIComponent(
+        idConstrutora
+      )}`
+    );
+
+  const obras =
+    extrairArray(
+      dadosObras,
+      [
+        "obras",
+      ]
+    );
+
+  const idsObras =
+    new Set(
+      obras
+        .map(
+          (obra) =>
+            Number(
+              obra.id_obra ??
+              obra.id
+            )
+        )
+        .filter(
+          (id) =>
+            id > 0
+        )
+    );
+
+  return lista.filter(
+    (equipe) =>
+      idsObras.has(
+        Number(
+          equipe.idobra
+        )
       )
-      .filter(Boolean)
   );
-
-  const lista = removerDuplicados(equipes, obterIdEquipe);
-  lista.aviso = "A listagem de equipes está parcial: o servidor não oferece a consulta completa. São exibidos registros conhecidos neste navegador ou encontrados em etapas.";
-  if (!idConstrutora) return lista;
-  const obras = await Promise.all([...new Set(lista.map(item => item.idobra).filter(Boolean))].map(id => requisitar(`/obras/${id}`)));
-  const permitidas = new Set(obras.filter(item => Number(item.id_construtora) === Number(idConstrutora)).map(item => Number(item.id_obra)));
-  const filtradas = lista.filter(item => permitidas.has(Number(item.idobra)));
-  filtradas.aviso = lista.aviso;
-  return filtradas;
 }
 
-// Alias usado em outras telas.
 export async function listarEquipes(
   idObra = null
 ) {
-  const equipes =
-    await listarEquipesEmpresa();
-
   if (
-    idObra === null ||
-    idObra === undefined ||
-    idObra === ""
+    idObra !== null &&
+    idObra !== undefined &&
+    idObra !== ""
   ) {
-    return equipes;
+    const dados =
+      await requisitar(
+        `/equipes?idobra=${encodeURIComponent(
+          idObra
+        )}`
+      );
+
+    return extrairArray(
+      dados,
+      [
+        "equipes",
+      ]
+    );
   }
 
-  return equipes.filter(
-    (equipe) =>
-      Number(
-        equipe.idobra
-      ) ===
-      Number(
-        idObra
-      )
-  );
+  return listarEquipesEmpresa();
 }
 
 export async function buscarEquipes(
@@ -403,19 +227,24 @@ export async function buscarEquipes(
   );
 }
 
-// =====================================================
-// CRUD DE EQUIPES
-// =====================================================
-
 function montarPayloadEquipe(
   equipe = {}
 ) {
-  if (!Number.isInteger(Number(equipe.idobra)) || Number(equipe.idobra) <= 0) {
-    throw new Error("Selecione uma obra. O cadastro atual exige esse vínculo.");
+  if (
+    !Number.isInteger(
+      Number(
+        equipe.idobra
+      )
+    ) ||
+    Number(
+      equipe.idobra
+    ) <= 0
+  ) {
+    throw new Error(
+      "Selecione uma obra para a equipe."
+    );
   }
-  for (const campo of ["custo_diario", "custo_mensal"]) {
-    if (!Number.isFinite(Number(equipe[campo])) || Number(equipe[campo]) < 0) throw new Error("Informe custos válidos.");
-  }
+
   return {
     nome_equipe:
       equipe.nome_equipe ??
@@ -445,13 +274,9 @@ function montarPayloadEquipe(
       ),
 
     idobra:
-      equipe.idobra !== undefined &&
-      equipe.idobra !== null &&
-      equipe.idobra !== ""
-        ? Number(
-            equipe.idobra
-          )
-        : null,
+      Number(
+        equipe.idobra
+      ),
   };
 }
 
@@ -463,31 +288,17 @@ export async function criarEquipe(
       equipe
     );
 
-  const resposta =
-    await requisitar(
-      "/equipes/insert",
-      {
-        method: "POST",
+  return requisitar(
+    "/equipes/insert",
+    {
+      method: "POST",
 
-        body:
-          JSON.stringify(
-            payload
-          ),
-      }
-    );
-
-  const idCriado =
-    resposta?.insertId ??
-    resposta?.id_cadastro_equipes ??
-    resposta?.id;
-
-  if (idCriado) {
-    lembrarIdEquipe(
-      idCriado
-    );
-  }
-
-  return resposta;
+      body:
+        JSON.stringify(
+          payload
+        ),
+    }
+  );
 }
 
 export async function cadastrarEquipe(
@@ -521,7 +332,7 @@ export async function atualizarEquipe(
 
   if (!id) {
     throw new Error(
-      "Não foi possível identificar o ID da equipe."
+      "Não foi possível identificar a equipe."
     );
   }
 
@@ -530,24 +341,17 @@ export async function atualizarEquipe(
       equipe
     );
 
-  const resposta =
-    await requisitar(
-      `/equipes/insert/${id}`,
-      {
-        method: "PUT",
+  return requisitar(
+    `/equipes/insert/${id}`,
+    {
+      method: "PUT",
 
-        body:
-          JSON.stringify(
-            payload
-          ),
-      }
-    );
-
-  lembrarIdEquipe(
-    id
+      body:
+        JSON.stringify(
+          payload
+        ),
+    }
   );
-
-  return resposta;
 }
 
 export async function excluirEquipe(
@@ -563,23 +367,17 @@ export async function excluirEquipe(
 
   if (!id) {
     throw new Error(
-      "Não foi possível identificar o ID da equipe."
+      "Não foi possível identificar a equipe."
     );
   }
 
-  const resposta =
-    await requisitar(
-      `/equipes/del/${id}`,
-      {
-        method: "DELETE",
-      }
-    );
-
-  esquecerIdEquipe(
-    id
+  return requisitar(
+    `/equipes/del/${id}`,
+    {
+      method:
+        "DELETE",
+    }
   );
-
-  return resposta;
 }
 
 export async function removerEquipe(
@@ -599,7 +397,9 @@ export async function listarEquipesTerceirizadas(
 ) {
   const rota =
     idObra
-      ? `/equipes-terceirizadas?id_obra=${idObra}`
+      ? `/equipes-terceirizadas?id_obra=${encodeURIComponent(
+          idObra
+        )}`
       : "/equipes-terceirizadas";
 
   const dados =
@@ -667,23 +467,190 @@ export async function excluirEquipeTerceirizada(
   return requisitar(
     `/equipes-terceirizadas/del/${id}`,
     {
-      method: "DELETE",
+      method:
+        "DELETE",
     }
   );
 }
 
 // =====================================================
-// INSUMOS / MAQUINÁRIOS
+// INSUMOS
 // =====================================================
 
-async function buscarRecursosPorObras(obras, endpoint, obterId) {
-  const ids = [...new Set(obras.map(obra => Number(obra.id_obra)).filter(id => id > 0))];
-  const respostas = await Promise.all(ids.map(id => requisitar(`${endpoint}?idobra=${id}`)));
-  return removerDuplicados(respostas.flatMap(dados => extrairArray(dados)), obterId);
+export async function listarInsumos(
+  idObra = null
+) {
+  const rota =
+    idObra
+      ? `/insumos?idobra=${encodeURIComponent(
+          idObra
+        )}`
+      : "/insumos";
+
+  const dados =
+    await requisitar(
+      rota
+    );
+
+  return extrairArray(
+    dados,
+    [
+      "insumos",
+    ]
+  );
+}
+
+export async function buscarInsumoPorId(
+  id
+) {
+  return requisitar(
+    `/insumos/${id}`
+  );
+}
+
+export async function criarInsumo(
+  insumo
+) {
+  return requisitar(
+    "/insumos/insert",
+    {
+      method: "POST",
+
+      body:
+        JSON.stringify(
+          insumo
+        ),
+    }
+  );
+}
+
+export async function atualizarInsumo(
+  id,
+  insumo
+) {
+  return requisitar(
+    `/insumos/insert/${id}`,
+    {
+      method: "PUT",
+
+      body:
+        JSON.stringify(
+          insumo
+        ),
+    }
+  );
+}
+
+export async function excluirInsumo(
+  idOuInsumo
+) {
+  const id =
+    typeof idOuInsumo ===
+    "object"
+      ? obterIdInsumo(
+          idOuInsumo
+        )
+      : idOuInsumo;
+
+  return requisitar(
+    `/insumos/del/${id}`,
+    {
+      method:
+        "DELETE",
+    }
+  );
 }
 
 // =====================================================
-// CATÁLOGO COMPLETO
+// MAQUINÁRIOS
+// =====================================================
+
+export async function listarMaquinarios(
+  idObra = null
+) {
+  const rota =
+    idObra
+      ? `/maquinarios?idobra=${encodeURIComponent(
+          idObra
+        )}`
+      : "/maquinarios";
+
+  const dados =
+    await requisitar(
+      rota
+    );
+
+  return extrairArray(
+    dados,
+    [
+      "maquinarios",
+    ]
+  );
+}
+
+export async function buscarMaquinarioPorId(
+  id
+) {
+  return requisitar(
+    `/maquinarios/${id}`
+  );
+}
+
+export async function criarMaquinario(
+  maquinario
+) {
+  return requisitar(
+    "/maquinarios/insert",
+    {
+      method: "POST",
+
+      body:
+        JSON.stringify(
+          maquinario
+        ),
+    }
+  );
+}
+
+export async function atualizarMaquinario(
+  id,
+  maquinario
+) {
+  return requisitar(
+    `/maquinarios/insert/${id}`,
+    {
+      method: "PUT",
+
+      body:
+        JSON.stringify(
+          maquinario
+        ),
+    }
+  );
+}
+
+export async function excluirMaquinario(
+  idOuMaquinario
+) {
+  const id =
+    typeof idOuMaquinario ===
+    "object"
+      ? obterIdMaquinario(
+          idOuMaquinario
+        )
+      : idOuMaquinario;
+
+  return requisitar(
+    `/maquinarios/del/${id}`,
+    {
+      method:
+        "DELETE",
+    }
+  );
+}
+
+// =====================================================
+// CATÁLOGO DE RECURSOS
 // =====================================================
 
 export async function buscarCatalogoRecursos(
@@ -695,30 +662,73 @@ export async function buscarCatalogoRecursos(
     maquinarios,
   ] =
     await Promise.all([
-      listarEquipesEmpresa(localStorage.getItem("idconstrutora") || localStorage.getItem("id_construtora")),
-
-      buscarRecursosPorObras(
-        obras,
-        "/insumos",
-        obterIdInsumo
-      ),
-
-      buscarRecursosPorObras(
-        obras,
-        "/maquinarios",
-        obterIdMaquinario
-      ),
+      listarEquipesEmpresa(),
+      listarInsumos(),
+      listarMaquinarios(),
     ]);
 
+  if (
+    !Array.isArray(obras) ||
+    obras.length === 0
+  ) {
+    return {
+      equipes,
+      insumos,
+      maquinarios,
+    };
+  }
+
+  const idsObras =
+    new Set(
+      obras
+        .map(
+          (obra) =>
+            Number(
+              obra.id_obra ??
+              obra.id
+            )
+        )
+        .filter(
+          (id) =>
+            id > 0
+        )
+    );
+
   return {
-    equipes,
-    insumos,
-    maquinarios,
+    equipes:
+      equipes.filter(
+        (item) =>
+          idsObras.has(
+            Number(
+              item.idobra
+            )
+          )
+      ),
+
+    insumos:
+      insumos.filter(
+        (item) =>
+          idsObras.has(
+            Number(
+              item.idobra
+            )
+          )
+      ),
+
+    maquinarios:
+      maquinarios.filter(
+        (item) =>
+          idsObras.has(
+            Number(
+              item.idobra
+            )
+          )
+      ),
   };
 }
 
 // =====================================================
-// ATRIBUIÇÕES
+// ATRIBUIR EQUIPE
 // =====================================================
 
 export async function atribuirEquipe(
@@ -732,7 +742,7 @@ export async function atribuirEquipe(
 
   if (!id) {
     throw new Error(
-      "Não foi possível identificar a equipe selecionada."
+      "Não foi possível identificar a equipe."
     );
   }
 
@@ -740,6 +750,7 @@ export async function atribuirEquipe(
     id,
     {
       ...equipe,
+
       idobra:
         Number(
           idObra
@@ -747,6 +758,10 @@ export async function atribuirEquipe(
     }
   );
 }
+
+// =====================================================
+// ATRIBUIR INSUMO
+// =====================================================
 
 export async function atribuirInsumo(
   insumo,
@@ -759,44 +774,39 @@ export async function atribuirInsumo(
 
   if (!id) {
     throw new Error(
-      "Não foi possível identificar o insumo selecionado."
+      "Não foi possível identificar o insumo."
     );
   }
 
-  const payload = {
-    nome:
-      insumo.nome,
-
-    quantidade_disponivel:
-      Number(
-        insumo.quantidade_disponivel ||
-        0
-      ),
-
-    valor_unitario:
-      Number(
-        insumo.valor_unitario ||
-        0
-      ),
-
-    idobra:
-      Number(
-        idObra
-      ),
-  };
-
-  return requisitar(
-    `/insumos/insert/${id}`,
+  return atualizarInsumo(
+    id,
     {
-      method: "PUT",
+      nome:
+        insumo.nome,
 
-      body:
-        JSON.stringify(
-          payload
+      quantidade_disponivel:
+        Number(
+          insumo.quantidade_disponivel ||
+          0
+        ),
+
+      valor_unitario:
+        Number(
+          insumo.valor_unitario ||
+          0
+        ),
+
+      idobra:
+        Number(
+          idObra
         ),
     }
   );
 }
+
+// =====================================================
+// ATRIBUIR MAQUINÁRIO
+// =====================================================
 
 export async function atribuirMaquinario(
   maquinario,
@@ -809,85 +819,146 @@ export async function atribuirMaquinario(
 
   if (!id) {
     throw new Error(
-      "Não foi possível identificar o maquinário selecionado."
+      "Não foi possível identificar o maquinário."
     );
   }
 
-  const payload = {
-    nome:
-      maquinario.nome,
-
-    quantidade:
-      Number(
-        maquinario.quantidade ||
-        0
-      ),
-
-    etapa_atuacao:
-      maquinario.etapa_atuacao,
-
-    custo_diario:
-      Number(
-        maquinario.custo_diario ||
-        0
-      ),
-
-    status:
-      maquinario.status ||
-      "Ativo",
-
-    idobra:
-      Number(
-        idObra
-      ),
-  };
-
-  return requisitar(
-    `/maquinarios/insert/${id}`,
+  return atualizarMaquinario(
+    id,
     {
-      method: "PUT",
+      nome:
+        maquinario.nome,
 
-      body:
-        JSON.stringify(
-          payload
+      quantidade:
+        Number(
+          maquinario.quantidade ||
+          0
+        ),
+
+      etapa_atuacao:
+        maquinario.etapa_atuacao ??
+        "",
+
+      custo_diario:
+        Number(
+          maquinario.custo_diario ||
+          0
+        ),
+
+      status:
+        maquinario.status ||
+        "Ativo",
+
+      idobra:
+        Number(
+          idObra
         ),
     }
   );
 }
 
 // =====================================================
-// RECURSOS DA OBRA
+// RECURSOS DE UMA OBRA
 // =====================================================
 
-export async function buscarRecursosDaObra(idObra) {
-  const [insumos, maquinarios, terceirizadas, internas] = await Promise.all([
-    requisitar(`/insumos?idobra=${idObra}`),
-    requisitar(`/maquinarios?idobra=${idObra}`),
-    listarEquipesTerceirizadas(idObra),
-    listarEquipesEmpresa(),
-  ]);
+export async function buscarRecursosDaObra(
+  idObra
+) {
+  const [
+    equipes,
+    insumos,
+    maquinarios,
+    terceirizadas,
+  ] =
+    await Promise.all([
+      listarEquipes(
+        idObra
+      ),
+
+      listarInsumos(
+        idObra
+      ),
+
+      listarMaquinarios(
+        idObra
+      ),
+
+      listarEquipesTerceirizadas(
+        idObra
+      ),
+    ]);
+
+  const equipesTerceirizadas =
+    terceirizadas.map(
+      (item) => ({
+        ...item,
+
+        custo_diario:
+          item.custo_diario ??
+          item.custo_diario_total,
+
+        origem:
+          "terceirizada",
+      })
+    );
+
   return {
     equipes: [
-      ...internas.filter(item => Number(item.idobra) === Number(idObra)),
-      ...terceirizadas.filter(item => Number(item.id_obra) === Number(idObra)).map(item => ({ ...item, custo_diario: item.custo_diario_total, origem: "terceirizada" })),
+      ...equipes,
+      ...equipesTerceirizadas,
     ],
-    insumos: extrairArray(insumos, ["insumos"]).filter(item => Number(item.idobra) === Number(idObra)),
-    maquinarios: extrairArray(maquinarios, ["maquinarios"]).filter(item => Number(item.idobra) === Number(idObra)),
-    aviso: internas.aviso,
+
+    insumos,
+
+    maquinarios,
   };
 }
 
-// O schema exige idobra NOT NULL. DELETE exclui o cadastro; não desatribui.
-export async function excluirRecurso(tipo, recurso) {
-  if (tipo === "equipe") {
-    return recurso.origem === "terceirizada"
-      ? excluirEquipeTerceirizada(obterIdEquipe(recurso))
-      : excluirEquipe(recurso);
+// =====================================================
+// EXCLUIR RECURSO
+// =====================================================
+
+export async function excluirRecurso(
+  tipo,
+  recurso
+) {
+  if (
+    tipo === "equipe"
+  ) {
+    if (
+      recurso.origem ===
+      "terceirizada"
+    ) {
+      return excluirEquipeTerceirizada(
+        obterIdEquipe(
+          recurso
+        )
+      );
+    }
+
+    return excluirEquipe(
+      recurso
+    );
   }
-  const rotas = { insumo: ["insumos", obterIdInsumo], maquinario: ["maquinarios", obterIdMaquinario] };
-  const config = rotas[tipo];
-  if (!config) throw new Error("Tipo de recurso inválido.");
-  const id = config[1](recurso);
-  if (!id) throw new Error("Recurso sem identificador.");
-  return requisitar(`/${config[0]}/del/${id}`, { method: "DELETE" });
+
+  if (
+    tipo === "insumo"
+  ) {
+    return excluirInsumo(
+      recurso
+    );
+  }
+
+  if (
+    tipo ===
+    "maquinario"
+  ) {
+    return excluirMaquinario(
+      recurso
+    );
+  }
+
+  throw new Error(
+    "Tipo de recurso inválido."
+  );
 }
