@@ -1,4 +1,5 @@
 const AtividadeEap = require("../models/atividadeEapModel");
+const { dbStatus } = require("../utils/dbError");
 
 // Lista as atividades filtrando pelo ID da obra
 exports.listarPorObra = (req, res) => {
@@ -9,7 +10,7 @@ exports.listarPorObra = (req, res) => {
   }
 
   AtividadeEap.getByObra(idx_obra, (err, results) => {
-    if (err) return res.status(500).send("Erro interno no servidor ao listar atividades da EAP.");
+    if (err) return res.status(dbStatus(err)).send("Erro interno no servidor ao listar atividades da EAP.");
     res.json(results);
   });
 };
@@ -17,7 +18,7 @@ exports.listarPorObra = (req, res) => {
 // Busca detalhes de uma atividade específica por ID
 exports.buscarPorId = (req, res) => {
   AtividadeEap.getById(req.params.id, (err, results) => {
-    if (err) return res.status(500).send("Erro interno no servidor ao buscar atividade da EAP.");
+    if (err) return res.status(dbStatus(err)).send("Erro interno no servidor ao buscar atividade da EAP.");
     if (results.length === 0) return res.status(404).send("Atividade não encontrada.");
     res.json(results[0]);
   });
@@ -26,7 +27,7 @@ exports.buscarPorId = (req, res) => {
 // Remove um registro de atividade do sistema
 exports.deletar = (req, res) => {
   AtividadeEap.delete(req.params.id, (err, result) => {
-    if (err) return res.status(500).send("Erro interno no servidor ao deletar atividade da EAP.");
+    if (err) return res.status(dbStatus(err)).send("Erro interno no servidor ao deletar atividade da EAP.");
     if (result.affectedRows === 0) return res.status(404).send("Atividade não encontrada.");
     res.send("Atividade da EAP removida com sucesso!");
   });
@@ -35,7 +36,7 @@ exports.deletar = (req, res) => {
 // Registra uma nova atividade EAP
 exports.criar = (req, res) => {
   AtividadeEap.create(req.body, (err, result) => {
-    if (err) return res.status(500).send("Erro interno ao cadastrar atividade EAP.");
+    if (err) return res.status(dbStatus(err)).send("Erro interno ao cadastrar atividade EAP.");
     
     // Retorne o JSON com o id do registro cadastrado
     res.status(201).json({ insertId: result.insertId, message: "Atividade cadastrada com sucesso!" });
@@ -45,7 +46,7 @@ exports.criar = (req, res) => {
 // Atualiza os dados de uma atividade existente
 exports.atualizar = (req, res) => {
   AtividadeEap.update(req.params.id, req.body, (err, result) => {
-    if (err) return res.status(500).send("Erro interno no servidor ao atualizar atividade da EAP.");
+    if (err) return res.status(dbStatus(err)).send("Erro interno no servidor ao atualizar atividade da EAP.");
     if (result.affectedRows === 0) return res.status(404).send("Atividade não encontrada.");
     res.send("Atividade da EAP atualizada com sucesso!");
   });

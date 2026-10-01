@@ -1,4 +1,5 @@
 const OrcamentoPrevisto = require("../models/orcamentoPrevistoModel");
+const { dbStatus } = require("../utils/dbError");
 
 // Lista os orçamentos previstos filtrando pelo ID da atividade EAP
 exports.listarPorAtividadeEap = (req, res) => {
@@ -9,7 +10,7 @@ exports.listarPorAtividadeEap = (req, res) => {
   }
 
   OrcamentoPrevisto.getByAtividadeEap(id_atividade_eap, (err, results) => {
-    if (err) return res.status(500).send("Erro interno no servidor ao listar orçamento previsto.");
+    if (err) return res.status(dbStatus(err)).send("Erro interno no servidor ao listar orçamento previsto.");
     res.json(results);
   });
 };
@@ -17,7 +18,7 @@ exports.listarPorAtividadeEap = (req, res) => {
 // Busca detalhes de um orçamento previsto por ID
 exports.buscarPorId = (req, res) => {
   OrcamentoPrevisto.getById(req.params.id, (err, results) => {
-    if (err) return res.status(500).send("Erro interno no servidor ao buscar orçamento previsto.");
+    if (err) return res.status(dbStatus(err)).send("Erro interno no servidor ao buscar orçamento previsto.");
     if (results.length === 0) return res.status(404).send("Orçamento previsto não encontrado.");
     res.json(results[0]);
   });
@@ -26,7 +27,7 @@ exports.buscarPorId = (req, res) => {
 // Remove um registro de orçamento previsto
 exports.deletar = (req, res) => {
   OrcamentoPrevisto.delete(req.params.id, (err, result) => {
-    if (err) return res.status(500).send("Erro interno no servidor ao deletar orçamento previsto.");
+    if (err) return res.status(dbStatus(err)).send("Erro interno no servidor ao deletar orçamento previsto.");
     if (result.affectedRows === 0) return res.status(404).send("Orçamento previsto não encontrado.");
     res.send("Orçamento previsto removido com sucesso!");
   });
@@ -36,7 +37,7 @@ exports.deletar = (req, res) => {
 exports.criar = (req, res) => {
   // req.body deve conter: id_orcamento, valor_planejado, id_atividade_eap
   OrcamentoPrevisto.create(req.body, (err) => {
-    if (err) return res.status(500).send("Erro interno no servidor ao cadastrar orçamento previsto.");
+    if (err) return res.status(dbStatus(err)).send("Erro interno no servidor ao cadastrar orçamento previsto.");
     res.status(201).send("Orçamento previsto registrado com sucesso!");
   });
 };
@@ -44,7 +45,7 @@ exports.criar = (req, res) => {
 // Atualiza os dados de um orçamento previsto existente
 exports.atualizar = (req, res) => {
   OrcamentoPrevisto.update(req.params.id, req.body, (err, result) => {
-    if (err) return res.status(500).send("Erro interno no servidor ao atualizar orçamento previsto.");
+    if (err) return res.status(dbStatus(err)).send("Erro interno no servidor ao atualizar orçamento previsto.");
     if (result.affectedRows === 0) return res.status(404).send("Orçamento previsto não encontrado.");
     res.send("Orçamento previsto atualizado com sucesso!");
   });

@@ -1,154 +1,55 @@
-const Insumos =
-  require("../models/insumosModel");
+const Insumos = require("../models/insumosModel");
+const { dbStatus } = require("../utils/dbError");
 
-exports.listarPorObra = (
-  req,
-  res
-) => {
-  const idobra =
-    req.query.idobra ||
-    req.query.id_obra;
+// Lista os insumos filtrando pelo ID da obra
+exports.listarPorObra = (req, res) => {
+  const idobra = req.query.idobra || req.headers["idobra"];
 
   if (!idobra) {
-    return Insumos.getAll(
-      (err, results) => {
-        if (err) {
-          return res.status(500).json({
-            error: err.message,
-          });
-        }
-
-        res.json(results);
-      }
-    );
+    return res.status(400).send("O identificador da obra (idobra) é obrigatório.");
   }
 
-  Insumos.getByObra(
-    idobra,
-    (err, results) => {
-      if (err) {
-        return res.status(500).json({
-          error: err.message,
-        });
-      }
-
-      res.json(results);
-    }
-  );
+  Insumos.getByObra(idobra, (err, results) => {
+    if (err) return res.status(dbStatus(err)).send("Erro interno no servidor ao listar insumos.");
+    res.json(results);
+  });
 };
 
-exports.buscarPorId = (
-  req,
-  res
-) => {
-  Insumos.getById(
-    req.params.id,
-    (err, results) => {
-      if (err) {
-        return res.status(500).json({
-          error: err.message,
-        });
-      }
-
-      if (
-        !results ||
-        results.length === 0
-      ) {
-        return res.status(404).json({
-          message:
-            "Insumo não encontrado.",
-        });
-      }
-
-      res.json(results[0]);
-    }
-  );
+// Busca detalhes de um insumo específico por ID
+exports.buscarPorId = (req, res) => {
+  Insumos.getById(req.params.id, (err, results) => {
+    if (err) return res.status(dbStatus(err)).send("Erro interno no servidor ao buscar insumo.");
+    if (results.length === 0) return res.status(404).send("Insumo não encontrado.");
+    res.json(results[0]);
+  });
 };
 
-exports.deletar = (
-  req,
-  res
-) => {
-  Insumos.delete(
-    req.params.id,
-    (err, result) => {
-      if (err) {
-        return res.status(500).json({
-          error: err.message,
-        });
-      }
-
-      if (
-        result.affectedRows === 0
-      ) {
-        return res.status(404).json({
-          message:
-            "Insumo não encontrado.",
-        });
-      }
-
-      res.json({
-        message:
-          "Insumo removido com sucesso!",
-      });
-    }
-  );
+// Remove um registro de insumo do sistema
+exports.deletar = (req, res) => {
+  Insumos.delete(req.params.id, (err, result) => {
+    if (err) return res.status(dbStatus(err)).send("Erro interno no servidor ao deletar insumo.");
+    if (result.affectedRows === 0) return res.status(404).send("Insumo não encontrado.");
+    res.send("Insumo removido com sucesso!");
+  });
 };
 
-exports.criar = (
-  req,
-  res
-) => {
-  Insumos.create(
-    req.body,
-    (err, result) => {
-      if (err) {
-        return res.status(500).json({
-          message:
-            "Erro ao cadastrar insumo.",
-          error:
-            err.message,
-        });
-      }
-
-      res.status(201).json({
-        insertId:
-          result.insertId,
-
-        message:
-          "Insumo cadastrado com sucesso!",
-      });
+// Registra um novo insumo
+exports.criar = (req, res) => {
+  Insumos.create(req.body, (err, result) => { // <-- Corrigido de Insumo para Insumos
+    if (err) {
+      return res.status(dbStatus(err)).json({ message: "Erro ao cadastrar insumo.", error: err.message });
     }
-  );
+    
+    // Devolve o ID criado em formato JSON
+    res.status(201).json({ insertId: result.insertId, message: "Insumo cadastrado com sucesso!" });
+  });
 };
 
-exports.atualizar = (
-  req,
-  res
-) => {
-  Insumos.update(
-    req.params.id,
-    req.body,
-    (err, result) => {
-      if (err) {
-        return res.status(500).json({
-          error: err.message,
-        });
-      }
-
-      if (
-        result.affectedRows === 0
-      ) {
-        return res.status(404).json({
-          message:
-            "Insumo não encontrado.",
-        });
-      }
-
-      res.json({
-        message:
-          "Insumo atualizado com sucesso!",
-      });
-    }
-  );
+// Atualiza os dados de um insumo existente
+exports.atualizar = (req, res) => {
+  Insumos.update(req.params.id, req.body, (err, result) => {
+    if (err) return res.status(dbStatus(err)).send("Erro interno no servidor ao atualizar insumo.");
+    if (result.affectedRows === 0) return res.status(404).send("Insumo não encontrado.");
+    res.send("Insumo atualizado com sucesso!");
+  });
 };

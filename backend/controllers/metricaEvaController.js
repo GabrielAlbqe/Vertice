@@ -1,4 +1,5 @@
 const MetricasEva = require("../models/metricaEvaModel");
+const { dbStatus } = require("../utils/dbError");
 
 // Lista as métricas EVA filtrando pelo ID da obra
 exports.listarPorObra = (req, res) => {
@@ -9,7 +10,7 @@ exports.listarPorObra = (req, res) => {
   }
 
   MetricasEva.getByObra(obra_idxx, (err, results) => {
-    if (err) return res.status(500).send("Erro interno no servidor ao listar métricas EVA.");
+    if (err) return res.status(dbStatus(err)).send("Erro interno no servidor ao listar métricas EVA.");
     res.json(results);
   });
 };
@@ -17,7 +18,7 @@ exports.listarPorObra = (req, res) => {
 // Busca detalhes de uma métrica EVA específica por ID
 exports.buscarPorId = (req, res) => {
   MetricasEva.getById(req.params.id, (err, results) => {
-    if (err) return res.status(500).send("Erro interno no servidor ao buscar métrica EVA.");
+    if (err) return res.status(dbStatus(err)).send("Erro interno no servidor ao buscar métrica EVA.");
     if (results.length === 0) return res.status(404).send("Métrica EVA não encontrada.");
     res.json(results[0]);
   });
@@ -26,7 +27,7 @@ exports.buscarPorId = (req, res) => {
 // Remove um registro de métrica EVA do sistema
 exports.deletar = (req, res) => {
   MetricasEva.delete(req.params.id, (err, result) => {
-    if (err) return res.status(500).send("Erro interno no servidor ao deletar métrica EVA.");
+    if (err) return res.status(dbStatus(err)).send("Erro interno no servidor ao deletar métrica EVA.");
     if (result.affectedRows === 0) return res.status(404).send("Métrica EVA não encontrada.");
     res.send("Métrica EVA removida com sucesso!");
   });
@@ -36,7 +37,7 @@ exports.deletar = (req, res) => {
 exports.criar = (req, res) => {
   // req.body deve conter: data_calculo, idc, idp, eac, obra_idxx
   MetricasEva.create(req.body, (err) => {
-    if (err) return res.status(500).send("Erro interno no servidor ao cadastrar métrica EVA.");
+    if (err) return res.status(dbStatus(err)).send("Erro interno no servidor ao cadastrar métrica EVA.");
     res.status(201).send("Métrica EVA registrada com sucesso!");
   });
 };
@@ -44,7 +45,7 @@ exports.criar = (req, res) => {
 // Atualiza os dados de uma métrica EVA existente
 exports.atualizar = (req, res) => {
   MetricasEva.update(req.params.id, req.body, (err, result) => {
-    if (err) return res.status(500).send("Erro interno no servidor ao atualizar métrica EVA.");
+    if (err) return res.status(dbStatus(err)).send("Erro interno no servidor ao atualizar métrica EVA.");
     if (result.affectedRows === 0) return res.status(404).send("Métrica EVA não encontrada.");
     res.send("Métrica EVA atualizada com sucesso!");
   });

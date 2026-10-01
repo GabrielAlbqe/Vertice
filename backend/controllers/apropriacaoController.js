@@ -1,9 +1,10 @@
 const Apropriacao = require("../models/apropriacaoModel");
+const { dbStatus } = require("../utils/dbError");
 
 // Lista todas as apropriações salvas
 exports.listarTodas = (req, res) => {
   Apropriacao.getAll((err, results) => {
-    if (err) return res.status(500).send("Erro interno no servidor ao listar apropriações.");
+    if (err) return res.status(dbStatus(err)).send("Erro interno no servidor ao listar apropriações.");
     res.json(results);
   });
 };
@@ -11,7 +12,7 @@ exports.listarTodas = (req, res) => {
 // Busca detalhes de uma apropriação específica por ID
 exports.buscarPorId = (req, res) => {
   Apropriacao.getById(req.params.id, (err, results) => {
-    if (err) return res.status(500).send("Erro interno no servidor ao buscar apropriação.");
+    if (err) return res.status(dbStatus(err)).send("Erro interno no servidor ao buscar apropriação.");
     if (results.length === 0) return res.status(404).send("Apropriação não encontrada.");
     res.json(results[0]);
   });
@@ -20,7 +21,7 @@ exports.buscarPorId = (req, res) => {
 // Remove um registro de apropriação do sistema
 exports.deletar = (req, res) => {
   Apropriacao.delete(req.params.id, (err, result) => {
-    if (err) return res.status(500).send("Erro interno no servidor ao deletar apropriação.");
+    if (err) return res.status(dbStatus(err)).send("Erro interno no servidor ao deletar apropriação.");
     if (result.affectedRows === 0) return res.status(404).send("Apropriação não encontrada.");
     res.send("Apropriação removida com sucesso!");
   });
@@ -42,7 +43,7 @@ exports.criar = (req, res) => {
       }
 
       // Erros genéricos de servidor
-      return res.status(500).send("Erro interno no servidor ao cadastrar apropriação.");
+      return res.status(dbStatus(err)).send("Erro interno no servidor ao cadastrar apropriação.");
     }
 
     res.status(201).send("Apropriação registrada com sucesso!");
@@ -51,7 +52,7 @@ exports.criar = (req, res) => {
 // Atualiza os dados de uma apropriação existente
 exports.atualizar = (req, res) => {
   Apropriacao.update(req.params.id, req.body, (err, result) => {
-    if (err) return res.status(500).send("Erro interno no servidor ao atualizar apropriação.");
+    if (err) return res.status(dbStatus(err)).send("Erro interno no servidor ao atualizar apropriação.");
     if (result.affectedRows === 0) return res.status(404).send("Apropriação não encontrada.");
     res.send("Apropriação atualizada com sucesso!");
   });

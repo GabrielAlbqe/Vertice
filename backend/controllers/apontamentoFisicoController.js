@@ -1,4 +1,5 @@
 const ApontamentoFisico = require("../models/apontamentoFisicoModel");
+const { dbStatus } = require("../utils/dbError");
 
 // Lista os apontamentos filtrando pelo ID do diário de obra
 exports.listarPorDiario = (req, res) => {
@@ -9,7 +10,7 @@ exports.listarPorDiario = (req, res) => {
   }
 
   ApontamentoFisico.getByDiario(diario_id, (err, results) => {
-    if (err) return res.status(500).json({ error: "Erro interno no servidor ao listar apontamentos." });
+    if (err) return res.status(dbStatus(err)).json({ error: "Erro interno no servidor ao listar apontamentos." });
     res.json(results);
   });
 };
@@ -17,7 +18,7 @@ exports.listarPorDiario = (req, res) => {
 // Busca detalhes de um apontamento específico por ID
 exports.buscarPorId = (req, res) => {
   ApontamentoFisico.getById(req.params.id, (err, results) => {
-    if (err) return res.status(500).json({ error: "Erro interno no servidor ao buscar apontamento." });
+    if (err) return res.status(dbStatus(err)).json({ error: "Erro interno no servidor ao buscar apontamento." });
     if (!results || results.length === 0) return res.status(404).json({ error: "Apontamento não encontrado." });
     res.json(results[0]);
   });
@@ -26,7 +27,7 @@ exports.buscarPorId = (req, res) => {
 // Remove um registro de apontamento do sistema
 exports.deletar = (req, res) => {
   ApontamentoFisico.delete(req.params.id, (err, result) => {
-    if (err) return res.status(500).json({ error: "Erro interno no servidor ao deletar apontamento." });
+    if (err) return res.status(dbStatus(err)).json({ error: "Erro interno no servidor ao deletar apontamento." });
     if (result.affectedRows === 0) return res.status(404).json({ error: "Apontamento não encontrado." });
     res.json({ message: "Apontamento físico removido com sucesso!" });
   });
@@ -46,7 +47,7 @@ exports.criar = (req, res) => {
   ApontamentoFisico.create(req.body, (err, result) => {
     if (err) {
       console.error("❌ ERRO NO BANCO AO INSERIR APONTAMENTO FISICO:", err);
-      return res.status(500).json({ 
+      return res.status(dbStatus(err)).json({ 
         error: err.message || "Erro interno no servidor ao cadastrar apontamento." 
       });
     }
@@ -61,7 +62,7 @@ exports.criar = (req, res) => {
 // Atualiza os dados de evolução diária
 exports.atualizar = (req, res) => {
   ApontamentoFisico.update(req.params.id, req.body, (err, result) => {
-    if (err) return res.status(500).json({ error: "Erro interno no servidor ao atualizar apontamento." });
+    if (err) return res.status(dbStatus(err)).json({ error: "Erro interno no servidor ao atualizar apontamento." });
     if (result.affectedRows === 0) return res.status(404).json({ error: "Apontamento não encontrado." });
     res.json({ message: "Apontamento físico atualizado com sucesso!" });
   });

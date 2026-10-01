@@ -2,8 +2,7 @@
 --
 -- Host: 127.0.0.1    Database: valen
 -- ------------------------------------------------------
--- Server versio
-n	8.0.43
+-- Server version 8.0.43
 
 /*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
 /*!40101 SET @OLD_CHARACTER_SET_RESULTS=@@CHARACTER_SET_RESULTS */;
@@ -23,7 +22,7 @@ n	8.0.43
 DROP TABLE IF EXISTS `apontamento_fisico`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `apontamento_fisico` (  //teste
+CREATE TABLE `apontamento_fisico` (
   `id_apontamento` int NOT NULL AUTO_INCREMENT,
   `percentual_dia` decimal(5,2) NOT NULL,
   `url_foto` varchar(512) NOT NULL,
@@ -66,7 +65,7 @@ CREATE TABLE `apropriacao` (
   KEY `id_atividade_idx` (`id_atividade`),
   KEY `id_usuario_idx` (`id_usuario`),
   CONSTRAINT `id_atividade` FOREIGN KEY (`id_atividade`) REFERENCES `atividade_eap` (`id_atividade`),
-  CONSTRAINT `id_insumo` FOREIGN KEY (`id_insumo`) REFERENCES `cadastro de insumos` (`id_Insumos`),
+  CONSTRAINT `id_insumo` FOREIGN KEY (`id_insumo`) REFERENCES `cadastro_de_insumos` (`id_insumos`),
   CONSTRAINT `id_usuario` FOREIGN KEY (`id_usuario`) REFERENCES `usuario` (`id_usuario`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
@@ -251,6 +250,30 @@ LOCK TABLES `cadastro_de_maquinario` WRITE;
 /*!40000 ALTER TABLE `cadastro_de_maquinario` DISABLE KEYS */;
 INSERT INTO `cadastro_de_maquinario` VALUES (1,'Betoneira 400L',2,'Infraestrutura',120.00,'Ativo',1);
 /*!40000 ALTER TABLE `cadastro_de_maquinario` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
+-- Table structure for table `cargo`
+--
+
+DROP TABLE IF EXISTS `cargo`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `cargo` (
+  `id_cargo` int NOT NULL AUTO_INCREMENT,
+  `nome_cargo` varchar(100) NOT NULL,
+  `descricao` varchar(255) DEFAULT NULL,
+  PRIMARY KEY (`id_cargo`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `cargo`
+--
+
+LOCK TABLES `cargo` WRITE;
+/*!40000 ALTER TABLE `cargo` DISABLE KEYS */;
+/*!40000 ALTER TABLE `cargo` ENABLE KEYS */;
 UNLOCK TABLES;
 
 --

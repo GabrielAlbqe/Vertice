@@ -1,4 +1,5 @@
 const DiarioObra = require("../models/diarioObraModel");
+const { dbStatus } = require("../utils/dbError");
 
 // Lista os diários filtrando pelo ID da obra
 exports.listarPorObra = (req, res) => {
@@ -9,7 +10,7 @@ exports.listarPorObra = (req, res) => {
   }
 
   DiarioObra.getByObra(obrax_id, (err, results) => {
-    if (err) return res.status(500).send("Erro interno no servidor ao listar diários de obra.");
+    if (err) return res.status(dbStatus(err)).send("Erro interno no servidor ao listar diários de obra.");
     res.json(results);
   });
 };
@@ -17,7 +18,7 @@ exports.listarPorObra = (req, res) => {
 // Busca detalhes de um diário específico por ID
 exports.buscarPorId = (req, res) => {
   DiarioObra.getById(req.params.id, (err, results) => {
-    if (err) return res.status(500).send("Erro interno no servidor ao buscar diário de obra.");
+    if (err) return res.status(dbStatus(err)).send("Erro interno no servidor ao buscar diário de obra.");
     if (!results || results.length === 0) return res.status(404).send("Diário de obra não encontrado.");
     res.json(results[0]);
   });
@@ -26,7 +27,7 @@ exports.buscarPorId = (req, res) => {
 // Remove um registro de diário de obra do sistema
 exports.deletar = (req, res) => {
   DiarioObra.delete(req.params.id, (err, result) => {
-    if (err) return res.status(500).send("Erro interno no servidor ao deletar diário de obra.");
+    if (err) return res.status(dbStatus(err)).send("Erro interno no servidor ao deletar diário de obra.");
     if (result.affectedRows === 0) return res.status(404).send("Diário de obra não encontrado.");
     res.send("Diário de obra removido com sucesso!");
   });
@@ -35,7 +36,9 @@ exports.deletar = (req, res) => {
 // Registra um novo diário de obra
 exports.criar = (req, res) => {
   DiarioObra.create(req.body, (err, result) => {
-    if (err) return res.status(500).send("Erro interno no servidor ao cadastrar diário de obra.");
+    if (err) {
+      return res.status(dbStatus(err)).json({ error: err.message || "Erro interno no servidor ao cadastrar diário de obra." });
+    }
     
     res.status(201).json({
       message: "Diário de obra registrado com sucesso!",
@@ -47,7 +50,7 @@ exports.criar = (req, res) => {
 // Atualiza os dados de um diário de obra existente
 exports.atualizar = (req, res) => {
   DiarioObra.update(req.params.id, req.body, (err, result) => {
-    if (err) return res.status(500).send("Erro interno no servidor ao atualizar diário de obra.");
+    if (err) return res.status(dbStatus(err)).send("Erro interno no servidor ao atualizar diário de obra.");
     if (result.affectedRows === 0) return res.status(404).send("Diário de obra não encontrado.");
     res.send("Diário de obra atualizado com sucesso!");
   });

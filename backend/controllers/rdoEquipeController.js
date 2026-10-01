@@ -1,4 +1,5 @@
 const RdoEquipe = require("../models/rdoEquipeModel");
+const { dbStatus } = require("../utils/dbError");
 
 // Lista os registros de equipes filtrando pelo ID do RDO
 exports.listarPorRdo = (req, res) => {
@@ -9,7 +10,7 @@ exports.listarPorRdo = (req, res) => {
   }
 
   RdoEquipe.getByRdo(id_rdo, (err, results) => {
-    if (err) return res.status(500).send("Erro interno no servidor ao listar equipes do RDO.");
+    if (err) return res.status(dbStatus(err)).send("Erro interno no servidor ao listar equipes do RDO.");
     res.json(results);
   });
 };
@@ -17,7 +18,7 @@ exports.listarPorRdo = (req, res) => {
 // Busca detalhes de um registro específico de RDO Equipe por ID
 exports.buscarPorId = (req, res) => {
   RdoEquipe.getById(req.params.id, (err, results) => {
-    if (err) return res.status(500).send("Erro interno no servidor ao buscar equipe do RDO.");
+    if (err) return res.status(dbStatus(err)).send("Erro interno no servidor ao buscar equipe do RDO.");
     if (results.length === 0) return res.status(404).send("Registro não encontrado.");
     res.json(results[0]);
   });
@@ -26,7 +27,7 @@ exports.buscarPorId = (req, res) => {
 // Remove um registro de equipe do RDO
 exports.deletar = (req, res) => {
   RdoEquipe.delete(req.params.id, (err, result) => {
-    if (err) return res.status(500).send("Erro interno no servidor ao deletar equipe do RDO.");
+    if (err) return res.status(dbStatus(err)).send("Erro interno no servidor ao deletar equipe do RDO.");
     if (result.affectedRows === 0) return res.status(404).send("Registro não encontrado.");
     res.send("Equipe removida do RDO com sucesso!");
   });
@@ -36,7 +37,7 @@ exports.deletar = (req, res) => {
 exports.criar = (req, res) => {
   // req.body deve conter: id_rdo, id_equipe, etapa, dias_atuacao
   RdoEquipe.create(req.body, (err) => {
-    if (err) return res.status(500).send("Erro interno no servidor ao vincular equipe ao RDO.");
+    if (err) return res.status(dbStatus(err)).send("Erro interno no servidor ao vincular equipe ao RDO.");
     res.status(201).send("Equipe vinculada ao RDO com sucesso!");
   });
 };
@@ -44,7 +45,7 @@ exports.criar = (req, res) => {
 // Atualiza os dados de um registro existente de RDO Equipe
 exports.atualizar = (req, res) => {
   RdoEquipe.update(req.params.id, req.body, (err, result) => {
-    if (err) return res.status(500).send("Erro interno no servidor ao atualizar equipe do RDO.");
+    if (err) return res.status(dbStatus(err)).send("Erro interno no servidor ao atualizar equipe do RDO.");
     if (result.affectedRows === 0) return res.status(404).send("Registro não encontrado.");
     res.send("Equipe do RDO atualizada com sucesso!");
   });

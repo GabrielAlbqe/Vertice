@@ -1,4 +1,5 @@
 const RdoMaquinario = require("../models/rdoMaquinarioModel");
+const { dbStatus } = require("../utils/dbError");
 
 // Lista os registros filtrando pelo ID do RDO
 exports.listarPorRdo = (req, res) => {
@@ -9,7 +10,7 @@ exports.listarPorRdo = (req, res) => {
   }
 
   RdoMaquinario.getByRdo(id_rdo, (err, results) => {
-    if (err) return res.status(500).send("Erro interno no servidor ao listar maquinários do RDO.");
+    if (err) return res.status(dbStatus(err)).send("Erro interno no servidor ao listar maquinários do RDO.");
     res.json(results);
   });
 };
@@ -17,7 +18,7 @@ exports.listarPorRdo = (req, res) => {
 // Busca detalhes de um registro por ID
 exports.buscarPorId = (req, res) => {
   RdoMaquinario.getById(req.params.id, (err, results) => {
-    if (err) return res.status(500).send("Erro interno no servidor ao buscar maquinário do RDO.");
+    if (err) return res.status(dbStatus(err)).send("Erro interno no servidor ao buscar maquinário do RDO.");
     if (results.length === 0) return res.status(404).send("Registro não encontrado.");
     res.json(results[0]);
   });
@@ -26,7 +27,7 @@ exports.buscarPorId = (req, res) => {
 // Remove um registro de maquinário do RDO
 exports.deletar = (req, res) => {
   RdoMaquinario.delete(req.params.id, (err, result) => {
-    if (err) return res.status(500).send("Erro interno no servidor ao deletar maquinário do RDO.");
+    if (err) return res.status(dbStatus(err)).send("Erro interno no servidor ao deletar maquinário do RDO.");
     if (result.affectedRows === 0) return res.status(404).send("Registro não encontrado.");
     res.send("Maquinário removido do RDO com sucesso!");
   });
@@ -36,7 +37,7 @@ exports.deletar = (req, res) => {
 exports.criar = (req, res) => {
   // req.body deve conter: id_rdo, id_maquinario, etapa, quantidade_utilizada, tempo_utilizacao
   RdoMaquinario.create(req.body, (err, result) => {
-    if (err) return res.status(500).send("Erro interno no servidor ao vincular maquinário ao RDO.");
+    if (err) return res.status(dbStatus(err)).send("Erro interno no servidor ao vincular maquinário ao RDO.");
     res.status(201).json({
       message: "Maquinário vinculado ao RDO com sucesso!",
       insertId: result ? result.insertId : null
@@ -47,7 +48,7 @@ exports.criar = (req, res) => {
 // Atualiza os dados de um registro existente
 exports.atualizar = (req, res) => {
   RdoMaquinario.update(req.params.id, req.body, (err, result) => {
-    if (err) return res.status(500).send("Erro interno no servidor ao atualizar maquinário do RDO.");
+    if (err) return res.status(dbStatus(err)).send("Erro interno no servidor ao atualizar maquinário do RDO.");
     if (result.affectedRows === 0) return res.status(404).send("Registro não encontrado.");
     res.send("Maquinário do RDO atualizado com sucesso!");
   });

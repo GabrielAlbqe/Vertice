@@ -1,4 +1,5 @@
 const Paralisacao = require("../models/paralisacaoModel");
+const { dbStatus } = require("../utils/dbError");
 
 // Lista as paralisações filtrando pelo ID do RDO
 exports.listarPorRdo = (req, res) => {
@@ -9,7 +10,7 @@ exports.listarPorRdo = (req, res) => {
   }
 
   Paralisacao.getByRdo(id_rdo, (err, results) => {
-    if (err) return res.status(500).send("Erro interno no servidor ao listar paralisações.");
+    if (err) return res.status(dbStatus(err)).send("Erro interno no servidor ao listar paralisações.");
     res.json(results);
   });
 };
@@ -17,7 +18,7 @@ exports.listarPorRdo = (req, res) => {
 // Busca detalhes de uma paralisação por ID
 exports.buscarPorId = (req, res) => {
   Paralisacao.getById(req.params.id, (err, results) => {
-    if (err) return res.status(500).send("Erro interno no servidor ao buscar paralisação.");
+    if (err) return res.status(dbStatus(err)).send("Erro interno no servidor ao buscar paralisação.");
     if (results.length === 0) return res.status(404).send("Registo não encontrado.");
     res.json(results[0]);
   });
@@ -26,7 +27,7 @@ exports.buscarPorId = (req, res) => {
 // Remove um registo de paralisação
 exports.deletar = (req, res) => {
   Paralisacao.delete(req.params.id, (err, result) => {
-    if (err) return res.status(500).send("Erro interno no servidor ao deletar paralisação.");
+    if (err) return res.status(dbStatus(err)).send("Erro interno no servidor ao deletar paralisação.");
     if (result.affectedRows === 0) return res.status(404).send("Registo não encontrado.");
     res.send("Paralisação removida com sucesso!");
   });
@@ -36,7 +37,7 @@ exports.deletar = (req, res) => {
 exports.criar = (req, res) => {
   // req.body deve conter: id_rdo, etapa, origem_paralisacao, duracao, descricao
   Paralisacao.create(req.body, (err, result) => {
-    if (err) return res.status(500).send("Erro interno no servidor ao registar paralisação.");
+    if (err) return res.status(dbStatus(err)).send("Erro interno no servidor ao registar paralisação.");
     res.status(201).json({
       message: "Paralisação registada com sucesso!",
       insertId: result ? result.insertId : null
@@ -47,7 +48,7 @@ exports.criar = (req, res) => {
 // Atualiza os dados de uma paralisação existente
 exports.atualizar = (req, res) => {
   Paralisacao.update(req.params.id, req.body, (err, result) => {
-    if (err) return res.status(500).send("Erro interno no servidor ao atualizar paralisação.");
+    if (err) return res.status(dbStatus(err)).send("Erro interno no servidor ao atualizar paralisação.");
     if (result.affectedRows === 0) return res.status(404).send("Registo não encontrado.");
     res.send("Paralisação atualizada com sucesso!");
   });

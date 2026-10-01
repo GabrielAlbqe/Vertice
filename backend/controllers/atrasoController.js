@@ -1,4 +1,5 @@
 const Atraso = require("../models/atrasoModel");
+const { dbStatus } = require("../utils/dbError");
 
 // Lista os atrasos filtrando pelo ID do RDO
 exports.listarPorRdo = (req, res) => {
@@ -9,7 +10,7 @@ exports.listarPorRdo = (req, res) => {
   }
 
   Atraso.getByRdo(id_rdo, (err, results) => {
-    if (err) return res.status(500).send("Erro interno no servidor ao listar atrasos.");
+    if (err) return res.status(dbStatus(err)).send("Erro interno no servidor ao listar atrasos.");
     res.json(results);
   });
 };
@@ -17,7 +18,7 @@ exports.listarPorRdo = (req, res) => {
 // Busca detalhes de um atraso por ID
 exports.buscarPorId = (req, res) => {
   Atraso.getById(req.params.id, (err, results) => {
-    if (err) return res.status(500).send("Erro interno no servidor ao buscar atraso.");
+    if (err) return res.status(dbStatus(err)).send("Erro interno no servidor ao buscar atraso.");
     if (results.length === 0) return res.status(404).send("Registo não encontrado.");
     res.json(results[0]);
   });
@@ -26,7 +27,7 @@ exports.buscarPorId = (req, res) => {
 // Remove um registo de atraso
 exports.deletar = (req, res) => {
   Atraso.delete(req.params.id, (err, result) => {
-    if (err) return res.status(500).send("Erro interno no servidor ao deletar atraso.");
+    if (err) return res.status(dbStatus(err)).send("Erro interno no servidor ao deletar atraso.");
     if (result.affectedRows === 0) return res.status(404).send("Registo não encontrado.");
     res.send("Atraso removido com sucesso!");
   });
@@ -36,7 +37,7 @@ exports.deletar = (req, res) => {
 exports.criar = (req, res) => {
   // req.body deve conter: id_rdo, etapa, origem_atraso, duracao, descricao
   Atraso.create(req.body, (err, result) => {
-    if (err) return res.status(500).send("Erro interno no servidor ao registar atraso.");
+    if (err) return res.status(dbStatus(err)).send("Erro interno no servidor ao registar atraso.");
     res.status(201).json({
       message: "Atraso registado com sucesso!",
       insertId: result ? result.insertId : null
@@ -47,7 +48,7 @@ exports.criar = (req, res) => {
 // Atualiza os dados de um atraso existente
 exports.atualizar = (req, res) => {
   Atraso.update(req.params.id, req.body, (err, result) => {
-    if (err) return res.status(500).send("Erro interno no servidor ao atualizar atraso.");
+    if (err) return res.status(dbStatus(err)).send("Erro interno no servidor ao atualizar atraso.");
     if (result.affectedRows === 0) return res.status(404).send("Registo não encontrado.");
     res.send("Atraso atualizado com sucesso!");
   });

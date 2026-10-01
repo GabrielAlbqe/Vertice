@@ -1,5 +1,5 @@
 const express = require("express");
-const router = Router = express.Router();
+const router = express.Router();
 const construtoraController = require("../controllers/construtoraController");
 
 // Endpoints administrativos para controle de construtoras (Tenants)

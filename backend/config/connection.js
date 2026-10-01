@@ -1,20 +1,18 @@
 const mysql = require("mysql2");
 
 const connection = mysql.createConnection({
-  host: "localhost",
-  user: "root",
-  password: "Pa55w.rd!", // <--- Coloque a sua senha do MySQL aqui
-  database: "valen"
+  host: process.env.DB_HOST || "localhost",
+  user: process.env.DB_USER || "root",
+  password: process.env.DB_PASSWORD || "Password",
+  database: process.env.DB_NAME || "valen"
 });
-
-//oi
 
 connection.connect((err) => {
   if (err) {
     console.error("❌ Erro ao conectar ao banco de dados MySQL:", err.message);
     return;
   }
-  console.log("✅ Conexão com o banco de dados MySQL realizada com sucesso!");
+  console.log(`✅ Conexão com MySQL realizada com sucesso (${process.env.DB_NAME || "valen"})!`);
 });
 
 module.exports = connection;
