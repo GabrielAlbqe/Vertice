@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
-import Layout from "../componentes/Layout";
-import { requisitar } from "../api/api";
+import Layout from "../../componentes/escritorio/Layout";
+import { requisitar } from "../../api/api";
 
 function Perfil({ onNavegar }) {
   const [usuario, setUsuario] = useState(null);

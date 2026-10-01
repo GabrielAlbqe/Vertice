@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import Header from "./Header";
 import Sidebar from "./Sidebar";
-import { requisitar } from "../api/api";
+import { requisitar } from "../../api/api";
 
 function Layout({ children, onNavegar }) {
   const [usuario, setUsuario] = useState(() => {

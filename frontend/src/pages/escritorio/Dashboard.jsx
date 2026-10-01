@@ -3,16 +3,16 @@ import {
   useState,
 } from "react";
 
-import Layout from "../componentes/Layout";
-import Card from "../componentes/Card";
+import Layout from "../../componentes/escritorio/Layout";
+import Card from "../../componentes/escritorio/Card";
 
 import {
   listarObras,
-} from "../api/obras.js";
+} from "../../api/obras.js";
 
 import {
   buscarCatalogoRecursos,
-} from "../api/recursos.js";
+} from "../../api/recursos.js";
 
 function formatarReal(
   valor

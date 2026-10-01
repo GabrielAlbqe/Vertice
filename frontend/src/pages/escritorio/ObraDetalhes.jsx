@@ -4,12 +4,12 @@ import {
   useState,
 } from "react";
 
-import Layout from "../componentes/Layout";
+import Layout from "../../componentes/escritorio/Layout";
 
 import {
   buscarObraPorId,
   listarObras,
-} from "../api/obras";
+} from "../../api/obras";
 
 import {
   excluirRecurso,
@@ -21,7 +21,7 @@ import {
   obterIdEquipe,
   obterIdInsumo,
   obterIdMaquinario,
-} from "../api/recursos";
+} from "../../api/recursos";
 
 // =====================================================
 // AUXILIARES

@@ -4,20 +4,20 @@ import {
   useState,
 } from "react";
 
-import Layout from "../componentes/Layout";
-import Card from "../componentes/Card";
+import Layout from "../../componentes/escritorio/Layout";
+import Card from "../../componentes/escritorio/Card";
 
 import {
   requisitar,
-} from "../api/api.js";
+} from "../../api/api.js";
 
 import {
   listarObras,
-} from "../api/obras.js";
+} from "../../api/obras.js";
 
 import {
   carregarAnalytics,
-} from "../api/analytics.js";
+} from "../../api/analytics.js";
 
 import {
   calcularAnalytics,
@@ -26,7 +26,7 @@ import {
   ORIGENS,
   FILTROS_VAZIOS,
   hojeLocal,
-} from "../api/analyticsCalculos.js";
+} from "../../api/analyticsCalculos.js";
 
 // =====================================================
 // FORMATAÇÕES

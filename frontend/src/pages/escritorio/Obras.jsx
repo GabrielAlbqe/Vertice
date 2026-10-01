@@ -4,19 +4,19 @@ import {
   useState,
 } from "react";
 
-import Layout from "../componentes/Layout";
-import Card from "../componentes/Card";
+import Layout from "../../componentes/escritorio/Layout";
+import Card from "../../componentes/escritorio/Card";
 
 import {
   atualizarObra,
   criarObra,
   excluirObra,
   listarObras,
-} from "../api/obras";
+} from "../../api/obras";
 
 import {
   buscarRecursosDaObra,
-} from "../api/recursos";
+} from "../../api/recursos";
 
 // =====================================================
 // FORMULÁRIO

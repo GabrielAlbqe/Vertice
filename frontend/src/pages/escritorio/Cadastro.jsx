@@ -4,9 +4,9 @@ import {
 
 import {
   requisitar,
-} from "../api/api";
+} from "../../api/api";
 
-import logoVertice from "../assets/logo-vertice.png";
+import logoVertice from "../../assets/logo-vertice.png";
 
 const estadoInicial = {
   nome: "",

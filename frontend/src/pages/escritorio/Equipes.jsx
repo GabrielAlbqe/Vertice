@@ -4,13 +4,13 @@ import {
   useState,
 } from "react";
 
-import { listarObras } from "../api/obras.js";
+import { listarObras } from "../../api/obras.js";
 
-import Layout from "../componentes/Layout";
+import Layout from "../../componentes/escritorio/Layout";
 
 import {
   requisitar,
-} from "../api/api.js";
+} from "../../api/api.js";
 
 import {
   atualizarEquipe,
@@ -18,7 +18,7 @@ import {
   excluirEquipe,
   listarEquipesEmpresa,
   obterIdEquipe,
-} from "../api/recursos.js";
+} from "../../api/recursos.js";
 
 const AREAS_ATUACAO = [
   "Mobilização",

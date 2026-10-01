@@ -1,0 +1,14 @@
+import { useState } from "react";
+import { useCanteiro } from "../../layouts/CanteiroLayout";
+import { ocorrenciasDiarios, formatarData } from "../../canteiro/dados";
+import { removerRascunho } from "../../canteiro/rascunhos";
+import PendenciaCard from "../../componentes/canteiro/PendenciaCard";
+import StatusBadge from "../../componentes/canteiro/StatusBadge";
+import EstadoObra from "../../componentes/canteiro/EstadoObra";
+export default function CanteiroPendencias() {
+  const ctx = useCanteiro(), [erro, setErro] = useState(""), [confirmar, setConfirmar] = useState(null);
+  const locais = ctx.rascunhos.filter(r => String(r.obra) === String(ctx.obra?.id_obra));
+  const ocorrencias = ocorrenciasDiarios(ctx.diarios);
+  function descartar(id) { try { removerRascunho(ctx.usuario.id_usuario, id); ctx.atualizarRascunhos(); setConfirmar(null); setErro(""); } catch (e) { console.error(e); setErro("Não foi possível remover o rascunho."); } }
+  return <><div className="ct-title"><span className="ct-eyebrow">ACOMPANHAMENTO DE CAMPO</span><h1>Pendências</h1><p>Revise os rascunhos locais e as ocorrências da obra.</p></div><EstadoObra><div className="ct-stack">{erro && <p className="ct-message ct-error" role="alert">{erro}</p>}<h2>Rascunhos aguardando envio</h2><p className="ct-muted">Os rascunhos ficam apenas neste navegador, separados por usuário e obra. Abra, revise e envie cada registro. Não há envio automático.</p>{locais.map(r => <article key={r.id} className="ct-card ct-stack"><div className="ct-row"><h3>{{ diario: "Diário de Obra", atividade: "Atividade", material: "Material" }[r.tipo] || r.tipo}</h3><StatusBadge status="Rascunho local" aviso /></div><p>Atualizado em {formatarData(r.atualizado)}</p><div className="ct-row"><button type="button" className="ct-button" disabled={ctx.carregando} onClick={() => ctx.abrirRascunho(r)}>Revisar e enviar</button><button type="button" className="ct-link" onClick={() => setConfirmar(r.id)}>Descartar</button></div>{confirmar === r.id && <div className="ct-message"><p>Descartar este rascunho do navegador?</p><div className="ct-row"><button type="button" className="ct-button ct-secondary" onClick={() => setConfirmar(null)}>Cancelar</button><button type="button" className="ct-button" onClick={() => descartar(r.id)}>Confirmar descarte</button></div></div>}</article>)}{!locais.length && <p className="ct-card ct-muted">Nenhum rascunho pendente nesta obra.</p>}<h2>Ocorrências registradas</h2><p className="ct-muted">O backend não informa se estas ocorrências foram resolvidas. Elas são apresentadas para acompanhamento.</p>{ocorrencias.map(item => <PendenciaCard key={item.id} item={item} />)}{!ocorrencias.length && <p className="ct-card ct-muted">Nenhuma ocorrência disponível nesta consulta.</p>}</div></EstadoObra></>;
+}

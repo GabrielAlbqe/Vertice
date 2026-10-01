@@ -1,4 +1,4 @@
-import iconeVertice from "../assets/icone-vertice.png";
+import iconeVertice from "../../assets/icone-vertice.png";
 
 function Header({
   usuario,

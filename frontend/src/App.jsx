@@ -1,13 +1,15 @@
 import { useState } from "react";
+import CanteiroApp from "./canteiro/CanteiroApp";
+import { usuarioCanteiro, paginasCanteiro } from "./canteiro/sessao";
 
 import Login from "./pages/Login";
-import Cadastro from "./pages/Cadastro";
-import Dashboard from "./pages/Dashboard";
-import Obras from "./pages/Obras";
-import Equipes from "./pages/Equipes";
-import ObraDetalhes from "./pages/ObraDetalhes";
-import Perfil from "./pages/Perfil";
-import AnalyticsFinanceiro from "./pages/AnalyticsFinanceiro";
+import Cadastro from "./pages/escritorio/Cadastro";
+import Dashboard from "./pages/escritorio/Dashboard";
+import Obras from "./pages/escritorio/Obras";
+import Equipes from "./pages/escritorio/Equipes";
+import ObraDetalhes from "./pages/escritorio/ObraDetalhes";
+import Perfil from "./pages/escritorio/Perfil";
+import AnalyticsFinanceiro from "./pages/escritorio/AnalyticsFinanceiro";
 
 import "./styles.css";
 
@@ -30,6 +32,11 @@ function App() {
     }
 
     const salva = localStorage.getItem("pagina_atual");
+    if (usuarioCanteiro()) {
+      const destino = paginasCanteiro.includes(salva) ? salva : "canteiro-home";
+      localStorage.setItem("pagina_atual", destino);
+      return destino;
+    }
     const paginas = ["dashboard", "obras", "equipes", "perfil", "obra-detalhes", "analytics-financeiro"];
     let destino = paginas.includes(salva) ? salva : "dashboard";
     if (destino === "obra-detalhes") {
@@ -48,6 +55,11 @@ function App() {
   function navegar(
     paginaDestino
   ) {
+    if (!["login", "cadastro"].includes(paginaDestino)) {
+      if (!localStorage.getItem("id_usuario")) paginaDestino = "login";
+      else if (usuarioCanteiro() && !paginasCanteiro.includes(paginaDestino)) paginaDestino = "canteiro-home";
+      else if (!usuarioCanteiro() && paginasCanteiro.includes(paginaDestino)) paginaDestino = "dashboard";
+    }
     localStorage.setItem(
       "pagina_atual",
       paginaDestino
@@ -133,9 +145,9 @@ function App() {
   ) {
     return (
       <Login
-        onLogin={() =>
+        onLogin={(usuario) =>
           navegar(
-            "dashboard"
+            usuarioCanteiro(usuario) ? "canteiro-home" : "dashboard"
           )
         }
         onCadastro={() =>
@@ -169,6 +181,10 @@ function App() {
         }
       />
     );
+  }
+
+  if (localStorage.getItem("id_usuario") && usuarioCanteiro()) {
+    return <CanteiroApp pagina={pagina} onNavegar={navegar} />;
   }
 
   // =====================================================
