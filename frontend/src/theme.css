@@ -33,9 +33,18 @@
   --vertice-muted: var(--text-secondary);
   --vertice-blue-100: var(--surface-alt);
 }
-.theme-toggle { position: fixed; right: 16px; bottom: 18px; z-index: 45; min-height: 44px; padding: 10px 16px; border: 1px solid var(--border); border-radius: 24px; background: var(--surface); color: var(--text-primary); box-shadow: 0 3px 14px #0002; }
-body:has(.ct-app) .theme-toggle { position: absolute; top: 86px; bottom: auto; }
-.ct-selector { padding-right: 100px; }
+.theme-control { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.theme-toggle { min-height: 44px; min-width: 100px; padding: 10px 20px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface); color: var(--text-primary); cursor: pointer; }
+.theme-toggle[aria-pressed="true"] { background: var(--primary); color: #fff; border-color: var(--primary); }
+.profile-section { min-width: 0; }
+.profile-section h2 { margin-bottom: 16px; }
+.profile-section p { color: var(--text-secondary); }
+.perfil-dados, .perfil-campo { min-width: 0; }
+.perfil-campo strong { overflow-wrap: anywhere; }
+.ct-resource-summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 12px; }
+.ct-resource-summary div { padding: 16px; border: 1px solid var(--border); border-radius: 12px; }
+.ct-resource-summary dt { color: var(--text-secondary); font-size: 14px; }
+.ct-resource-summary dd { margin: 8px 0 0; font-size: 24px; font-weight: 700; }
 body, .layout, .ct-app { background: var(--bg-primary); color: var(--text-primary); }
 body:has(.ct-app), body:has(.auth-card) { overflow-y: auto; }
 .ct-app { color: var(--text-primary); }

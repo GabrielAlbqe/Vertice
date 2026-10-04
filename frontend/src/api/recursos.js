@@ -40,7 +40,7 @@ function extrairArray(
     return dados.resultado;
   }
 
-  return [];
+  throw new Error("Formato de resposta inesperado na consulta de recursos.");
 }
 
 function removerDuplicados(

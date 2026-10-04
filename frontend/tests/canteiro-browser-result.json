@@ -6,6 +6,7 @@
     "Todas as telas: navegação e ausência de scroll horizontal em 430px",
     "Todas as telas: navegação e ausência de scroll horizontal em 768px",
     "Todas as telas: navegação e ausência de scroll horizontal em 1024px",
+    "Todas as telas: navegação e ausência de scroll horizontal em 1366px",
     "Tema escuro global persiste após recarregar",
     "Offline real: rascunho, restauração na mesma obra, envio manual e remoção após sucesso",
     "Apontamento físico: progresso e IDs conforme contrato",
@@ -15,14 +16,19 @@
     "Foto: seleção, captura e remoção local, sem upload",
     "Falha de carregamento, interface íntegra e recuperação",
     "Escritório preservado em desktop e celular, sem troca por largura",
-    "Escritório: navegação em 375, 430, 768 e 1024px",
+    "Escritório e Perfil: navegação em 375, 430, 768, 1024 e 1366px",
+    "Modal: foco interno, TAB, ESC e retorno ao botão de abertura",
     "Nova obra do Dashboard abre cadastro e atualiza lista após POST",
     "Insumos: cadastro, edição e exclusão atualizam a visão geral",
     "Maquinário: edição de status persiste e atualiza card",
     "Equipes: cadastro, edição e exclusão pela página da empresa",
     "Atribuição transfere insumo para outra obra, preservando cadastro",
     "Rota Canteiro bloqueada para usuário Escritório",
-    "Restauração por ambiente e logout"
+    "Escritório: URLs diretas, recarga, voltar e avançar",
+    "Tema escuro preservado no Login e Cadastro sem controle global",
+    "Canteiro: todas as URLs diretas, recarga, seleção restaurada, histórico do navegador e bloqueio do Escritório",
+    "Restauração por ambiente e logout",
+    "Cadastro direto e recarga sem sessão; login novamente após logout"
   ],
   "excecoes": [],
   "errosReact": [],
@@ -41,7 +47,7 @@
       "method": "POST",
       "params": {},
       "body": {
-        "data": "2026-10-01",
+        "data": "2026-10-04",
         "clima": "Ensolarado",
         "turno": "Manhã",
         "etapa_atuacao": "Infraestrutura",
@@ -95,7 +101,7 @@
       "method": "POST",
       "params": {},
       "body": {
-        "data": "2026-10-01",
+        "data": "2026-10-04",
         "clima": null,
         "turno": null,
         "etapa_atuacao": null,
@@ -146,6 +152,15 @@
         "custo_diario": 100,
         "custo_mensal": 2000,
         "idobra": 1
+      }
+    },
+    {
+      "rota": "/usuarios/login",
+      "method": "POST",
+      "params": {},
+      "body": {
+        "email": "canteiro@teste.local",
+        "senha": "teste"
       }
     }
   ]

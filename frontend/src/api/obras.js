@@ -45,13 +45,13 @@ export function normalizarObra(
       item.numero_pavimentos ??
       item.numero_pavimento ??
       item.pavimentos ??
-      0,
+      null,
 
     pavimentos:
       item.numero_pavimentos ??
       item.numero_pavimento ??
       item.pavimentos ??
-      0,
+      null,
 
     data_inicio_planejada:
       limparData(
@@ -78,10 +78,7 @@ export function normalizarObra(
       ),
 
     orcamento_planejado:
-      Number(
-        item.orcamento_planejado ||
-        0
-      ),
+      item.orcamento_planejado === null || item.orcamento_planejado === undefined || item.orcamento_planejado === "" ? null : Number(item.orcamento_planejado),
 
     id_construtora:
       item.id_construtora ??
@@ -107,6 +104,8 @@ export async function listarObras(
     await requisitar(
       rota
     );
+
+  if (!Array.isArray(dados) && !Array.isArray(dados?.obras)) throw new Error("Formato de resposta inesperado na consulta de obras.");
 
   const lista =
     Array.isArray(dados)

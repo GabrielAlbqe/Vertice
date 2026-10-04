@@ -39,6 +39,7 @@ function Header({
           className="header-user"
           onClick={abrirPerfil}
           title="Abrir perfil"
+          aria-label="Abrir perfil"
         >
           <div className="header-user-avatar">
             {usuario?.nome

@@ -21,7 +21,7 @@ function App() {
   useEffect(() => {
     const lerRota = () => {
       const destino = Object.keys(rotas).find(p => rotas[p] === window.location.pathname.replace(/\/$/, ""));
-      if (destino) navegar(destino, true);
+      navegar(destino || (localStorage.getItem("id_usuario") ? (usuarioCanteiro() ? "canteiro-home" : "dashboard") : "login"), true);
     };
     lerRota();
     window.addEventListener("popstate", lerRota);
@@ -32,6 +32,8 @@ function App() {
   // =====================================================
 
   const [pagina, setPagina] = useState(() => {
+    const destinoUrl = Object.keys(rotas).find(p => rotas[p] === window.location.pathname.replace(/\/$/, ""));
+    if (["login", "cadastro"].includes(destinoUrl)) return destinoUrl;
     const idUsuario =
       localStorage.getItem("id_usuario");
 
@@ -44,7 +46,7 @@ function App() {
       return "login";
     }
 
-    const salva = localStorage.getItem("pagina_atual");
+    const salva = destinoUrl || localStorage.getItem("pagina_atual");
     if (usuarioCanteiro()) {
       const destino = paginasCanteiro.includes(salva) ? salva : "canteiro-home";
       localStorage.setItem("pagina_atual", destino);
@@ -72,6 +74,10 @@ function App() {
       if (!localStorage.getItem("id_usuario")) paginaDestino = "login";
       else if (usuarioCanteiro() && !paginasCanteiro.includes(paginaDestino)) paginaDestino = "canteiro-home";
       else if (!usuarioCanteiro() && paginasCanteiro.includes(paginaDestino)) paginaDestino = "dashboard";
+    }
+    if (paginaDestino === "obra-detalhes") {
+      try { if (!JSON.parse(localStorage.getItem("obra_selecionada") || "null")?.id_obra) paginaDestino = "obras"; }
+      catch { paginaDestino = "obras"; }
     }
     const rota = rotas[paginaDestino] || rotas.dashboard;
     if (location.pathname !== rota) history[substituir ? "replaceState" : "pushState"](null, "", rota);

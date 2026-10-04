@@ -2,6 +2,7 @@ import {
   useEffect,
   useMemo,
   useState,
+  useRef,
 } from "react";
 
 import Layout from "../../componentes/escritorio/Layout";
@@ -28,6 +29,7 @@ import {
 // =====================================================
 
 function formatarReal(valor) {
+  if (valor === null || valor === undefined || valor === "" || !Number.isFinite(Number(valor))) return "Não informado";
   return Number(valor || 0).toLocaleString(
     "pt-BR",
     {
@@ -64,6 +66,7 @@ function ObraDetalhes({
   onVoltar,
   onNavegar,
 }) {
+  const trava = useRef(false);
   const [
     obraAtual,
     setObraAtual,
@@ -151,6 +154,7 @@ function ObraDetalhes({
         await listarObras(
           idConstrutora
         );
+      if (!idConstrutora || !listaObras.some(o => String(o.id_obra) === String(idObra))) throw new Error("Esta obra não está disponível para sua construtora.");
 
       const [
         obraServidor,
@@ -170,8 +174,8 @@ function ObraDetalhes({
             Array.isArray(
               listaObras
             )
-              ? [...listaObras.filter(item => Number(item.id_obra) !== Number(idObra)), obra]
-              : [obra]
+              ? listaObras
+              : []
           ),
         ]);
 
@@ -225,8 +229,8 @@ function ObraDetalhes({
   }
 
   async function removerRecurso(tipo, recurso) {
-    if (atribuindo || !window.confirm('Excluir definitivamente este cadastro? Ele será removido do sistema, incluindo o vínculo com esta obra.')) return;
-    setAtribuindo(tipo);
+    if (trava.current || !window.confirm('Excluir definitivamente este cadastro? Esta ação excluirá definitivamente o cadastro.')) return;
+    trava.current = true; setAtribuindo(tipo);
     setErro("");
     setSucesso("");
     try {
@@ -235,7 +239,7 @@ function ObraDetalhes({
       setSucesso("Recurso excluído do sistema.");
     } catch (error) {
       setErro(error.message || "Não foi possível excluir o recurso.");
-    } finally { setAtribuindo(""); }
+    } finally { trava.current = false; setAtribuindo(""); }
   }
 
   async function atribuirRecurso(
@@ -243,12 +247,13 @@ function ObraDetalhes({
     recurso
   ) {
     if (
-      atribuindo || !recurso ||
+      trava.current || !recurso ||
       !obra?.id_obra
     ) {
       return;
     }
 
+    trava.current = true;
     const idObra =
       obra.id_obra;
 
@@ -304,6 +309,7 @@ function ObraDetalhes({
           "Não foi possível atribuir o recurso à obra."
       );
     } finally {
+      trava.current = false;
       setAtribuindo("");
     }
   }
@@ -413,8 +419,8 @@ function ObraDetalhes({
         {aviso && <p role="status">{aviso}</p>}
         {erro && (
 
-          <div className="auth-error">
-            {erro}
+          <div className="auth-error" role="alert">
+            {erro}<button type="button" className="secondary-button" disabled={Boolean(atribuindo)} onClick={carregarDados}>Tentar novamente</button>
           </div>
 
         )}
@@ -509,7 +515,7 @@ function ObraDetalhes({
                 </p>
               </div>
 
-            ) : (
+            ) : erro ? <p role="status">Os dados não puderam ser atualizados. Tente novamente acima.</p> : (
 
               <>
 

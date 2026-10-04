@@ -11,6 +11,8 @@ export default function useRegistro(tipo, criarInicial) {
   const trava = useRef(false);
   const montado = useRef(true);
   const ultimaObra = useRef(null);
+  const obraAtual = useRef(ctx.obra?.id_obra);
+  obraAtual.current = ctx.obra?.id_obra;
   const restaurado = ctx.rascunhoAberto?.tipo === tipo && String(ctx.rascunhoAberto.obra) === String(ctx.obra?.id_obra) ? ctx.rascunhoAberto : null;
   useEffect(() => { montado.current = true; return () => { montado.current = false; }; }, []);
   useEffect(() => {
@@ -31,15 +33,17 @@ export default function useRegistro(tipo, criarInicial) {
     if (trava.current) return;
     setErro(""); setMensagem("");
     let requisicaoIniciada = false;
+    const obraEnviada = ctx.obra?.id_obra;
     try {
-      if (!ctx.obra || !ctx.usuario.id_usuario) throw new Error("Selecione uma obra e confira sua sessão.");
+      if (!Number.isInteger(Number(ctx.obra?.id_obra)) || Number(ctx.obra?.id_obra) <= 0 || !Number.isInteger(Number(ctx.usuario.id_usuario)) || Number(ctx.usuario.id_usuario) <= 0) throw new Error("Selecione uma obra e confira sua sessão.");
+      if (ctx.carregando) throw new Error("Aguarde o carregamento dos dados da obra.");
       validar();
       if (!ctx.online) throw new Error("Você está offline. Salve um rascunho para enviar depois.");
       trava.current = true; setSalvando(true); requisicaoIniciada = true;
       await salvar(payload);
     } catch (e) {
       console.error("Registro do Canteiro:", e);
-      if (montado.current) { setErro(requisicaoIniciada ? (e.status ? `Não foi possível enviar o registro. ${e.message || "Revise os dados e tente novamente."}` : "Não foi possível confirmar o envio. Consulte o histórico antes de tentar novamente.") : e.message || "Não foi possível enviar o registro."); setSalvando(false); }
+      if (montado.current) { if (obraAtual.current === obraEnviada) setErro(requisicaoIniciada ? (e.status ? `Não foi possível enviar o registro. ${e.message || "Revise os dados e tente novamente."}` : "Não foi possível confirmar o envio. Consulte o histórico antes de tentar novamente.") : e.message || "Não foi possível enviar o registro."); setSalvando(false); }
       trava.current = false;
       return;
     }
@@ -48,7 +52,7 @@ export default function useRegistro(tipo, criarInicial) {
     try { if (idLocal) removerRascunho(ctx.usuario.id_usuario, idLocal); } catch (e) { console.error(e); avisoLocal = " O rascunho local não pôde ser removido; não o reenvie."; }
     ctx.atualizarRascunhos(); ctx.atualizar();
     if (montado.current) {
-      setIdLocal(null); setForm(criarInicial()); setMensagem("Registro enviado com sucesso." + avisoLocal);
+      if (obraAtual.current === obraEnviada) { setIdLocal(null); setForm(criarInicial()); setMensagem("Registro enviado com sucesso." + avisoLocal); }
       ctx.fecharRascunho(); setSalvando(false);
     }
     trava.current = false;

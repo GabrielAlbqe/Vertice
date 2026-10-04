@@ -70,11 +70,7 @@ function Sidebar({
 
         <button
           type="button"
-          className={
-            classeBotao(
-              "dashboard"
-            )
-          }
+          aria-current={paginaAtiva === "dashboard" ? "page" : undefined} className={classeBotao("dashboard")}
           onClick={() =>
             navegar(
               "dashboard"
@@ -87,11 +83,7 @@ function Sidebar({
 
         <button
           type="button"
-          className={
-            classeBotao(
-              "obras"
-            )
-          }
+          aria-current={paginaAtiva === "obras" ? "page" : undefined} className={classeBotao("obras")}
           onClick={() =>
             navegar(
               "obras"
@@ -104,11 +96,7 @@ function Sidebar({
 
         <button
           type="button"
-          className={
-            classeBotao(
-              "equipes"
-            )
-          }
+          aria-current={paginaAtiva === "equipes" ? "page" : undefined} className={classeBotao("equipes")}
           onClick={() =>
             navegar(
               "equipes"
@@ -119,11 +107,12 @@ function Sidebar({
           Equipes
         </button>
 
-        <button type="button" className={classeBotao("analytics-financeiro")} onClick={() => navegar("analytics-financeiro")}>
+        <button type="button" aria-current={paginaAtiva === "analytics-financeiro" ? "page" : undefined} className={classeBotao("analytics-financeiro")} onClick={() => navegar("analytics-financeiro")}>
           <span className="sidebar-dot" />
           Analytics Financeiro
         </button>
-        <button type="button" className={classeBotao("recursos")} onClick={() => navegar("recursos")}><span className="sidebar-dot" />Recursos</button>
+        <button type="button" aria-current={paginaAtiva === "recursos" ? "page" : undefined} className={classeBotao("recursos")} onClick={() => navegar("recursos")}><span className="sidebar-dot" />Recursos</button>
+        <button type="button" className={classeBotao("perfil")} aria-current={paginaAtiva === "perfil" ? "page" : undefined} onClick={() => navegar("perfil")}><span className="sidebar-dot" />Perfil</button>
 
       </div>
 

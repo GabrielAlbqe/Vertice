@@ -1,5 +1,6 @@
 import {
   useState,
+  useRef,
 } from "react";
 
 import {
@@ -23,6 +24,7 @@ function Cadastro({
   onCadastro,
   onVoltar,
 }) {
+  const trava = useRef(false);
   const [
     formulario,
     setFormulario,
@@ -58,6 +60,7 @@ function Cadastro({
     evento
   ) {
     evento.preventDefault();
+    if (trava.current) return;
 
     setErro("");
 
@@ -73,6 +76,8 @@ function Cadastro({
     }
 
     try {
+      if (!formulario.nome.trim() || !Number.isInteger(Number(formulario.idconstrutora)) || Number(formulario.idconstrutora) <= 0) throw new Error("Informe nome e construtora válidos.");
+      trava.current = true;
       setCarregando(true);
 
       await requisitar(
@@ -128,6 +133,7 @@ function Cadastro({
           "Não foi possível criar a conta."
       );
     } finally {
+      trava.current = false;
       setCarregando(false);
     }
   }
@@ -156,19 +162,17 @@ function Cadastro({
             </p>
           </div>
 
-          <form
+          <form aria-busy={carregando}
             onSubmit={
               handleSubmit
             }
           >
 
             <div className="form-group">
-              <label>
-                Nome
-              </label>
+              <label htmlFor="cadastro-nome">Nome</label>
 
               <input
-                name="nome"
+                id="cadastro-nome" name="nome"
                 value={
                   formulario.nome
                 }
@@ -180,13 +184,11 @@ function Cadastro({
             </div>
 
             <div className="form-group">
-              <label>
-                E-mail
-              </label>
+              <label htmlFor="cadastro-email">E-mail</label>
 
               <input
                 type="email"
-                name="email"
+                id="cadastro-email" name="email"
                 value={
                   formulario.email
                 }
@@ -198,12 +200,10 @@ function Cadastro({
             </div>
 
             <div className="form-group">
-              <label>
-                Função / ocupação
-              </label>
+              <label htmlFor="cadastro-ocupacao">Função / ocupação</label>
 
               <input
-                name="ocupacao"
+                id="cadastro-ocupacao" name="ocupacao"
                 placeholder="Ex: Engenheiro, Mestre de Obras..."
                 value={
                   formulario.ocupacao
@@ -257,14 +257,12 @@ function Cadastro({
             </div>
 
             <div className="form-group">
-              <label>
-                ID da Construtora
-              </label>
+              <label htmlFor="cadastro-idconstrutora">ID da Construtora</label>
 
               <input
                 type="number"
                 min="1"
-                name="idconstrutora"
+                id="cadastro-idconstrutora" name="idconstrutora"
                 value={
                   formulario
                     .idconstrutora
@@ -277,13 +275,11 @@ function Cadastro({
             </div>
 
             <div className="form-group">
-              <label>
-                Senha
-              </label>
+              <label htmlFor="cadastro-senha">Senha</label>
 
               <input
                 type="password"
-                name="senha"
+                id="cadastro-senha" name="senha"
                 value={
                   formulario.senha
                 }
@@ -295,13 +291,11 @@ function Cadastro({
             </div>
 
             <div className="form-group">
-              <label>
-                Confirmar senha
-              </label>
+              <label htmlFor="cadastro-confirmarSenha">Confirmar senha</label>
 
               <input
                 type="password"
-                name="confirmarSenha"
+                id="cadastro-confirmarSenha" name="confirmarSenha"
                 value={
                   formulario
                     .confirmarSenha
@@ -314,7 +308,7 @@ function Cadastro({
             </div>
 
             {erro && (
-              <div className="auth-error">
+              <div className="auth-error" role="alert">
                 {erro}
               </div>
             )}

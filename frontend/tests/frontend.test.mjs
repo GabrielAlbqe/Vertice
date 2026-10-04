@@ -2,7 +2,27 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { listarEquipes, buscarCatalogoRecursos, atribuirEquipe } from "../src/api/recursos.js";
 import { calcularAnalytics, normalizarAnalytics, FILTROS_VAZIOS } from "../src/api/analyticsCalculos.js";
-import { usuarioCanteiro } from "../src/canteiro/sessao.js";
+import { usuarioCanteiro, usuarioSeguro } from "../src/canteiro/sessao.js";
+import { normalizarObra } from "../src/api/obras.js";
+import { requisitar } from "../src/api/api.js";
+
+test("sessão preserva dados do perfil e exclui credenciais retornadas pela API", () => {
+  assert.deepEqual(usuarioSeguro({ id_usuario: 7, nome: "Ana", ambiente: "Canteiro", senha: "segredo", token: "segredo", chave_privada: "segredo" }), { id_usuario: 7, nome: "Ana", ambiente: "Canteiro" });
+});
+
+test("obra sem orçamento ou pavimentos mantém informação ausente", () => {
+  const obra = normalizarObra({ id_obra: 1 });
+  assert.equal(obra.orcamento_planejado, null);
+  assert.equal(obra.numero_pavimentos, null);
+  assert.equal(normalizarObra({ orcamento_planejado: 0, numero_pavimentos: 0 }).orcamento_planejado, 0);
+});
+
+test("resposta HTML com HTTP 200 não confirma um envio", async () => {
+  const anterior = globalThis.fetch;
+  globalThis.fetch = async () => new Response("<!doctype html><html></html>", { status: 200 });
+  try { await assert.rejects(requisitar("/diarios-obra/insert", { method: "POST", body: "{}" }), /Formato de resposta inesperado/); }
+  finally { globalThis.fetch = anterior; }
+});
 
 test("ambiente explícito prevalece sobre ocupação e tamanho da tela", () => {
   assert.equal(usuarioCanteiro({ ambiente: "Escritório", ocupacao: "Operacional" }), false);

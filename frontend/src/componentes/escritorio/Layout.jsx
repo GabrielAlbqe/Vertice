@@ -1,24 +1,22 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { lerUsuario, sairCanteiro, usuarioSeguro } from "../../canteiro/sessao";
 import Header from "./Header";
 import Sidebar from "./Sidebar";
 import { requisitar } from "../../api/api";
 
 function Layout({ children, onNavegar }) {
-  const [usuario, setUsuario] = useState(() => {
-    try {
-      return JSON.parse(
-        localStorage.getItem("usuario") || "null"
-      );
-    } catch {
-      return null;
-    }
-  });
+  const main = useRef(null);
+  const [usuario, setUsuario] = useState(lerUsuario);
 
   useEffect(() => {
-    buscarUsuario();
+    let ativo = true;
+    const controle = new AbortController();
+    buscarUsuario(controle.signal, () => ativo);
+    main.current?.focus();
+    return () => { ativo = false; controle.abort(); };
   }, []);
 
-  async function buscarUsuario() {
+  async function buscarUsuario(signal, ativo) {
     const idUsuario =
       localStorage.getItem("id_usuario");
 
@@ -29,11 +27,12 @@ function Layout({ children, onNavegar }) {
     try {
       const dados =
         await requisitar(
-          `/usuarios/${idUsuario}`
+          `/usuarios/${idUsuario}`, { signal }
         );
 
       const usuarioAtual =
-        dados?.usuario || dados;
+        usuarioSeguro(dados?.usuario || dados || {});
+      if (!ativo() || !usuarioAtual.id_usuario || localStorage.getItem("id_usuario") !== String(usuarioAtual.id_usuario)) return;
 
       setUsuario(usuarioAtual);
 
@@ -47,6 +46,7 @@ function Layout({ children, onNavegar }) {
         usuarioAtual?.nome || ""
       );
     } catch (erro) {
+      if (signal.aborted) return;
       console.warn(
         "Não foi possível atualizar o usuário do cabeçalho:",
         erro.message || erro
@@ -55,20 +55,7 @@ function Layout({ children, onNavegar }) {
   }
 
   function sair() {
-    [
-      "id_usuario",
-      "nome_usuario",
-      "email_usuario",
-      "ocupacao",
-      "ambiente",
-      "status_usuario",
-      "idconstrutora",
-      "id_construtora",
-      "usuario",
-      "obra_selecionada",
-    ].forEach((chave) =>
-      localStorage.removeItem(chave)
-    );
+    sairCanteiro();
 
     if (
       typeof onNavegar === "function"
@@ -97,7 +84,7 @@ function Layout({ children, onNavegar }) {
         />
 
         {/* SOMENTE ESTA ÁREA ROLA */}
-        <main className="main-content">
+        <main className="main-content" ref={main} tabIndex={-1}>
           {children}
         </main>
 

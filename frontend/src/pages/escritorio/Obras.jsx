@@ -45,6 +45,7 @@ const recursosVazios = {
 // =====================================================
 
 function formatarReal(valor) {
+  if (valor === null || valor === undefined || valor === "" || !Number.isFinite(Number(valor))) return "Não informado";
   return Number(
     valor || 0
   ).toLocaleString(
@@ -393,6 +394,7 @@ function Obras({
           ),
       };
 
+      if (!payload.nome || !Number.isInteger(payload.numero_pavimentos) || payload.numero_pavimentos < 1 || !Number.isFinite(payload.orcamento_planejado) || payload.orcamento_planejado < 0 || !payload.data_inicio_planejada || !payload.data_termino_planejada) throw new Error("Informe nome, pavimentos, datas e orçamento válidos.");
       if (obraEditando) {
         await atualizarObra(
           obraEditando.id_obra,
@@ -546,7 +548,7 @@ function Obras({
     if (trava.current) return;
     const confirmar =
       window.confirm(
-        `Deseja realmente excluir a obra "${obra.obra}"?`
+        `Deseja realmente excluir a obra "${obra.obra}"? Esta ação excluirá definitivamente o cadastro.`
       );
 
     if (!confirmar) {
@@ -593,6 +595,7 @@ function Obras({
       }
 
       await carregarObras();
+      setSucesso("Obra excluída com sucesso.");
     } catch (error) {
       console.error(
         "Erro ao excluir obra:",
@@ -822,7 +825,7 @@ function Obras({
         </section>
 
         {erro && (
-          <div className="auth-error">
+          <div className="auth-error" role="alert">
             {erro}
           </div>
         )}
@@ -1331,7 +1334,7 @@ function Obras({
               </div>
 
               {erroRecursos && (
-                <div className="auth-error">
+                <div className="auth-error" role="alert">
                   {erroRecursos}
                 </div>
               )}

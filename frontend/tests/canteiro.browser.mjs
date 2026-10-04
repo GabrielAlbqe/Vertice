@@ -22,7 +22,7 @@ try {
   await new Promise((resolve, reject) => { ws.addEventListener("open", resolve); ws.addEventListener("error", reject); });
   let seq = 0;
   const pendentes = new Map(), excecoes = [], errosReact = [], requests = [], resultados = [];
-  const usuario = { id_usuario: 7, nome: "Equipe de Teste", email: "canteiro@teste.local", ocupacao: "Engenheiro", ambiente: "Canteiro", status: "Ativo", idconstrutora: 1 };
+  const usuario = { senha: "nao-deve-ser-armazenada", token: "nao-deve-ser-armazenado", id_usuario: 7, nome: "Equipe de Teste", email: "canteiro@teste.local", ocupacao: "Engenheiro", ambiente: "Canteiro", status: "Ativo", idconstrutora: 1 };
   const obras = [
     { id_obra: 1, nome: "Obra de teste com nome longo para validar responsividade", status: "Em andamento", id_construtora: 1, data_inicio_planejada: "2026-09-01", data_termino_planejada: "2026-12-31" },
     { id_obra: 2, nome: "Segunda obra de teste", status: "Em andamento", id_construtora: 1 },
@@ -118,16 +118,19 @@ try {
   assert.equal(await evaluate("localStorage.getItem('pagina_atual')"), "canteiro-home");
   assert.equal(await evaluate("document.querySelector('#ct-obra').value"), "");
   await input("#ct-obra", 1); await esperar("document.body.innerText.includes('Entrega atrasada')");
+  assert.equal(await evaluate("JSON.parse(localStorage.getItem('usuario')).senha"), undefined);
+  assert.equal(await evaluate("JSON.parse(localStorage.getItem('usuario')).token"), undefined);
+  assert.equal(await evaluate("document.querySelector('.theme-toggle')"), null);
   resultados.push("Login Canteiro e seleção explícita da obra; outra construtora excluída");
   const paginas = [["Início", "Olá"], ["Registrar", "O que deseja registrar?"], ["Pendências", "Rascunhos aguardando"], ["Histórico", "Buscar obra"], ["Perfil", "MINHA CONTA"]];
-  for (const width of [375, 430, 768, 1024]) {
+  for (const width of [375, 430, 768, 1024, 1366]) {
     await cmd("Emulation.setDeviceMetricsOverride", { width, height: 900, deviceScaleFactor: 1, mobile: width < 768 });
     for (const [botao, marcador] of paginas) {
       if (botao === "Histórico") await evaluate("document.querySelector('.ct-nav button:nth-child(4)').click()"); else await click(botao); await esperar("document.body.innerText.includes(" + JSON.stringify(marcador) + ")");
       const overflow = await evaluate("document.documentElement.scrollWidth > innerWidth + 1");
       assert.equal(overflow, false, "Scroll horizontal em " + botao + " / " + width);
     }
-    for (const botao of ["Consultar obra", "Registrar atividade", "Registrar ocorrência", "Registrar material"]) {
+    for (const botao of ["Consultar obra", "Registrar atividade", "Registrar ocorrência", "Registrar material", "Abrir Diário de Obra"]) {
       await click("Início"); await click(botao);
       assert.equal(await evaluate("document.documentElement.scrollWidth > innerWidth + 1"), false, "Scroll horizontal em " + botao + " / " + width);
     }
@@ -141,7 +144,7 @@ try {
     }
     resultados.push("Todas as telas: navegação e ausência de scroll horizontal em " + width + "px");
   }
-  await evaluate("document.querySelector('.theme-toggle').click()");
+  await click("Perfil"); await click("Escuro");
   assert.equal(await evaluate("document.documentElement.dataset.theme"), "dark");
   await cmd("Page.reload"); await sleep(300); await esperar("!!document.querySelector('.ct-app') && document.documentElement.dataset.theme === 'dark'");
   assert.equal(await evaluate("document.documentElement.dataset.theme"), "dark");
@@ -150,7 +153,7 @@ try {
   await sleep(300);
   const fotoEscura = await cmd("Page.captureScreenshot", { format: "png" });
   await writeFile("tests/screenshots/canteiro-dark.png", Buffer.from(fotoEscura.data, "base64"));
-  await click("Registrar"); await click("Abrir Diário de Obra"); await input("#ct-clima", "Ensolarado"); await input("#ct-turno", "Manhã"); await input("#ct-etapa_atuacao", "Infraestrutura");
+  await click("Registrar"); assert.equal(await evaluate("document.querySelector('.theme-toggle')"), null); await click("Abrir Diário de Obra"); await input("#ct-clima", "Ensolarado"); await input("#ct-turno", "Manhã"); await input("#ct-etapa_atuacao", "Infraestrutura");
   await click("Próximo"); assert.equal(await evaluate("document.body.innerText.includes('Equipe interna teste')"), true); await click("Próximo"); await input("#ct-paralisacoes", "Chuva no período"); await input("#ct-origem_paralisacoes", "Clima");
   await cmd("Network.enable"); await cmd("Network.emulateNetworkConditions", { offline: true, latency: 0, downloadThroughput: -1, uploadThroughput: -1 });
   await esperar("document.body.innerText.includes('Você está offline')");
@@ -180,7 +183,11 @@ try {
   await input("#ct-quantidade_consumida", 2);
   falhaPost = true; await click("Enviar registro"); await esperar("document.body.innerText.includes('Não foi possível enviar o registro')");
   assert.equal(await evaluate("document.querySelector('#ct-quantidade_consumida').value"), "2");
-  falhaPost = false; await click("Enviar registro"); await esperar("document.body.innerText.includes('Registro enviado com sucesso')");
+  falhaPost = false;
+  const enviosAntes = requests.filter(r => r.method === "POST" && r.rota === "/apropriacoes/insert").length;
+  await evaluate("document.querySelector('form').requestSubmit(); document.querySelector('form').requestSubmit()");
+  await esperar("document.body.innerText.includes('Registro enviado com sucesso')");
+  assert.equal(requests.filter(r => r.method === "POST" && r.rota === "/apropriacoes/insert").length, enviosAntes + 1);
   const materialPost = requests.find(r => r.method === "POST" && r.rota === "/apropriacoes/insert");
   assert.equal(materialPost.body.id_insumo, 4); assert.equal(materialPost.body.id_usuario, 7);
   resultados.push("Material: contrato de apropriação; falha preserva formulário e permite novo envio");
@@ -205,14 +212,25 @@ try {
   await cmd("Emulation.setDeviceMetricsOverride", { width: 360, height: 900, deviceScaleFactor: 1, mobile: true });
   await cmd("Page.reload"); await sleep(300); await esperar("!!document.querySelector('.layout')");
   resultados.push("Escritório preservado em desktop e celular, sem troca por largura");
-  for (const width of [375, 430, 768, 1024]) {
+  for (const width of [375, 430, 768, 1024, 1366]) {
     await cmd("Emulation.setDeviceMetricsOverride", { width, height: 900, deviceScaleFactor: 1, mobile: width < 768 });
-    for (const nome of ["Dashboard", "Obras", "Equipes", "Analytics Financeiro", "Recursos"]) {
+    for (const nome of ["Dashboard", "Obras", "Equipes", "Analytics Financeiro", "Recursos", "Perfil"]) {
       await click(nome); await sleep(150);
       assert.equal(await evaluate("document.documentElement.scrollWidth > innerWidth + 1"), false, nome + ' overflow ' + width);
     }
   }
-  resultados.push("Escritório: navegação em 375, 430, 768 e 1024px");
+  resultados.push("Escritório e Perfil: navegação em 375, 430, 768, 1024 e 1366px");
+  await click("Obras");
+  await evaluate("[...document.querySelectorAll('button')].find(b=>b.textContent.trim()==='+ Nova obra').focus()");
+  await click("+ Nova obra");
+  await esperar("!!document.querySelector('[role=dialog]')");
+  assert.equal(await evaluate("!!document.activeElement.closest('[role=dialog]')"), true);
+  await cmd("Input.dispatchKeyEvent", { type: "keyDown", key: "Tab", code: "Tab", windowsVirtualKeyCode: 9 });
+  assert.equal(await evaluate("!!document.activeElement.closest('[role=dialog]')"), true);
+  await cmd("Input.dispatchKeyEvent", { type: "keyDown", key: "Escape", code: "Escape", windowsVirtualKeyCode: 27 });
+  await esperar("!document.querySelector('[role=dialog]')");
+  assert.equal(await evaluate("document.activeElement.textContent.trim()"), "+ Nova obra");
+  resultados.push("Modal: foco interno, TAB, ESC e retorno ao botão de abertura");
   await click("Dashboard"); await click("+ Nova obra"); await esperar("!!document.querySelector('[role=dialog]')");
   await input('[name="nome"]', 'Obra cadastrada no teste');
   await input('[name="numero_pavimentos"]', 2);
@@ -258,16 +276,56 @@ try {
   assert.equal(insumos[0].idobra, 2); assert.ok(insumos.some(i=>i.id_insumos===4));
   resultados.push("Atribuição transfere insumo para outra obra, preservando cadastro");
   await click("Recursos"); await esperar("document.body.innerText.includes('Cimento teste')");
-  await evaluate("document.querySelector('.theme-toggle').click()"); await sleep(300);
+  await click("Perfil"); await click("Escuro"); await sleep(300);
   await mkdir("tests/screenshots", { recursive: true });
   const escritorioFoto = await cmd("Page.captureScreenshot", { format: "png" });
   await writeFile("tests/screenshots/escritorio-dark.png", Buffer.from(escritorioFoto.data, "base64"));
   await cmd("Page.navigate", { url: base + '/canteiro' }); await sleep(300); await esperar("!!document.querySelector('.layout')");
   assert.equal(await evaluate("location.pathname"), '/escritorio');
   resultados.push("Rota Canteiro bloqueada para usuário Escritório");
+  for (const rota of ["/escritorio", "/escritorio/obras", "/escritorio/equipes", "/escritorio/analytics", "/escritorio/recursos", "/escritorio/perfil"]) {
+    await cmd("Page.navigate", { url: base + rota });
+    await esperar("!!document.querySelector('.layout') && location.pathname===" + JSON.stringify(rota));
+    await cmd("Page.reload"); await sleep(200);
+    await esperar("!!document.querySelector('.layout') && location.pathname===" + JSON.stringify(rota));
+    assert.equal(await evaluate("!!document.querySelector('.theme-control')"), rota.endsWith("perfil"));
+  }
+  await click("Obras"); await click("Recursos");
+  await evaluate("history.back()"); await esperar("location.pathname==='/escritorio/obras' && document.querySelector('h1')?.textContent==='Obras'");
+  await evaluate("history.forward()"); await esperar("location.pathname==='/escritorio/recursos' && document.querySelector('h1')?.textContent==='Recursos'");
+  resultados.push("Escritório: URLs diretas, recarga, voltar e avançar");
+  await click("Perfil"); await click("Escuro"); await click("Sair da conta"); await esperar("!!document.querySelector('#email')");
+  assert.equal(await evaluate("document.documentElement.dataset.theme"), "dark");
+  assert.equal(await evaluate("!!document.querySelector('.theme-control')"), false);
+  await click("Cadastre-se"); await esperar("!!document.querySelector('[name=confirmarSenha]')");
+  assert.equal(await evaluate("document.documentElement.dataset.theme"), "dark");
+  assert.equal(await evaluate("!!document.querySelector('.theme-control')"), false);
+  resultados.push("Tema escuro preservado no Login e Cadastro sem controle global");
   await sessao("Canteiro", "dashboard", obras[0]); await esperar("!!document.querySelector('.ct-app')"); assert.equal(await evaluate("localStorage.getItem('pagina_atual')"), "canteiro-home");
+  for (const rota of ["/canteiro", "/canteiro/obra", "/canteiro/registrar", "/canteiro/atividade", "/canteiro/material", "/canteiro/foto", "/canteiro/ocorrencia", "/canteiro/diario", "/canteiro/registros", "/canteiro/historico", "/canteiro/pendencias", "/canteiro/perfil"]) {
+    await cmd("Page.navigate", { url: base + rota }); await sleep(150);
+    await esperar("!!document.querySelector('.ct-app') && location.pathname===" + JSON.stringify(rota));
+    await cmd("Page.reload"); await sleep(150);
+    await esperar("!!document.querySelector('.ct-app') && location.pathname===" + JSON.stringify(rota));
+    assert.equal(await evaluate("!!document.querySelector('.theme-control')"), rota.endsWith("perfil"));
+    if (!rota.endsWith("perfil")) await esperar("document.querySelector('#ct-obra')?.value==='1'");
+  }
+  await cmd("Page.navigate", { url: base + "/escritorio/obras" });
+  await esperar("!!document.querySelector('.ct-app') && location.pathname==='/canteiro'");
+  await click("Registrar"); await click("Pendências");
+  await evaluate("history.back()"); await esperar("location.pathname==='/canteiro/registrar'");
+  await evaluate("history.forward()"); await esperar("location.pathname==='/canteiro/pendencias'");
+  resultados.push("Canteiro: todas as URLs diretas, recarga, seleção restaurada, histórico do navegador e bloqueio do Escritório");
   await click("Perfil"); await click("Sair da conta"); await esperar("!!document.querySelector('#email')"); assert.equal(await evaluate("localStorage.getItem('obra_selecionada')"), null);
   resultados.push("Restauração por ambiente e logout");
+  await cmd("Page.navigate", { url: base + "/cadastro" }); await esperar("!!document.querySelector('[name=confirmarSenha]')");
+  assert.equal(await evaluate("document.documentElement.dataset.theme"), "light");
+  assert.equal(await evaluate("!!document.querySelector('.theme-control')"), false);
+  await cmd("Page.reload"); await esperar("!!document.querySelector('[name=confirmarSenha]')");
+  await click("Voltar para login");
+  await input("#email", "canteiro@teste.local"); await input("#senha", "teste"); await click("Entrar");
+  await esperar("!!document.querySelector('.ct-app')");
+  resultados.push("Cadastro direto e recarga sem sessão; login novamente após logout");
   assert.deepEqual(excecoes, [], "Exceções no navegador");
   assert.deepEqual(errosReact, [], "Erros React");
   await writeFile("tests/canteiro-browser-result.json", JSON.stringify({ passou: true, resultados, excecoes, errosReact, posts: requests.filter(r => r.method === "POST") }, null, 2));

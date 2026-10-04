@@ -9,9 +9,9 @@ export function useDialogFocus(ref, onClose, aberto = true) {
     document.body.style.overflow = "hidden";
     ref.current?.focus();
     function teclado(e) {
-      if (e.key === "Escape") fechar.current?.();
+      if (e.key === "Escape") { e.preventDefault(); fechar.current?.(); }
       if (e.key !== "Tab") return;
-      const itens = [...ref.current.querySelectorAll('button:not(:disabled), input:not(:disabled), select:not(:disabled), textarea:not(:disabled), a[href]')];
+      const itens = [...(ref.current?.querySelectorAll('button:not(:disabled), input:not(:disabled), select:not(:disabled), textarea:not(:disabled), a[href]') || [])].filter(item => !item.matches(':disabled') && item.getClientRects().length && item.tabIndex >= 0);
       const primeiro = itens[0], ultimo = itens.at(-1);
       if (!primeiro) { e.preventDefault(); return; }
       if (e.shiftKey && (document.activeElement === primeiro || document.activeElement === ref.current)) { e.preventDefault(); ultimo.focus(); }

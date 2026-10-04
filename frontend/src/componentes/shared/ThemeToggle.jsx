@@ -14,11 +14,14 @@ export default function ThemeToggle() {
     window.addEventListener("storage", sincronizar);
     return () => window.removeEventListener("storage", sincronizar);
   }, []);
-  function alternar() {
-    const proximo = tema === "dark" ? "light" : "dark";
+  function selecionar(proximo) {
     document.documentElement.dataset.theme = proximo;
     setTema(proximo);
     try { localStorage.setItem("vertice_tema", proximo); } catch { /* O tema funciona também sem armazenamento. */ }
   }
-  return <button type="button" className="theme-toggle" onClick={alternar} aria-label={`Ativar modo ${tema === "dark" ? "claro" : "escuro"}`} aria-pressed={tema === "dark"}>{tema === "dark" ? "☀ Claro" : "☾ Escuro"}</button>;
+  return <div className="theme-control" role="group" aria-label="Tema">
+    {[['light', 'Claro'], ['dark', 'Escuro']].map(([valor, nome]) =>
+      <button key={valor} type="button" className="theme-toggle" onClick={() => selecionar(valor)} aria-pressed={tema === valor}>{nome}</button>
+    )}
+  </div>;
 }

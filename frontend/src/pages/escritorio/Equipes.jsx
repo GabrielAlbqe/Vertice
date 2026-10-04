@@ -2,6 +2,7 @@ import {
   useEffect,
   useMemo,
   useState,
+  useRef,
 } from "react";
 
 import { listarObras } from "../../api/obras.js";
@@ -38,9 +39,8 @@ const FORMULARIO_VAZIO = {
   idobra: "",
 };
 
-function formatarReal(
-  valor
-) {
+function formatarReal(valor) {
+  if (valor === null || valor === undefined || valor === "" || !Number.isFinite(Number(valor))) return "Não informado";
   return Number(
     valor || 0
   ).toLocaleString(
@@ -55,6 +55,8 @@ function formatarReal(
 function Equipes({
   onNavegar,
 }) {
+  const trava = useRef(false);
+  const [filtroObra, setFiltroObra] = useState("");
   const [obras, setObras] = useState([]);
   const [aviso, setAviso] = useState("");
   const [
@@ -293,7 +295,8 @@ function Equipes({
     event
   ) {
     event.preventDefault();
-    if (salvando) return;
+    if (trava.current) return;
+    trava.current = true;
 
     try {
       setSalvando(
@@ -359,9 +362,11 @@ function Equipes({
         );
       }
 
-      if (
-        equipeEditando
-      ) {
+      if (!obras.some(o => String(o.id_obra) === String(dados.idobra))) throw new Error("Selecione uma obra disponível para sua construtora.");
+      for (const campo of ["custo_diario", "custo_mensal"]) {
+        if (formulario[campo] === "" || !Number.isFinite(Number(formulario[campo])) || Number(formulario[campo]) < 0) throw new Error("Informe custos válidos, maiores ou iguais a zero.");
+      }
+      if (equipeEditando) {
         await atualizarEquipe(
           obterIdEquipe(
             equipeEditando
@@ -391,24 +396,24 @@ function Equipes({
         "Erro ao salvar equipe."
       );
     } finally {
+      trava.current = false;
       setSalvando(
         false
       );
     }
   }
 
-  async function remover(
-    equipe
-  ) {
+  async function remover(equipe) {
+    if (trava.current) return;
     if (
       !window.confirm(
-        `Excluir "${equipe.nome_equipe}"?`
+        `Excluir "${equipe.nome_equipe}"? Esta ação excluirá definitivamente o cadastro.`
       )
     ) {
       return;
     }
 
-    setSalvando(true);
+    trava.current = true; setSalvando(true);
     setErro("");
     setSucesso("");
     try {
@@ -418,7 +423,7 @@ function Equipes({
       setSucesso("Equipe excluída.");
     } catch (error) {
       setErro(error.message || "Não foi possível excluir a equipe.");
-    } finally { setSalvando(false); }
+    } finally { trava.current = false; setSalvando(false); }
   }
 
   const equipesFiltradas =
@@ -430,7 +435,7 @@ function Equipes({
           .trim()
           .toLowerCase();
 
-      return equipes.filter(
+      return equipes.filter(e => !filtroObra || String(e.idobra) === filtroObra).filter(
         (equipe) => {
           const nome =
             String(
@@ -465,7 +470,7 @@ function Equipes({
     }, [
       equipes,
       pesquisa,
-      filtroArea,
+      filtroArea, filtroObra,
     ]);
 
   const profissionais =
@@ -548,13 +553,13 @@ function Equipes({
 
         {aviso && <p role="status">{aviso}</p>}
         {erro && (
-          <div className="auth-error">
+          <div className="auth-error" role="alert">
             {erro}
           </div>
         )}
 
         {sucesso && (
-          <div className="mensagem-sucesso">
+          <div className="mensagem-sucesso" role="status">
             {sucesso}
           </div>
         )}
@@ -767,17 +772,14 @@ function Equipes({
 
         <section className="dashboard-section">
 
-          <div className="filtros-equipes">
+          <div className="filtros-equipes"><label className="form-group">Obra<select value={filtroObra} onChange={e => setFiltroObra(e.target.value)}><option value="">Todas as obras</option>{obras.map(o => <option key={o.id_obra} value={o.id_obra}>{o.nome}</option>)}</select></label>
 
             <div className="filtro-pesquisa">
 
-              <label>
-                Pesquisar
+              <label htmlFor="pesquisa-equipe">Pesquisar
               </label>
 
-              <input
-                value={
-                  pesquisa ?? ""
+              <input id="pesquisa-equipe" value={pesquisa ?? ""
                 }
                 onChange={(event) =>
                   setPesquisa(
@@ -791,13 +793,10 @@ function Equipes({
 
             <div className="filtro-area">
 
-              <label>
-                Área
+              <label htmlFor="filtro-area-equipe">Área
               </label>
 
-              <select
-                value={
-                  filtroArea ?? ""
+              <select id="filtro-area-equipe" value={filtroArea ?? ""
                 }
                 onChange={(event) =>
                   setFiltroArea(
@@ -892,7 +891,7 @@ function Equipes({
                         >
 
                           <td>
-                            {equipe.nome_equipe}
+                            {equipe.nome_equipe}<small style={{ display: "block" }}>{obras.find(o => String(o.id_obra) === String(equipe.idobra))?.nome || "Obra não informada"}</small>
                           </td>
 
                           <td>

@@ -14,9 +14,8 @@ import {
   buscarCatalogoRecursos,
 } from "../../api/recursos.js";
 
-function formatarReal(
-  valor
-) {
+function formatarReal(valor) {
+  if (valor === null || valor === undefined || valor === "" || !Number.isFinite(Number(valor))) return "Não informado";
   return Number(
     valor || 0
   ).toLocaleString(
@@ -35,7 +34,7 @@ function normalizarStatus(
     status || ""
   )
     .trim()
-    .toLowerCase();
+    .normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
 }
 
 function Dashboard({
@@ -164,7 +163,6 @@ function Dashboard({
     obras.filter(
       (obra) =>
         [
-          "planejamento",
           "iniciada",
           "em andamento",
         ].includes(
@@ -180,7 +178,7 @@ function Dashboard({
     ).length;
 
   const orcamentoTotal =
-    obras.reduce(
+    obras.every(o => o.orcamento_planejado !== null && Number.isFinite(Number(o.orcamento_planejado))) ? obras.reduce(
       (total, obra) =>
         total +
         Number(
@@ -188,10 +186,10 @@ function Dashboard({
           0
         ),
       0
-    );
+    ) : null;
 
   const profissionais =
-    equipes.reduce(
+    equipes.every(e => e.quantidade_profissionais !== null && e.quantidade_profissionais !== undefined && Number.isFinite(Number(e.quantidade_profissionais))) ? equipes.reduce(
       (total, equipe) =>
         total +
         Number(
@@ -199,7 +197,7 @@ function Dashboard({
           0
         ),
       0
-    );
+    ) : "Não informado";
 
   return (
     <Layout
@@ -256,39 +254,34 @@ function Dashboard({
         </section>
 
         {erro && (
-          <div className="auth-error">
+          <div className="auth-error" role="alert">
             {erro}
           </div>
         )}
 
         <section className="cards-grid">
+          {[["Total de obras", obras.length], ["Planejamento", obras.filter(o => normalizarStatus(o.status) === "planejamento").length], ["Concluídas", obras.filter(o => normalizarStatus(o.status) === "concluida").length]].map(([title, value]) => <Card key={title} title={title} value={carregando ? "..." : erro ? "Não informado" : value} description="Conforme cadastros da construtora" />)}
 
           <Card
             title="Obras ativas"
             value={
-              carregando
-                ? "..."
-                : obrasAtivas
+              carregando ? "..." : erro ? "Não informado" : obrasAtivas
             }
-            description={`${obras.length} cadastradas`}
+            description={carregando || erro ? "Consulta em andamento ou indisponível" : `${obras.length} cadastradas`}
           />
 
           <Card
             title="Equipes"
             value={
-              carregando
-                ? "..."
-                : equipes.length
+              carregando ? "..." : erro ? "Não informado" : equipes.length
             }
-            description={`${profissionais} profissionais`}
+            description={carregando || erro ? "Consulta em andamento ou indisponível" : `${profissionais} profissionais`}
           />
 
           <Card
             title="Orçamento"
             value={
-              carregando
-                ? "..."
-                : formatarReal(
+              carregando ? "..." : erro ? "Não informado" : formatarReal(
                     orcamentoTotal
                   )
             }
@@ -298,9 +291,7 @@ function Dashboard({
           <Card
             title="Paralisadas"
             value={
-              carregando
-                ? "..."
-                : paralisadas
+              carregando ? "..." : erro ? "Não informado" : paralisadas
             }
             description="Necessitam atenção"
           />
@@ -334,11 +325,11 @@ function Dashboard({
               </span>
 
               <strong>
-                {equipes.length}
+                {carregando ? "..." : erro ? "Não informado" : equipes.length}
               </strong>
 
               <small>
-                {profissionais} profissionais
+                {carregando || erro ? "Não informado" : profissionais} profissionais
               </small>
 
             </div>
@@ -350,7 +341,7 @@ function Dashboard({
               </span>
 
               <strong>
-                {insumos.length}
+                {carregando ? "..." : erro ? "Não informado" : insumos.length}
               </strong>
 
               <small>
@@ -366,7 +357,7 @@ function Dashboard({
               </span>
 
               <strong>
-                {maquinarios.length}
+                {carregando ? "..." : erro ? "Não informado" : maquinarios.length}
               </strong>
 
               <small>

@@ -10,6 +10,7 @@ export async function requisitar(
       `${API_URL}${endpoint}`,
       {
         ...opcoes,
+        signal: opcoes.signal ? AbortSignal.any([opcoes.signal, AbortSignal.timeout(15000)]) : AbortSignal.timeout(15000),
 
         headers: {
           "Content-Type":
@@ -60,6 +61,8 @@ export async function requisitar(
 
     throw erro;
   }
+
+  if (typeof dados === "string") throw new Error(`Formato de resposta inesperado ao acessar ${endpoint}.`);
 
   return dados;
 }

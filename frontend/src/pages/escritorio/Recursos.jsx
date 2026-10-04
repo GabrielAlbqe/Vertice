@@ -7,7 +7,7 @@ import { ETAPAS_DIARIO } from "../../canteiro/dados";
 
 const tipos = { equipes: "Equipes", insumos: "Insumos", maquinarios: "Maquinários" };
 const ids = { equipes: obterIdEquipe, insumos: obterIdInsumo, maquinarios: obterIdMaquinario };
-const moeda = v => Number.isFinite(Number(v)) ? Number(v).toLocaleString("pt-BR", { style: "currency", currency: "BRL" }) : "Não informado";
+const moeda = v => v !== null && v !== undefined && v !== "" && Number.isFinite(Number(v)) ? Number(v).toLocaleString("pt-BR", { style: "currency", currency: "BRL" }) : "Não informado";
 
 export default function Recursos({ onNavegar, onAbrirObra }) {
   const [obras, setObras] = useState([]), [catalogo, setCatalogo] = useState({ equipes: [], insumos: [], maquinarios: [] });
@@ -39,7 +39,7 @@ export default function Recursos({ onNavegar, onAbrirObra }) {
       const payload = { nome: form.nome.trim(), idobra: Number(form.idobra) };
       for (const campo of campos) {
         const valor = Number(form[campo]);
-        if (form[campo] === "" || !Number.isFinite(valor) || valor < 0) throw new Error("Informe quantidades e valores válidos, maiores ou iguais a zero.");
+        if (form[campo] === "" || !Number.isFinite(valor) || valor < 0 || (editor.tipo === "insumos" || campo === "quantidade") && !Number.isInteger(valor)) throw new Error("Informe quantidades e valores válidos. Quantidades e valores de insumos devem ser inteiros.");
         payload[campo] = valor;
       }
       if (editor.tipo === "maquinarios") { payload.etapa_atuacao = form.etapa_atuacao || null; payload.status = form.status; }
@@ -51,7 +51,7 @@ export default function Recursos({ onNavegar, onAbrirObra }) {
     finally { trava.current = false; setSalvando(false); }
   }
   async function excluir(item) {
-    if (trava.current || !window.confirm(`Excluir definitivamente ${item.nome}? Esta ação remove o cadastro, não apenas o vínculo com a obra.`)) return;
+    if (trava.current || !window.confirm(`Excluir definitivamente ${item.nome}? Esta ação excluirá definitivamente o cadastro.`)) return;
     trava.current = true; setSalvando(true); setErro(""); setSucesso("");
     try { await (tipo === "insumos" ? excluirInsumo : excluirMaquinario)(item); setSucesso("Cadastro excluído."); await carregar(); }
     catch (e) { console.error("Excluir recurso:", e); setErro(e.message); }

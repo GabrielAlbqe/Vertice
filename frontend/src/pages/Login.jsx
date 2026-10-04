@@ -1,8 +1,10 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { requisitar } from "../api/api";
+import { usuarioSeguro } from "../canteiro/sessao";
 import logoVertice from "../assets/logo-vertice.png";
 
 function Login({ onLogin, onCadastro }) {
+  const trava = useRef(false);
   const [email, setEmail] = useState("");
   const [senha, setSenha] = useState("");
   const [lembrarEmail, setLembrarEmail] =
@@ -34,7 +36,8 @@ function Login({ onLogin, onCadastro }) {
 
   async function entrar(evento) {
     evento.preventDefault();
-    if (carregando) return;
+    if (trava.current) return;
+    trava.current = true;
 
     try {
       setCarregando(true);
@@ -67,7 +70,7 @@ function Login({ onLogin, onCadastro }) {
         );
 
       const usuario =
-        dados?.usuario;
+        usuarioSeguro(dados?.usuario || {});
 
       if (!usuario) {
         throw new Error(
@@ -184,6 +187,7 @@ function Login({ onLogin, onCadastro }) {
           "Não foi possível fazer login."
       );
     } finally {
+      trava.current = false;
       setCarregando(false);
     }
   }
@@ -221,7 +225,7 @@ function Login({ onLogin, onCadastro }) {
 
           {mensagem && (
             <div
-              className="auth-error"
+              className="auth-error" role="alert"
               style={{
                 marginBottom: "18px",
               }}
