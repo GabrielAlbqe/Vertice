@@ -138,7 +138,7 @@ export function calcularAnalytics(dados, filtros = FILTROS_VAZIOS, hoje = hojeLo
   const inicioSerie = inicio || dataISO(dados.obra.data_inicio_planejada) || datas[0];
   const fimSerie = termino && termino > limiteReal ? termino : limiteReal;
   const pontos = [];
-  if (inicioSerie && inicioSerie <= fimSerie && realizado !== null && registros.every(item => item.data)) {
+  if (registros.length > 0 && inicioSerie && inicioSerie <= fimSerie && realizado !== null && registros.every(item => item.data)) {
     const marcos = new Set([inicioSerie, fimSerie]);
     if (limiteReal >= inicioSerie && limiteReal <= fimSerie) marcos.add(limiteReal);
     let mes = new Date(`${inicioSerie.slice(0, 7)}-01T00:00:00Z`);

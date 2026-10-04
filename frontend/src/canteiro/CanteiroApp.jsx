@@ -9,8 +9,10 @@ import RegistrarFoto from "../pages/canteiro/RegistrarFoto";
 import HistoricoObras from "../pages/canteiro/HistoricoObras";
 import CanteiroPendencias from "../pages/canteiro/CanteiroPendencias";
 import CanteiroPerfil from "../pages/canteiro/CanteiroPerfil";
+import DiarioObra from "../pages/canteiro/DiarioObra";
+import RegistrosObra from "../pages/canteiro/RegistrosObra";
 const telas = {
-  "canteiro-home": HomeCanteiro, "canteiro-obra": DetalheObra, "canteiro-diario": Registrar,
+  "canteiro-home": HomeCanteiro, "canteiro-obra": DetalheObra, "canteiro-diario": DiarioObra, "canteiro-registrar": Registrar, "canteiro-registros": RegistrosObra,
   "canteiro-atividade": RegistrarAtividade, "canteiro-material": RegistrarMaterial, "canteiro-ocorrencia": RegistrarOcorrencia,
   "canteiro-foto": RegistrarFoto, "canteiro-historico": HistoricoObras, "canteiro-pendencias": CanteiroPendencias, "canteiro-perfil": CanteiroPerfil
 };

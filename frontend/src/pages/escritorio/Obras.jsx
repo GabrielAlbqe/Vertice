@@ -1,6 +1,8 @@
+import { useDialogFocus } from "../../componentes/escritorio/Modal";
 import {
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 
@@ -73,13 +75,8 @@ function formatarData(data) {
 }
 
 function statusParaBanco(status) {
-  if (
-    status === "Concluída"
-  ) {
-    return "Concluida";
-  }
-
-  return status || "";
+  const chave = String(status || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+  return ({ planejamento: "Planejamento", "em andamento": "Em Andamento", concluida: "Concluida", paralisada: "Paralisada" })[chave] || status || "";
 }
 
 function statusParaTela(status) {
@@ -108,6 +105,8 @@ function Obras({
   onNavegar,
   onAbrirObra,
 }) {
+  const trava = useRef(false);
+  const [sucesso, setSucesso] = useState("");
   const [
     obras,
     setObras,
@@ -185,6 +184,9 @@ function Obras({
     setErroRecursos,
   ] = useState("");
 
+  const dialogRef = useRef(null);
+  useDialogFocus(dialogRef, () => { if (!trava.current) { setModalObraAberto(false); setModalRecursos(false); } }, modalObraAberto || modalRecursos);
+
   const idConstrutora =
     localStorage.getItem(
       "idconstrutora"
@@ -199,6 +201,10 @@ function Obras({
 
   useEffect(() => {
     carregarObras();
+    if (localStorage.getItem("abrir_cadastro_obra") === "1") {
+      localStorage.removeItem("abrir_cadastro_obra");
+      setModalObraAberto(true);
+    }
   }, []);
 
   async function carregarObras() {
@@ -212,10 +218,6 @@ function Obras({
         );
       }
 
-      // IMPORTANTE:
-      // não chamamos GET /obras/ diretamente.
-      // listarObras() usa GET /obras/:id para contornar
-      // o erro Obra.getAll do backend sem alterar o backend.
       const lista =
         await listarObras(
           idConstrutora
@@ -329,6 +331,8 @@ function Obras({
     event
   ) {
     event.preventDefault();
+    if (trava.current) return;
+    trava.current = true;
 
     try {
       setSalvando(true);
@@ -400,7 +404,10 @@ function Obras({
         );
       }
 
-      fecharModalObra();
+      setSucesso("Obra salva com sucesso.");
+      setModalObraAberto(false);
+      setObraEditando(null);
+      setFormulario(formularioObraVazio);
 
       await carregarObras();
     } catch (error) {
@@ -414,6 +421,7 @@ function Obras({
           "Não foi possível salvar a obra."
       );
     } finally {
+      trava.current = false;
       setSalvando(false);
     }
   }
@@ -422,6 +430,8 @@ function Obras({
     obra,
     novoStatus
   ) {
+    if (trava.current) return;
+    trava.current = true; setSalvando(true); setErro(""); setSucesso("");
     const statusAnterior =
       obra.status;
 
@@ -523,7 +533,7 @@ function Obras({
         error.message ||
           "Não foi possível alterar o status."
       );
-    }
+    } finally { trava.current = false; setSalvando(false); }
   }
 
   // ===================================================
@@ -533,6 +543,7 @@ function Obras({
   async function removerObra(
     obra
   ) {
+    if (trava.current) return;
     const confirmar =
       window.confirm(
         `Deseja realmente excluir a obra "${obra.obra}"?`
@@ -541,6 +552,7 @@ function Obras({
     if (!confirmar) {
       return;
     }
+    trava.current = true; setSalvando(true); setSucesso("");
 
     try {
       setErro("");
@@ -591,7 +603,7 @@ function Obras({
         error.message ||
           "Não foi possível excluir a obra."
       );
-    }
+    } finally { trava.current = false; setSalvando(false); }
   }
 
   // ===================================================
@@ -709,6 +721,7 @@ function Obras({
 
             return [
               "planejamento",
+              "iniciada",
               "em andamento",
             ].includes(
               status
@@ -920,7 +933,7 @@ function Obras({
 
                         <td>
                           <select
-                            className="status-select-tabela"
+                            className="status-select-tabela" disabled={salvando} aria-label={`Status de ${obra.nome || obra.obra}`}
                             value={
                               statusParaBanco(
                                 obra.status
@@ -1050,10 +1063,11 @@ function Obras({
             MODAL OBRA
         ================================================= */}
 
-        {obras.aviso && <p role="status">{obras.aviso}</p>}
+        {sucesso && <p className="mensagem-sucesso" role="status">{sucesso}</p>}
         {modalObraAberto && (
           <div className="modal-overlay">
-            <div className="modal-container modal-obra">
+            <div className="modal-container modal-obra" role="dialog" ref={dialogRef} tabIndex={-1} aria-modal="true" aria-label="Cadastro de obra">
+              {erro && <p className="auth-error" role="alert">{erro}</p>}
               <div className="modal-header">
                 <div>
                   <span className="section-label">
@@ -1080,8 +1094,8 @@ function Obras({
                 </button>
               </div>
 
-              <form
-                className="obra-form"
+              <form aria-busy={salvando}
+                  className="obra-form"
                 onSubmit={
                   salvarObra
                 }
@@ -1288,7 +1302,7 @@ function Obras({
         {modalRecursos &&
           obraRecursos && (
           <div className="modal-overlay">
-            <div className="modal-container modal-recursos-consulta">
+            <div className="modal-container modal-recursos-consulta" role="dialog" aria-modal="true" aria-label="Recursos da obra">
 
               <div className="modal-header">
                 <div>

@@ -16,6 +16,19 @@ export const listarApontamentos = (id, signal) => consultarLista(`/apontamentos-
 export const salvarDiario = payload => requisitar("/diarios-obra/insert", { method: "POST", body: JSON.stringify(payload) });
 export const salvarAtividade = payload => requisitar("/apontamentos-fisicos/insert", { method: "POST", body: JSON.stringify(payload) });
 export const salvarMaterial = payload => requisitar("/apropriacoes/insert", { method: "POST", body: JSON.stringify(payload) });
+export const listarRdos = (id, signal) => consultarLista(`/rdo?id_obra=${encodeURIComponent(id)}`, signal);
+export const listarApropriacoes = signal => consultarLista("/apropriacoes", signal);
+export async function carregarApontamentos(diarios, signal) {
+  const registros = [];
+  for (let i = 0; i < diarios.length; i += 4) {
+    const lote = await Promise.all(diarios.slice(i, i + 4).map(async diario => {
+      const lista = await listarApontamentos(diario.id_diario, signal);
+      return lista.filter(a => String(a.diario_id) === String(diario.id_diario)).map(a => ({ ...a, data: diario.data }));
+    }));
+    registros.push(...lote.flat());
+  }
+  return registros;
+}
 export function temOcorrencia(valor) {
   const texto = String(valor || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
   return Boolean(texto && !/^(nenhum(a)?|n\/a|nao|sem (atrasos?|paralisacoes?|ocorrencias?)|0|-)\.?$/.test(texto));

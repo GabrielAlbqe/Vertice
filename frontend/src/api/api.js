@@ -1,12 +1,12 @@
-const API_URL =
-  "http://localhost:3000/api";
+const API_URL = (import.meta.env?.VITE_API_URL || "http://localhost:3000/api").replace(/\/$/, "");
 
 export async function requisitar(
   endpoint,
   opcoes = {}
 ) {
-  const resposta =
-    await fetch(
+  let resposta;
+  try {
+    resposta = await fetch(
       `${API_URL}${endpoint}`,
       {
         ...opcoes,
@@ -20,6 +20,10 @@ export async function requisitar(
         },
       }
     );
+  } catch (causa) {
+    if (causa.name === "AbortError") throw causa;
+    throw new Error("Falha de conexão com o servidor. Se estava enviando, consulte os registros antes de tentar novamente.", { cause: causa });
+  }
 
   const texto =
     await resposta.text();
@@ -58,27 +62,6 @@ export async function requisitar(
   }
 
   return dados;
-}
-
-export async function requisicaoOpcional(
-  endpoint,
-  opcoes = {},
-  fallback = null
-) {
-  try {
-    return await requisitar(
-      endpoint,
-      opcoes
-    );
-  } catch (erro) {
-    console.warn(
-      `Falha opcional em ${endpoint}:`,
-      erro?.message ||
-        erro
-    );
-
-    return fallback;
-  }
 }
 
 export function extrairLista(

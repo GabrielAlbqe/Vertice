@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import CanteiroApp from "./canteiro/CanteiroApp";
 import { usuarioCanteiro, paginasCanteiro } from "./canteiro/sessao";
 
@@ -8,12 +8,25 @@ import Dashboard from "./pages/escritorio/Dashboard";
 import Obras from "./pages/escritorio/Obras";
 import Equipes from "./pages/escritorio/Equipes";
 import ObraDetalhes from "./pages/escritorio/ObraDetalhes";
+import Recursos from "./pages/escritorio/Recursos";
 import Perfil from "./pages/escritorio/Perfil";
 import AnalyticsFinanceiro from "./pages/escritorio/AnalyticsFinanceiro";
 
 import "./styles.css";
 
+const rotas = { dashboard: "/escritorio", obras: "/escritorio/obras", equipes: "/escritorio/equipes", recursos: "/escritorio/recursos", perfil: "/escritorio/perfil", "obra-detalhes": "/escritorio/obra", "analytics-financeiro": "/escritorio/analytics", login: "/login", cadastro: "/cadastro" };
+paginasCanteiro.forEach(p => { rotas[p] = p === "canteiro-home" ? "/canteiro" : "/canteiro/" + p.replace("canteiro-", ""); });
+
 function App() {
+  useEffect(() => {
+    const lerRota = () => {
+      const destino = Object.keys(rotas).find(p => rotas[p] === window.location.pathname.replace(/\/$/, ""));
+      if (destino) navegar(destino, true);
+    };
+    lerRota();
+    window.addEventListener("popstate", lerRota);
+    return () => window.removeEventListener("popstate", lerRota);
+  }, []);
   // =====================================================
   // PÁGINA ATUAL
   // =====================================================
@@ -37,7 +50,7 @@ function App() {
       localStorage.setItem("pagina_atual", destino);
       return destino;
     }
-    const paginas = ["dashboard", "obras", "equipes", "perfil", "obra-detalhes", "analytics-financeiro"];
+    const paginas = ["dashboard", "obras", "equipes", "recursos", "perfil", "obra-detalhes", "analytics-financeiro"];
     let destino = paginas.includes(salva) ? salva : "dashboard";
     if (destino === "obra-detalhes") {
       try {
@@ -53,13 +66,15 @@ function App() {
   // =====================================================
 
   function navegar(
-    paginaDestino
+    paginaDestino, substituir = false
   ) {
     if (!["login", "cadastro"].includes(paginaDestino)) {
       if (!localStorage.getItem("id_usuario")) paginaDestino = "login";
       else if (usuarioCanteiro() && !paginasCanteiro.includes(paginaDestino)) paginaDestino = "canteiro-home";
       else if (!usuarioCanteiro() && paginasCanteiro.includes(paginaDestino)) paginaDestino = "dashboard";
     }
+    const rota = rotas[paginaDestino] || rotas.dashboard;
+    if (location.pathname !== rota) history[substituir ? "replaceState" : "pushState"](null, "", rota);
     localStorage.setItem(
       "pagina_atual",
       paginaDestino
@@ -207,6 +222,8 @@ function App() {
   // =====================================================
   // OBRAS
   // =====================================================
+
+  if (pagina === "recursos") return <Recursos onNavegar={navegar} onAbrirObra={abrirObra} />;
 
   if (pagina === "analytics-financeiro") {
     return <AnalyticsFinanceiro onNavegar={navegar} />;

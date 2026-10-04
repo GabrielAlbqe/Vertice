@@ -34,6 +34,7 @@ function Login({ onLogin, onCadastro }) {
 
   async function entrar(evento) {
     evento.preventDefault();
+    if (carregando) return;
 
     try {
       setCarregando(true);
@@ -79,6 +80,8 @@ function Login({ onLogin, onCadastro }) {
           "O servidor não retornou o ID do usuário."
         );
       }
+
+      ["usuario", "idconstrutora", "id_construtora", "obra_selecionada"].forEach(chave => localStorage.removeItem(chave));
 
       // =================================================
       // SALVAR USUÁRIO LOGADO

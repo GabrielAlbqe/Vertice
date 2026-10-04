@@ -90,14 +90,6 @@ export function normalizarObra(
   };
 }
 
-export function lembrarIdObra() {
-  // Mantido por compatibilidade.
-}
-
-export function esquecerIdObra() {
-  // Mantido por compatibilidade.
-}
-
 export async function listarObras(
   idConstrutora
 ) {

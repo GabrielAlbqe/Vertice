@@ -32,13 +32,14 @@ export default function useRegistro(tipo, criarInicial) {
     setErro(""); setMensagem("");
     let requisicaoIniciada = false;
     try {
+      if (!ctx.obra || !ctx.usuario.id_usuario) throw new Error("Selecione uma obra e confira sua sessão.");
       validar();
       if (!ctx.online) throw new Error("Você está offline. Salve um rascunho para enviar depois.");
       trava.current = true; setSalvando(true); requisicaoIniciada = true;
       await salvar(payload);
     } catch (e) {
       console.error("Registro do Canteiro:", e);
-      if (montado.current) { setErro(requisicaoIniciada ? (e.status ? "Não foi possível enviar o registro. Revise os dados e tente novamente." : "Não foi possível confirmar o envio. Consulte o histórico antes de tentar novamente.") : e.message || "Não foi possível enviar o registro."); setSalvando(false); }
+      if (montado.current) { setErro(requisicaoIniciada ? (e.status ? `Não foi possível enviar o registro. ${e.message || "Revise os dados e tente novamente."}` : "Não foi possível confirmar o envio. Consulte o histórico antes de tentar novamente.") : e.message || "Não foi possível enviar o registro."); setSalvando(false); }
       trava.current = false;
       return;
     }

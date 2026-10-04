@@ -293,6 +293,7 @@ function Equipes({
     event
   ) {
     event.preventDefault();
+    if (salvando) return;
 
     try {
       setSalvando(
@@ -603,12 +604,10 @@ function Equipes({
 
                 <div className="form-group">
 
-                  <label>
-                    Nome
-                  </label>
+                  <label htmlFor="equipe-nome">Nome</label>
 
                   <input
-                    name="nome_equipe"
+                    id="equipe-nome" name="nome_equipe"
                     value={
                       formulario.nome_equipe ??
                       ""
@@ -623,12 +622,10 @@ function Equipes({
 
                 <div className="form-group">
 
-                  <label>
-                    Área
-                  </label>
+                  <label htmlFor="equipe-etapa">Área</label>
 
                   <select
-                    name="etapa_atuacao"
+                    id="equipe-etapa" name="etapa_atuacao"
                     value={
                       formulario.etapa_atuacao ??
                       ""
@@ -662,14 +659,12 @@ function Equipes({
 
                 <div className="form-group">
 
-                  <label>
-                    Profissionais
-                  </label>
+                  <label htmlFor="equipe-profissionais">Profissionais</label>
 
                   <input
                     type="number"
                     min="1"
-                    name="quantidade_profissionais"
+                    id="equipe-profissionais" name="quantidade_profissionais"
                     value={
                       formulario.quantidade_profissionais ??
                       ""
@@ -684,15 +679,13 @@ function Equipes({
 
                 <div className="form-group">
 
-                  <label>
-                    Custo diário total
-                  </label>
+                  <label htmlFor="equipe-custo">Custo diário total</label>
 
                   <input
                     type="number"
                     min="0"
                     step="0.01"
-                    name="custo_diario"
+                    id="equipe-custo" name="custo_diario"
                     value={
                       formulario.custo_diario ??
                       ""

@@ -165,6 +165,7 @@ function Dashboard({
       (obra) =>
         [
           "planejamento",
+          "iniciada",
           "em andamento",
         ].includes(
           normalizarStatus(
@@ -175,11 +176,7 @@ function Dashboard({
 
   const paralisadas =
     obras.filter(
-      (obra) =>
-        normalizarStatus(
-          obra.status
-        ) ===
-        "paralisada"
+      (obra) => ["paralisada", "pausada"].includes(normalizarStatus(obra.status))
     ).length;
 
   const orcamentoTotal =
@@ -452,7 +449,7 @@ function Dashboard({
                       colSpan="4"
                       className="tabela-vazia"
                     >
-                      Nenhuma obra cadastrada.
+                      {carregando ? "Carregando obras…" : erro ? "Não foi possível concluir a consulta." : "Nenhuma obra cadastrada."}
                     </td>
 
                   </tr>

@@ -4,12 +4,12 @@ import BottomNav from "../componentes/canteiro/BottomNav";
 import { lerUsuario, sairCanteiro } from "../canteiro/sessao";
 import { listarObras } from "../api/obras";
 import { buscarRecursosDaObra } from "../api/recursos";
-import { listarDiarios, listarAtividades } from "../canteiro/dados";
+import { listarDiarios, listarAtividades, listarRdos, listarApropriacoes, carregarApontamentos } from "../canteiro/dados";
 import { lerRascunhos } from "../canteiro/rascunhos";
 import "../canteiro/canteiro.css";
 const Contexto = createContext(null);
 export const useCanteiro = () => useContext(Contexto);
-const vazio = { diarios: [], atividades: [], recursos: { equipes: [], insumos: [], maquinarios: [] } };
+const vazio = { diarios: [], atividades: [], rdos: [], apropriacoes: [], apontamentos: [], recursos: { equipes: [], insumos: [], maquinarios: [] } };
 export default function CanteiroLayout({ children, pagina, onNavegar }) {
   const [usuario] = useState(lerUsuario);
   const [obras, setObras] = useState([]);
@@ -62,16 +62,23 @@ export default function CanteiroLayout({ children, pagina, onNavegar }) {
       const resultados = await Promise.allSettled([
         listarDiarios(obra.id_obra, controle.signal),
         listarAtividades(obra.id_obra, controle.signal),
-        buscarRecursosDaObra(obra.id_obra)
+        buscarRecursosDaObra(obra.id_obra),
+        listarRdos(obra.id_obra, controle.signal),
+        listarApropriacoes(controle.signal)
       ]);
       if (!ativo) return;
-      const nomes = ["diários", "atividades", "recursos"];
+      const nomes = ["diários", "atividades", "recursos", "RDOs", "consumos"];
       const mensagens = [];
       resultados.forEach((r, i) => { if (r.status === "rejected") { console.error(`Canteiro: ${nomes[i]}`, r.reason); mensagens.push(`Não foi possível carregar ${nomes[i]}.`); } });
       const valor = (i, padrao) => resultados[i].status === "fulfilled" ? resultados[i].value : padrao;
       const diarios = valor(0, []).filter(d => String(d.obrax_id) === String(obra.id_obra)).sort((a, b) => String(b.data).localeCompare(String(a.data)) || Number(b.id_diario) - Number(a.id_diario));
       const recursos = valor(2, vazio.recursos);
-      setDados({ diarios, atividades: valor(1, []).filter(a => String(a.idx_obra) === String(obra.id_obra)), recursos: {
+      let apontamentos = [];
+      try { apontamentos = await carregarApontamentos(diarios, controle.signal); }
+      catch (e) { if (!controle.signal.aborted) { console.error("Apontamentos:", e); mensagens.push("Não foi possível carregar apontamentos."); } }
+      if (!ativo) return;
+      const idsAtividades = new Set(valor(1, []).filter(a => String(a.idx_obra) === String(obra.id_obra)).map(a => String(a.id_atividade)));
+      setDados({ diarios, apontamentos, rdos: valor(3, []).filter(r => String(r.id_obra) === String(obra.id_obra)), apropriacoes: valor(4, []).filter(a => idsAtividades.has(String(a.id_atividade))), atividades: valor(1, []).filter(a => String(a.idx_obra) === String(obra.id_obra)), recursos: {
         equipes: recursos.equipes.filter(e => String(e.idobra ?? e.id_obra) === String(obra.id_obra)),
         insumos: recursos.insumos.filter(e => String(e.idobra ?? e.id_obra) === String(obra.id_obra)),
         maquinarios: recursos.maquinarios.filter(e => String(e.idobra ?? e.id_obra) === String(obra.id_obra))
@@ -93,7 +100,7 @@ export default function CanteiroLayout({ children, pagina, onNavegar }) {
     const escolhida = obras.find(o => String(o.id_obra) === String(item.obra));
     if (!escolhida) return;
     selecionarObra(escolhida.id_obra); setRascunhoAberto(item);
-    onNavegar(item.tipo === "diario" ? "canteiro-diario" : item.tipo === "atividade" ? "canteiro-atividade" : "canteiro-material");
+    onNavegar(({ diario: "canteiro-diario", atividade: "canteiro-atividade", material: "canteiro-material", ocorrencia: "canteiro-ocorrencia" })[item.tipo] || "canteiro-registrar");
   }
   const contexto = { usuario, obras, obra, ...dados, carregando: carregando || carregandoObras, avisos, online,
     selecionarObra, onNavegar, atualizar: () => setRevisao(v => v + 1),

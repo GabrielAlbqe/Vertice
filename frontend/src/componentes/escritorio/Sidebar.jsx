@@ -123,6 +123,7 @@ function Sidebar({
           <span className="sidebar-dot" />
           Analytics Financeiro
         </button>
+        <button type="button" className={classeBotao("recursos")} onClick={() => navegar("recursos")}><span className="sidebar-dot" />Recursos</button>
 
       </div>
 

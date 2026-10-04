@@ -150,8 +150,6 @@ function ObraDetalhes({
       const listaObras =
         await listarObras(
           idConstrutora
-        ).catch(
-          () => [obra]
         );
 
       const [
@@ -197,7 +195,7 @@ function ObraDetalhes({
           []
       );
 
-      setAviso([listaObras.aviso, recursos.aviso].filter(Boolean).join(" "));
+      setAviso("Para transferir recursos, abra a obra de destino. A desatribuição sem destino não está disponível no cadastro atual.");
       setCatalogo({
         equipes:
           catalogoRecursos?.equipes ||
@@ -245,7 +243,7 @@ function ObraDetalhes({
     recurso
   ) {
     if (
-      !recurso ||
+      atribuindo || !recurso ||
       !obra?.id_obra
     ) {
       return;
@@ -557,8 +555,7 @@ function ObraDetalhes({
                         )
                     }
                     atribuindo={
-                      atribuindo ===
-                      "equipe"
+                      Boolean(atribuindo)
                     }
                   />
 
@@ -586,8 +583,7 @@ function ObraDetalhes({
                         )
                     }
                     atribuindo={
-                      atribuindo ===
-                      "insumo"
+                      Boolean(atribuindo)
                     }
                   />
 
@@ -615,8 +611,7 @@ function ObraDetalhes({
                         )
                     }
                     atribuindo={
-                      atribuindo ===
-                      "maquinario"
+                      Boolean(atribuindo)
                     }
                   />
 

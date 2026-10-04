@@ -2,19 +2,26 @@
   "passou": true,
   "resultados": [
     "Login Canteiro e seleção explícita da obra; outra construtora excluída",
-    "Todas as telas: navegação e ausência de scroll horizontal em 360px",
-    "Todas as telas: navegação e ausência de scroll horizontal em 390px",
+    "Todas as telas: navegação e ausência de scroll horizontal em 375px",
     "Todas as telas: navegação e ausência de scroll horizontal em 430px",
     "Todas as telas: navegação e ausência de scroll horizontal em 768px",
     "Todas as telas: navegação e ausência de scroll horizontal em 1024px",
-    "Todas as telas: navegação e ausência de scroll horizontal em 1440px",
+    "Tema escuro global persiste após recarregar",
     "Offline real: rascunho, restauração na mesma obra, envio manual e remoção após sucesso",
     "Apontamento físico: progresso e IDs conforme contrato",
     "Material: contrato de apropriação; falha preserva formulário e permite novo envio",
     "Histórico com detalhes e consulta sob demanda dos apontamentos",
+    "Ocorrência simples salva com campos opcionais nulos",
     "Foto: seleção, captura e remoção local, sem upload",
     "Falha de carregamento, interface íntegra e recuperação",
     "Escritório preservado em desktop e celular, sem troca por largura",
+    "Escritório: navegação em 375, 430, 768 e 1024px",
+    "Nova obra do Dashboard abre cadastro e atualiza lista após POST",
+    "Insumos: cadastro, edição e exclusão atualizam a visão geral",
+    "Maquinário: edição de status persiste e atualiza card",
+    "Equipes: cadastro, edição e exclusão pela página da empresa",
+    "Atribuição transfere insumo para outra obra, preservando cadastro",
+    "Rota Canteiro bloqueada para usuário Escritório",
     "Restauração por ambiente e logout"
   ],
   "excecoes": [],
@@ -38,7 +45,7 @@
         "clima": "Ensolarado",
         "turno": "Manhã",
         "etapa_atuacao": "Infraestrutura",
-        "equipe_interna": "A",
+        "equipe_interna": null,
         "equipe_terceirizada": null,
         "paralisacoes": "Chuva no período",
         "origem_paralisacoes": "Clima",
@@ -81,6 +88,64 @@
         "id_insumo": 4,
         "id_atividade": 8,
         "id_usuario": 7
+      }
+    },
+    {
+      "rota": "/diarios-obra/insert",
+      "method": "POST",
+      "params": {},
+      "body": {
+        "data": "2026-10-01",
+        "clima": null,
+        "turno": null,
+        "etapa_atuacao": null,
+        "equipe_interna": null,
+        "equipe_terceirizada": null,
+        "paralisacoes": "Ocorrência de teste sem clima ou turno",
+        "origem_paralisacoes": "",
+        "atrasos": "",
+        "origem_atrasos": "",
+        "obrax_id": 1,
+        "usuario_id": 7
+      }
+    },
+    {
+      "rota": "/obras/insert",
+      "method": "POST",
+      "params": {},
+      "body": {
+        "nome": "Obra cadastrada no teste",
+        "status": "Planejamento",
+        "id_construtora": 1,
+        "categoria": "Residencial",
+        "numero_pavimentos": 2,
+        "data_inicio_planejada": "2026-09-01",
+        "data_termino_planejada": "2026-12-01",
+        "orcamento_planejado": 10000
+      }
+    },
+    {
+      "rota": "/insumos/insert",
+      "method": "POST",
+      "params": {},
+      "body": {
+        "nome": "Material teste CRUD",
+        "idobra": 1,
+        "quantidade_disponivel": 10,
+        "valor_unitario": 25
+      }
+    },
+    {
+      "rota": "/equipes/insert",
+      "method": "POST",
+      "params": {},
+      "body": {
+        "nome_equipe": "Equipe CRUD",
+        "etapa_atuacao": "Instalações",
+        "quantidade_profissionais": 3,
+        "custo_diario": 100,
+        "custo_mensal": 2000,
+        "idobra": 1
       }
     }
   ]

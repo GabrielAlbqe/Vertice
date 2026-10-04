@@ -28,7 +28,7 @@ function ModalNovaObra({
     });
   }
 
-  function cadastrarObra(event) {
+  async function cadastrarObra(event) {
     event.preventDefault();
 
     if (
@@ -43,8 +43,6 @@ function ModalNovaObra({
     }
 
     const obra = {
-      id_obra: Date.now(),
-
       nome_obra: novaObra.nome_obra,
 
       status: novaObra.status,
@@ -67,7 +65,7 @@ function ModalNovaObra({
     };
 
     if (onCadastrar) {
-      onCadastrar(obra);
+      await onCadastrar(obra);
     }
 
     setNovaObra({

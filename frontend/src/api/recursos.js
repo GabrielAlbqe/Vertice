@@ -208,12 +208,12 @@ export async function listarEquipes(
         )}`
       );
 
-    return extrairArray(
+    return removerDuplicados(extrairArray(
       dados,
       [
         "equipes",
       ]
-    );
+    ), obterIdEquipe).filter(item => String(item.idobra ?? item.id_obra) === String(idObra));
   }
 
   return listarEquipesEmpresa();
@@ -653,78 +653,20 @@ export async function excluirMaquinario(
 // CATÁLOGO DE RECURSOS
 // =====================================================
 
-export async function buscarCatalogoRecursos(
-  obras = []
-) {
-  const [
-    equipes,
-    insumos,
-    maquinarios,
-  ] =
-    await Promise.all([
-      listarEquipesEmpresa(),
-      listarInsumos(),
-      listarMaquinarios(),
-    ]);
-
-  if (
-    !Array.isArray(obras) ||
-    obras.length === 0
-  ) {
-    return {
-      equipes,
-      insumos,
-      maquinarios,
-    };
+export async function buscarCatalogoRecursos(obras = []) {
+  const ids = [...new Set(obras.map(o => Number(o.id_obra ?? o.id)).filter(id => id > 0))];
+  if (!ids.length) return { equipes: [], insumos: [], maquinarios: [] };
+  // As rotas de insumos e máquinas exigem idobra; não existe listagem global.
+  const equipes = await listarEquipesEmpresa();
+  const insumos = [], maquinarios = [];
+  for (let i = 0; i < ids.length; i += 4) {
+    const lote = await Promise.all(ids.slice(i, i + 4).map(async id => {
+      const [materiais, maquinas] = await Promise.all([listarInsumos(id), listarMaquinarios(id)]);
+      return { materiais: materiais.filter(r => Number(r.idobra) === id), maquinas: maquinas.filter(r => Number(r.idobra) === id) };
+    }));
+    for (const item of lote) { insumos.push(...item.materiais); maquinarios.push(...item.maquinas); }
   }
-
-  const idsObras =
-    new Set(
-      obras
-        .map(
-          (obra) =>
-            Number(
-              obra.id_obra ??
-              obra.id
-            )
-        )
-        .filter(
-          (id) =>
-            id > 0
-        )
-    );
-
-  return {
-    equipes:
-      equipes.filter(
-        (item) =>
-          idsObras.has(
-            Number(
-              item.idobra
-            )
-          )
-      ),
-
-    insumos:
-      insumos.filter(
-        (item) =>
-          idsObras.has(
-            Number(
-              item.idobra
-            )
-          )
-      ),
-
-    maquinarios:
-      maquinarios.filter(
-        (item) =>
-          idsObras.has(
-            Number(
-              item.idobra
-            )
-          )
-      ),
-  };
+  return { equipes: equipes.filter(e => ids.includes(Number(e.idobra))), insumos: removerDuplicados(insumos, obterIdInsumo), maquinarios: removerDuplicados(maquinarios, obterIdMaquinario) };
 }
 
 // =====================================================

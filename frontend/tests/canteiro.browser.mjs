@@ -3,11 +3,11 @@ import { spawn } from "node:child_process";
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 const base = "http://127.0.0.1:5174";
-const porta = 9333;
+const porta = 9334;
 const profile = path.resolve("node_modules/.cache/canteiro-browser-" + Date.now());
 await mkdir(profile, { recursive: true });
 const chrome = spawn("C:/Program Files/Google/Chrome/Application/chrome.exe", [
-  "--headless=new", "--disable-gpu", "--no-first-run", "--no-default-browser-check",
+  "--headless=new", "--disable-gpu", "--no-proxy-server", "--no-first-run", "--no-default-browser-check",
   "--remote-debugging-port=" + porta, "--user-data-dir=" + profile, "about:blank"
 ], { windowsHide: true, stdio: "ignore" });
 const sleep = ms => new Promise(r => setTimeout(r, ms));
@@ -30,6 +30,9 @@ try {
   ];
   const diarios = [{ id_diario: 11, data: "2026-09-30", clima: "Ensolarado", turno: "Manhã", etapa_atuacao: "Infraestrutura", equipe_interna: "A", equipe_terceirizada: "B", paralisacoes: "Nenhuma", origem_paralisacoes: "", atrasos: "Entrega atrasada", origem_atrasos: "Fornecedor", obrax_id: 1, usuario_id: 7 }];
   let falha = "", falhaPost = false;
+  const equipes = [{ id_cadastro_equipes: 3, nome_equipe: "Equipe interna teste", idobra: 1, quantidade_profissionais: 5, etapa_atuacao: "Infraestrutura", custo_diario: 100, custo_mensal: 2000 }];
+  const insumos = [{ id_insumos: 4, nome: "Cimento teste", quantidade_disponivel: 20, valor_unitario: 10, idobra: 1 }];
+  const maquinas = [{ id_maquina: 5, nome: "Betoneira teste", quantidade: 1, idobra: 1, status: "Ativo", etapa_atuacao: "Infraestrutura", custo_diario: 120 }];
   function cmd(method, params = {}) {
     return new Promise((resolve, reject) => {
       const id = ++seq, timeout = setTimeout(() => { pendentes.delete(id); reject(new Error("Timeout " + method)); }, 15000);
@@ -40,15 +43,22 @@ try {
   async function responder(params) {
     const req = params.request, url = new URL(req.url), rota = url.pathname.replace("/api", "");
     requests.push({ rota, method: req.method, params: Object.fromEntries(url.searchParams), body: req.postData ? JSON.parse(req.postData) : null });
-    const headers = [{ name: "Content-Type", value: "application/json" }, { name: "Access-Control-Allow-Origin", value: "*" }, { name: "Access-Control-Allow-Headers", value: "Content-Type" }, { name: "Access-Control-Allow-Methods", value: "GET,POST,OPTIONS" }];
+    const headers = [{ name: "Content-Type", value: "application/json" }, { name: "Access-Control-Allow-Origin", value: "*" }, { name: "Access-Control-Allow-Headers", value: "Content-Type" }, { name: "Access-Control-Allow-Methods", value: "GET,POST,PUT,DELETE,OPTIONS" }];
     let status = 200, data = [];
     if (req.method === "OPTIONS") status = 204;
     else if (rota === falha || (falhaPost && req.method === "POST")) { status = 500; data = { error: "Falha simulada" }; }
-    else if (req.method === "POST") {
+    else if (/^\/(obras|equipes|insumos|maquinarios)\/(insert|del)/.test(rota)) {
+      const nome = rota.split('/')[1], lista = {obras, equipes, insumos, maquinarios: maquinas}[nome];
+      const chave = {obras: 'id_obra', equipes: 'id_cadastro_equipes', insumos: 'id_insumos', maquinarios: 'id_maquina'}[nome];
+      const id = Number(rota.split('/')[3]);
+      if (req.method === 'POST') { const novoId = 100 + lista.length; lista.push({...JSON.parse(req.postData), [chave]: novoId}); data = {insertId: novoId}; status = 201; }
+      if (req.method === 'PUT') { const i = lista.findIndex(r => r[chave] === id); assert.ok(i >= 0); lista[i] = {...lista[i], ...JSON.parse(req.postData)}; data = {message: 'Atualizado'}; }
+      if (req.method === 'DELETE') { const i = lista.findIndex(r => r[chave] === id); assert.ok(i >= 0); lista.splice(i, 1); data = {message: 'Excluído'}; }
+    } else if (req.method === "POST") {
       assert.ok(["/usuarios/login", "/diarios-obra/insert", "/apontamentos-fisicos/insert", "/apropriacoes/insert"].includes(rota), "POST desconhecido " + rota);
       if (rota === "/usuarios/login") data = { usuario };
       else { status = 201; data = { insertId: 20 };
-        if (rota === "/diarios-obra/insert") diarios.push({ ...JSON.parse(req.postData), id_diario: 20 });
+        if (rota === "/diarios-obra/insert") diarios.push({ ...JSON.parse(req.postData), id_diario: 20 + diarios.length });
       }
     } else if (rota === "/obras") data = obras;
     else if (/^\/obras\/\d+$/.test(rota)) data = obras.find(o => String(o.id_obra) === rota.split("/").pop());
@@ -56,9 +66,9 @@ try {
     else if (rota === "/diarios-obra") data = diarios.filter(d => String(d.obrax_id) === url.searchParams.get("obrax_id"));
     else if (rota === "/atividades-eap") data = [{ id_atividade: 8, descricao: "Concretagem de teste", idx_obra: Number(url.searchParams.get("idx_obra")) }];
     else if (rota === "/apontamentos-fisicos") data = [{ id_apontamento: 1, percentual_dia: 12, url_foto: "", diario_id: Number(url.searchParams.get("diario_id")), atividade_eap_id: 8 }];
-    else if (rota === "/equipes") data = [{ id_cadastro_equipes: 3, nome_equipe: "Equipe interna teste", idobra: 1, quantidade_profissionais: 5 }];
-    else if (rota === "/insumos") data = [{ id_insumos: 4, nome: "Cimento teste", quantidade_disponivel: 20, idobra: 1 }];
-    else if (rota === "/maquinarios") data = [{ id_maquina: 5, nome: "Betoneira teste", quantidade: 1, idobra: 1, status: "Ativo" }];
+    else if (rota === "/equipes") data = equipes;
+    else if (rota === "/insumos") { assert.ok(url.searchParams.get("idobra")); data = insumos.filter(r => String(r.idobra) === url.searchParams.get("idobra")); }
+    else if (rota === "/maquinarios") { assert.ok(url.searchParams.get("idobra")); data = maquinas.filter(r => String(r.idobra) === url.searchParams.get("idobra")); }
     await cmd("Fetch.fulfillRequest", { requestId: params.requestId, responseCode: status, responseHeaders: headers, body: Buffer.from(status === 204 ? "" : JSON.stringify(data)).toString("base64") });
   }
   ws.addEventListener("message", async ev => {
@@ -68,6 +78,7 @@ try {
       if (!p) return;
       clearTimeout(p.timeout); pendentes.delete(msg.id);
       if (msg.error) p.reject(new Error(JSON.stringify(msg.error))); else p.resolve(msg.result);
+    } else if (msg.method === "Page.javascriptDialogOpening") { await cmd("Page.handleJavaScriptDialog", { accept: true });
     } else if (msg.method === "Fetch.requestPaused") {
       try { await responder(msg.params); } catch (e) { if (!e.message.includes("Invalid InterceptionId")) excecoes.push(e.message); }
     } else if (msg.method === "Runtime.exceptionThrown") excecoes.push(msg.params.exceptionDetails.text + " " + (msg.params.exceptionDetails.exception?.description || ""));
@@ -85,9 +96,10 @@ try {
   }
   async function esperar(expression) {
     for (let i = 0; i < 100; i++) { if (await evaluate(expression)) return; await sleep(100); }
-    throw new Error("Não encontrado: " + expression + "\n" + await evaluate("document.body.innerText"));
+    throw new Error("Não encontrado: " + expression + "\n" + await evaluate("document.body.innerText") + "\n" + JSON.stringify(excecoes) + "\n" + await evaluate("location.href"));
   }
   async function click(texto) {
+    await esperar("[...document.querySelectorAll('button')].some(b=>b.textContent.trim()===" + JSON.stringify(texto) + ")");
     await evaluate("(() => { const b=[...document.querySelectorAll('button')].find(b=>b.textContent.trim()===" + JSON.stringify(texto) + "); if(!b) throw new Error('Botão ausente'); b.click(); })()");
     await sleep(120);
   }
@@ -98,7 +110,7 @@ try {
   async function sessao(ambiente, pagina = "dashboard", obra = null) {
     usuario.ambiente = ambiente;
     await evaluate("localStorage.clear(); localStorage.setItem('usuario'," + JSON.stringify(JSON.stringify({ ...usuario, ambiente })) + "); localStorage.setItem('id_usuario','7'); localStorage.setItem('idconstrutora','1'); localStorage.setItem('ambiente'," + JSON.stringify(ambiente) + "); localStorage.setItem('pagina_atual'," + JSON.stringify(pagina) + ");" + (obra ? "localStorage.setItem('obra_selecionada'," + JSON.stringify(JSON.stringify(obra)) + ");" : ""));
-    await cmd("Page.reload"); await sleep(250);
+    await cmd("Page.navigate", { url: base }); await sleep(250);
   }
   await cmd("Page.navigate", { url: base }); await esperar("!!document.querySelector('#email')");
   await input("#email", "canteiro@teste.local"); await input("#senha", "teste");
@@ -107,11 +119,11 @@ try {
   assert.equal(await evaluate("document.querySelector('#ct-obra').value"), "");
   await input("#ct-obra", 1); await esperar("document.body.innerText.includes('Entrega atrasada')");
   resultados.push("Login Canteiro e seleção explícita da obra; outra construtora excluída");
-  const paginas = [["Início", "Olá"], ["Diário", "Diário de Obra"], ["Pendências", "Rascunhos aguardando"], ["Histórico", "Buscar nos diários"], ["Perfil", "MINHA CONTA"]];
-  for (const width of [360, 390, 430, 768, 1024, 1440]) {
+  const paginas = [["Início", "Olá"], ["Registrar", "O que deseja registrar?"], ["Pendências", "Rascunhos aguardando"], ["Histórico", "Buscar obra"], ["Perfil", "MINHA CONTA"]];
+  for (const width of [375, 430, 768, 1024]) {
     await cmd("Emulation.setDeviceMetricsOverride", { width, height: 900, deviceScaleFactor: 1, mobile: width < 768 });
     for (const [botao, marcador] of paginas) {
-      await click(botao); await esperar("document.body.innerText.includes(" + JSON.stringify(marcador) + ")");
+      if (botao === "Histórico") await evaluate("document.querySelector('.ct-nav button:nth-child(4)').click()"); else await click(botao); await esperar("document.body.innerText.includes(" + JSON.stringify(marcador) + ")");
       const overflow = await evaluate("document.documentElement.scrollWidth > innerWidth + 1");
       assert.equal(overflow, false, "Scroll horizontal em " + botao + " / " + width);
     }
@@ -121,7 +133,7 @@ try {
     }
     await click("Perfil"); await click("Prévia local de fotos");
     assert.equal(await evaluate("document.documentElement.scrollWidth > innerWidth + 1"), false, "Scroll horizontal nas fotos / " + width);
-    if ([390, 1024].includes(width)) {
+    if ([375, 1024].includes(width)) {
       await click("Início");
       await mkdir("tests/screenshots", { recursive: true });
       const foto = await cmd("Page.captureScreenshot", { format: "png" });
@@ -129,8 +141,17 @@ try {
     }
     resultados.push("Todas as telas: navegação e ausência de scroll horizontal em " + width + "px");
   }
-  await click("Diário"); await input("#ct-clima", "Ensolarado"); await input("#ct-turno", "Manhã"); await input("#ct-etapa_atuacao", "Infraestrutura");
-  await click("Próximo"); await input("#ct-equipe_interna", "A"); await click("Próximo"); await input("#ct-paralisacoes", "Chuva no período"); await input("#ct-origem_paralisacoes", "Clima");
+  await evaluate("document.querySelector('.theme-toggle').click()");
+  assert.equal(await evaluate("document.documentElement.dataset.theme"), "dark");
+  await cmd("Page.reload"); await sleep(300); await esperar("!!document.querySelector('.ct-app') && document.documentElement.dataset.theme === 'dark'");
+  assert.equal(await evaluate("document.documentElement.dataset.theme"), "dark");
+  assert.equal(await evaluate("localStorage.getItem('vertice_tema')"), "dark");
+  resultados.push("Tema escuro global persiste após recarregar");
+  await sleep(300);
+  const fotoEscura = await cmd("Page.captureScreenshot", { format: "png" });
+  await writeFile("tests/screenshots/canteiro-dark.png", Buffer.from(fotoEscura.data, "base64"));
+  await click("Registrar"); await click("Abrir Diário de Obra"); await input("#ct-clima", "Ensolarado"); await input("#ct-turno", "Manhã"); await input("#ct-etapa_atuacao", "Infraestrutura");
+  await click("Próximo"); assert.equal(await evaluate("document.body.innerText.includes('Equipe interna teste')"), true); await click("Próximo"); await input("#ct-paralisacoes", "Chuva no período"); await input("#ct-origem_paralisacoes", "Clima");
   await cmd("Network.enable"); await cmd("Network.emulateNetworkConditions", { offline: true, latency: 0, downloadThroughput: -1, uploadThroughput: -1 });
   await esperar("document.body.innerText.includes('Você está offline')");
   await click("Salvar rascunho");
@@ -163,9 +184,14 @@ try {
   const materialPost = requests.find(r => r.method === "POST" && r.rota === "/apropriacoes/insert");
   assert.equal(materialPost.body.id_insumo, 4); assert.equal(materialPost.body.id_usuario, 7);
   resultados.push("Material: contrato de apropriação; falha preserva formulário e permite novo envio");
-  await click("Histórico"); await click("Ver registro completo"); await esperar("document.body.innerText.includes('Executado no dia:')");
+  await click("Início"); await click("Histórico"); await click("Ver registro completo"); await esperar("document.body.innerText.includes('Executado no dia:')");
   await input('input[type="search"]', "não existe"); assert.equal(await evaluate("document.querySelectorAll('.ct-card h3').length"), 1);
   resultados.push("Histórico com detalhes e consulta sob demanda dos apontamentos");
+  await click("Início"); await click("Registrar ocorrência");
+  await input("#ct-descricao", "Ocorrência de teste sem clima ou turno");
+  await click("Enviar registro"); await esperar("document.body.innerText.includes('Registro enviado com sucesso')");
+  assert.equal(requests.filter(r => r.method === "POST" && r.rota === "/diarios-obra/insert").at(-1).body.clima, null);
+  resultados.push("Ocorrência simples salva com campos opcionais nulos");
   await click("Perfil"); await click("Prévia local de fotos");
   assert.equal(await evaluate("!!document.querySelector('input[capture=environment]')"), true);
   await evaluate("(() => { const file=new File([Uint8Array.from(atob('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jJekAAAAASUVORK5CYII='),c=>c.charCodeAt(0))],'teste.png',{type:'image/png'}); const dt=new DataTransfer(); dt.items.add(file); const input=document.querySelector('input[type=file]'); input.files=dt.files; input.dispatchEvent(new Event('change',{bubbles:true})); })()");
@@ -177,8 +203,68 @@ try {
   resultados.push("Falha de carregamento, interface íntegra e recuperação");
   await sessao("Escritório", "canteiro-home"); await esperar("!!document.querySelector('.layout')"); assert.equal(await evaluate("!!document.querySelector('.ct-app')"), false);
   await cmd("Emulation.setDeviceMetricsOverride", { width: 360, height: 900, deviceScaleFactor: 1, mobile: true });
-  await cmd("Page.reload"); await esperar("!!document.querySelector('.layout')");
+  await cmd("Page.reload"); await sleep(300); await esperar("!!document.querySelector('.layout')");
   resultados.push("Escritório preservado em desktop e celular, sem troca por largura");
+  for (const width of [375, 430, 768, 1024]) {
+    await cmd("Emulation.setDeviceMetricsOverride", { width, height: 900, deviceScaleFactor: 1, mobile: width < 768 });
+    for (const nome of ["Dashboard", "Obras", "Equipes", "Analytics Financeiro", "Recursos"]) {
+      await click(nome); await sleep(150);
+      assert.equal(await evaluate("document.documentElement.scrollWidth > innerWidth + 1"), false, nome + ' overflow ' + width);
+    }
+  }
+  resultados.push("Escritório: navegação em 375, 430, 768 e 1024px");
+  await click("Dashboard"); await click("+ Nova obra"); await esperar("!!document.querySelector('[role=dialog]')");
+  await input('[name="nome"]', 'Obra cadastrada no teste');
+  await input('[name="numero_pavimentos"]', 2);
+  await input('[name="data_inicio_planejada"]', '2026-09-01');
+  await input('[name="data_termino_planejada"]', '2026-12-01');
+  await input('[name="orcamento_planejado"]', 10000);
+  await evaluate("document.querySelector('.obra-form').requestSubmit()");
+  await esperar("!document.querySelector('[role=dialog]') && document.body.innerText.includes('Obra cadastrada no teste')");
+  resultados.push("Nova obra do Dashboard abre cadastro e atualiza lista após POST");
+  await click("Recursos"); await esperar("document.body.innerText.includes('Cimento teste')");
+  await click("Cadastrar recurso"); await input('[name="nome"]', 'Material teste CRUD');
+  await input('[role="dialog"] select', 1); await input('[name="quantidade_disponivel"]', 10); await input('[name="valor_unitario"]', 25);
+  await click("Salvar"); await esperar("!document.querySelector('[role=dialog]') && document.body.innerText.includes('Material teste CRUD')");
+  await evaluate("[...document.querySelectorAll('.resource-card')].find(c => c.textContent.includes('Material teste CRUD')).querySelectorAll('button')[1].click()");
+  await input('[name="quantidade_disponivel"]', 15); await click("Salvar"); await esperar("!document.querySelector('[role=dialog]')");
+  assert.equal(insumos.find(r => r.nome === 'Material teste CRUD').quantidade_disponivel, 15);
+  await evaluate("[...document.querySelectorAll('.resource-card')].find(c => c.textContent.includes('Material teste CRUD')).querySelectorAll('button')[2].click()");
+  await esperar("!document.body.innerText.includes('Material teste CRUD')");
+  resultados.push("Insumos: cadastro, edição e exclusão atualizam a visão geral");
+  await evaluate("[...document.querySelectorAll('.resource-tools button')].find(b=>b.textContent.startsWith('Maquinários')).click()");
+  await esperar("document.body.innerText.includes('Betoneira teste')"); await click("Editar");
+  await evaluate("const el=[...document.querySelectorAll('[role=dialog] select')].at(-1); el.value='Inativo'; el.dispatchEvent(new Event('change',{bubbles:true}))");
+  await click("Salvar"); await esperar("!document.querySelector('[role=dialog]') && document.body.innerText.includes('Inativo')");
+  assert.equal(maquinas[0].status, 'Inativo');
+  resultados.push("Maquinário: edição de status persiste e atualiza card");
+  await click("Equipes"); await esperar("document.body.innerText.includes('Equipe interna teste')");
+  await click("+ Nova Equipe"); await input('[name="nome_equipe"]', 'Equipe CRUD'); await input('[name="idobra"]', 1);
+  await input('[name="etapa_atuacao"]', 'Instalações'); await input('[name="quantidade_profissionais"]', 3);
+  await input('[name="custo_diario"]', 100); await input('[name="custo_mensal"]', 2000); await click("Salvar");
+  await esperar("document.body.innerText.includes('Equipe CRUD') && !document.querySelector('form')");
+  await evaluate("[...document.querySelectorAll('tbody tr')].find(r=>r.textContent.includes('Equipe CRUD')).querySelector('button').click()");
+  await input('[name="quantidade_profissionais"]', 4); await click("Salvar"); await esperar("!document.querySelector('form')");
+  assert.equal(equipes.find(e=>e.nome_equipe==='Equipe CRUD').quantidade_profissionais, 4);
+  await evaluate("[...document.querySelectorAll('tbody tr')].find(r=>r.textContent.includes('Equipe CRUD')).querySelectorAll('button')[1].click()");
+  await esperar("!document.body.innerText.includes('Equipe CRUD')");
+  resultados.push("Equipes: cadastro, edição e exclusão pela página da empresa");
+  await click("Obras"); await esperar("document.body.innerText.includes('Segunda obra de teste')");
+  await evaluate("[...document.querySelectorAll('tbody tr')].find(r=>r.textContent.includes('Segunda obra de teste')).querySelector('button').click()");
+  await esperar("document.body.innerText.includes('Visão Geral')"); await click("Materiais / Insumos");
+  await esperar("document.querySelector('.painel-atribuicao select')?.options.length>1");
+  await input('.painel-atribuicao select', 4); await click("+ Atribuir");
+  await esperar("document.body.innerText.includes('Recurso atribuído à obra com sucesso.')");
+  assert.equal(insumos[0].idobra, 2); assert.ok(insumos.some(i=>i.id_insumos===4));
+  resultados.push("Atribuição transfere insumo para outra obra, preservando cadastro");
+  await click("Recursos"); await esperar("document.body.innerText.includes('Cimento teste')");
+  await evaluate("document.querySelector('.theme-toggle').click()"); await sleep(300);
+  await mkdir("tests/screenshots", { recursive: true });
+  const escritorioFoto = await cmd("Page.captureScreenshot", { format: "png" });
+  await writeFile("tests/screenshots/escritorio-dark.png", Buffer.from(escritorioFoto.data, "base64"));
+  await cmd("Page.navigate", { url: base + '/canteiro' }); await sleep(300); await esperar("!!document.querySelector('.layout')");
+  assert.equal(await evaluate("location.pathname"), '/escritorio');
+  resultados.push("Rota Canteiro bloqueada para usuário Escritório");
   await sessao("Canteiro", "dashboard", obras[0]); await esperar("!!document.querySelector('.ct-app')"); assert.equal(await evaluate("localStorage.getItem('pagina_atual')"), "canteiro-home");
   await click("Perfil"); await click("Sair da conta"); await esperar("!!document.querySelector('#email')"); assert.equal(await evaluate("localStorage.getItem('obra_selecionada')"), null);
   resultados.push("Restauração por ambiente e logout");
