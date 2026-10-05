@@ -5,6 +5,7 @@ import {
 
 import Layout from "../../componentes/escritorio/Layout";
 import Card from "../../componentes/escritorio/Card";
+import Skeleton from "../../componentes/shared/Skeleton";
 
 import {
   listarObras,
@@ -259,43 +260,16 @@ function Dashboard({
           </div>
         )}
 
-        <section className="cards-grid">
-          {[["Total de obras", obras.length], ["Planejamento", obras.filter(o => normalizarStatus(o.status) === "planejamento").length], ["Concluídas", obras.filter(o => normalizarStatus(o.status) === "concluida").length]].map(([title, value]) => <Card key={title} title={title} value={carregando ? "..." : erro ? "Não informado" : value} description="Conforme cadastros da construtora" />)}
-
-          <Card
-            title="Obras ativas"
-            value={
-              carregando ? "..." : erro ? "Não informado" : obrasAtivas
-            }
-            description={carregando || erro ? "Consulta em andamento ou indisponível" : `${obras.length} cadastradas`}
-          />
-
-          <Card
-            title="Equipes"
-            value={
-              carregando ? "..." : erro ? "Não informado" : equipes.length
-            }
-            description={carregando || erro ? "Consulta em andamento ou indisponível" : `${profissionais} profissionais`}
-          />
-
-          <Card
-            title="Orçamento"
-            value={
-              carregando ? "..." : erro ? "Não informado" : formatarReal(
-                    orcamentoTotal
-                  )
-            }
-            description="Planejado"
-          />
-
-          <Card
-            title="Paralisadas"
-            value={
-              carregando ? "..." : erro ? "Não informado" : paralisadas
-            }
-            description="Necessitam atenção"
-          />
-
+        <section className="cards-grid dashboard-kpis" aria-label="Indicadores da construtora">
+          {carregando ? <Skeleton label="Carregando indicadores da construtora…" rows={4} /> : [
+            ["Total de obras", obras.length, "Cadastros da construtora", "obras"],
+            ["Planejamento", obras.filter(o => normalizarStatus(o.status) === "planejamento").length, "Preparação e planejamento", "obras"],
+            ["Obras ativas", obrasAtivas, "Em execução", "obras"],
+            ["Concluídas", obras.filter(o => normalizarStatus(o.status) === "concluida").length, "Obras finalizadas", "obras"],
+            ["Paralisadas", paralisadas, "Necessitam acompanhamento", "obras"],
+            ["Equipes", equipes.length, profissionais + " profissionais", "equipes"],
+            ["Orçamento", formatarReal(orcamentoTotal), "Planejado da construtora", "analytics-financeiro"]
+          ].map(([title, value, description, destino]) => <Card key={title} title={title} value={erro ? "Não informado" : value} description={erro ? "Consulta indisponível" : description} onClick={() => onNavegar(destino)} />)}
         </section>
 
         <section className="dashboard-section">

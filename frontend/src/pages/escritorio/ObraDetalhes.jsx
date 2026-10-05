@@ -1,3 +1,6 @@
+import Toast from "../../componentes/shared/Toast";
+import PrazoObra from "../../componentes/shared/PrazoObra";
+import { somarRecursos } from "../../api/obraIndicadores";
 import {
   useEffect,
   useMemo,
@@ -41,7 +44,7 @@ function formatarReal(valor) {
 
 function formatarData(data) {
   if (!data) {
-    return "-";
+    return "Não informado";
   }
 
   const limpa =
@@ -425,11 +428,7 @@ function ObraDetalhes({
 
         )}
 
-        {sucesso && (
-          <div className="auth-success">
-            {sucesso}
-          </div>
-        )}
+        <Toast message={sucesso} />
 
         {/* =============================================
             ÁREA PRINCIPAL
@@ -700,7 +699,7 @@ function Resumo({
       </span>
 
       <strong>
-        {valor}
+        {valor ?? "Não informado"}
       </strong>
 
     </div>
@@ -711,235 +710,10 @@ function Resumo({
 // VISÃO GERAL
 // =====================================================
 
-function VisaoGeral({
-  obra,
-  equipes,
-  insumos,
-  maquinarios,
-}) {
-  const valorEstoque =
-    insumos.reduce(
-      (
-        total,
-        item
-      ) =>
-        total +
-        Number(
-          item
-            .quantidade_disponivel ||
-            0
-        ) *
-          Number(
-            item
-              .valor_unitario ||
-              0
-          ),
-      0
-    );
-
-  const custoEquipesDia =
-    equipes.reduce(
-      (
-        total,
-        item
-      ) =>
-        total +
-        Number(
-          item.custo_diario ||
-            0
-        ),
-      0
-    );
-
-  const custoMaquinasDia =
-    maquinarios.reduce(
-      (
-        total,
-        item
-      ) =>
-        total +
-        Number(
-          item.quantidade ||
-            0
-        ) *
-          Number(
-            item.custo_diario ||
-              0
-          ),
-      0
-    );
-
-  return (
-    <div>
-
-      <div className="titulo-aba">
-
-        <div>
-
-          <span className="section-label">
-            RESUMO
-          </span>
-
-          <h2>
-            Visão Geral
-          </h2>
-
-          <p>
-            Informações da obra e recursos atribuídos.
-          </p>
-
-        </div>
-
-      </div>
-
-      {/* OBRA */}
-
-      <div className="cards-resumo">
-
-        <Resumo
-          titulo="Status"
-          valor={
-            obra.status ||
-            "-"
-          }
-        />
-
-        <Resumo
-          titulo="Categoria"
-          valor={
-            obra.categoria ||
-            "-"
-          }
-        />
-
-        <Resumo
-          titulo="Pavimentos"
-          valor={
-            obra
-              .numero_pavimentos ??
-            obra.pavimentos ??
-            "-"
-          }
-        />
-
-        <Resumo
-          titulo="Orçamento planejado"
-          valor={
-            formatarReal(
-              obra
-                .orcamento_planejado
-            )
-          }
-        />
-
-      </div>
-
-      {/* DATAS */}
-
-      <div
-        className="cards-resumo"
-        style={{
-          marginTop:
-            "20px",
-        }}
-      >
-
-        <Resumo
-          titulo="Início planejado"
-          valor={
-            formatarData(
-              obra
-                .data_inicio_planejada
-            )
-          }
-        />
-
-        <Resumo
-          titulo="Término planejado"
-          valor={
-            formatarData(
-              obra
-                .data_termino_planejada
-            )
-          }
-        />
-
-      </div>
-
-      {/* RECURSOS */}
-
-      <div
-        className="cards-resumo"
-        style={{
-          marginTop:
-            "20px",
-        }}
-      >
-
-        <Resumo
-          titulo="Equipes atribuídas"
-          valor={
-            equipes.length
-          }
-        />
-
-        <Resumo
-          titulo="Insumos atribuídos"
-          valor={
-            insumos.length
-          }
-        />
-
-        <Resumo
-          titulo="Maquinários atribuídos"
-          valor={
-            maquinarios.length
-          }
-        />
-
-        <Resumo
-          titulo="Valor dos insumos"
-          valor={
-            formatarReal(
-              valorEstoque
-            )
-          }
-        />
-
-      </div>
-
-      {/* CUSTOS */}
-
-      <div
-        className="cards-resumo"
-        style={{
-          marginTop:
-            "20px",
-        }}
-      >
-
-        <Resumo
-          titulo="Equipes / dia"
-          valor={
-            formatarReal(
-              custoEquipesDia
-            )
-          }
-        />
-
-        <Resumo
-          titulo="Maquinários / dia"
-          valor={
-            formatarReal(
-              custoMaquinasDia
-            )
-          }
-        />
-
-      </div>
-
-    </div>
-  );
+function VisaoGeral({ obra, equipes, insumos, maquinarios }) {
+  const informacoes = [["Status", obra.status], ["Categoria", obra.categoria], ["Pavimentos", obra.numero_pavimentos ?? obra.pavimentos], ["Orçamento planejado", formatarReal(obra.orcamento_planejado)], ["Início planejado", formatarData(obra.data_inicio_planejada)], ["Término planejado", formatarData(obra.data_termino_planejada)]];
+  const recursos = [["Equipes atribuídas", equipes.length], ["Insumos atribuídos", insumos.length], ["Maquinários atribuídos", maquinarios.length], ["Valor do estoque", formatarReal(somarRecursos(insumos, "quantidade_disponivel", "valor_unitario"))], ["Custo equipes / dia", formatarReal(somarRecursos(equipes, "custo_diario"))], ["Maquinários / dia", formatarReal(somarRecursos(maquinarios, "quantidade", "custo_diario"))]];
+  return <div className="obra-overview"><div className="titulo-aba"><div><span className="section-label">RESUMO</span><h2>Visão Geral</h2><p>Informações da obra e recursos atribuídos.</p></div></div>{[["Informações", informacoes], ["Recursos", recursos]].map(([titulo, itens]) => <section className="obra-summary-section" key={titulo}><h3>{titulo}</h3><dl className="obra-facts">{itens.map(([rotulo, valor]) => <div key={rotulo}><dt>{rotulo}</dt><dd>{valor ?? "Não informado"}</dd></div>)}</dl></section>)}<PrazoObra obra={obra} /></div>;
 }
 
 // =====================================================
@@ -1235,18 +1009,7 @@ function TabelaEquipes({
         <Resumo
           titulo="Profissionais"
           valor={
-            equipes.reduce(
-              (
-                total,
-                equipe
-              ) =>
-                total +
-                Number(
-                  equipe.quantidade_profissionais ||
-                    0
-                ),
-              0
-            )
+            somarRecursos(equipes, "quantidade_profissionais")
           }
         />
 
@@ -1254,18 +1017,7 @@ function TabelaEquipes({
           titulo="Custo diário"
           valor={
             formatarReal(
-              equipes.reduce(
-                (
-                  total,
-                  equipe
-                ) =>
-                  total +
-                  Number(
-                    equipe.custo_diario ||
-                      0
-                  ),
-                0
-              )
+              somarRecursos(equipes, "custo_diario")
             )
           }
         />
@@ -1274,18 +1026,7 @@ function TabelaEquipes({
           titulo="Custo mensal"
           valor={
             formatarReal(
-              equipes.reduce(
-                (
-                  total,
-                  equipe
-                ) =>
-                  total +
-                  Number(
-                    equipe.custo_mensal ||
-                      0
-                  ),
-                0
-              )
+              somarRecursos(equipes, "custo_mensal")
             )
           }
         />
@@ -1415,22 +1156,7 @@ function TabelaInsumos({
   atribuindo,
 }) {
   const valorTotal =
-    insumos.reduce(
-      (
-        total,
-        insumo
-      ) =>
-        total +
-        Number(
-          insumo.quantidade_disponivel ||
-            0
-        ) *
-          Number(
-            insumo.valor_unitario ||
-              0
-          ),
-      0
-    );
+    somarRecursos(insumos, "quantidade_disponivel", "valor_unitario");
 
   return (
     <div>
@@ -1564,8 +1290,7 @@ function TabelaInsumos({
                     </td>
 
                     <td>
-                      {insumo.quantidade_disponivel ??
-                        0}
+                      {insumo.quantidade_disponivel ?? "Não informado"}
                     </td>
 
                     <td>
@@ -1576,14 +1301,7 @@ function TabelaInsumos({
 
                     <td>
                       {formatarReal(
-                        Number(
-                          insumo.quantidade_disponivel ||
-                            0
-                        ) *
-                          Number(
-                            insumo.valor_unitario ||
-                              0
-                          )
+                        somarRecursos([insumo], "quantidade_disponivel", "valor_unitario")
                       )}
                     </td>
 
@@ -1618,22 +1336,7 @@ function TabelaMaquinarios({
   atribuindo,
 }) {
   const custoDiario =
-    maquinarios.reduce(
-      (
-        total,
-        item
-      ) =>
-        total +
-        Number(
-          item.quantidade ||
-            0
-        ) *
-          Number(
-            item.custo_diario ||
-              0
-          ),
-      0
-    );
+    somarRecursos(maquinarios, "quantidade", "custo_diario");
 
   const ativos =
     maquinarios.filter(
@@ -1790,8 +1493,7 @@ function TabelaMaquinarios({
                     </td>
 
                     <td>
-                      {item.quantidade ??
-                        0}
+                      {item.quantidade ?? "Não informado"}
                     </td>
 
                     <td>
@@ -1838,98 +1540,7 @@ function Indicadores({
   insumos,
   maquinarios,
 }) {
-  const dados =
-    useMemo(() => {
-      const custoDiarioEquipes =
-        equipes.reduce(
-          (
-            total,
-            equipe
-          ) =>
-            total +
-            Number(
-              equipe.custo_diario ||
-                0
-            ),
-          0
-        );
-
-      const custoMensalEquipes =
-        equipes.reduce(
-          (
-            total,
-            equipe
-          ) =>
-            total +
-            Number(
-              equipe.custo_mensal ||
-                0
-            ),
-          0
-        );
-
-      const profissionais =
-        equipes.reduce(
-          (
-            total,
-            equipe
-          ) =>
-            total +
-            Number(
-              equipe.quantidade_profissionais ||
-                0
-            ),
-          0
-        );
-
-      const valorInsumos =
-        insumos.reduce(
-          (
-            total,
-            insumo
-          ) =>
-            total +
-            Number(
-              insumo.quantidade_disponivel ||
-                0
-            ) *
-              Number(
-                insumo.valor_unitario ||
-                  0
-              ),
-          0
-        );
-
-      const custoMaquinariosDia =
-        maquinarios.reduce(
-          (
-            total,
-            item
-          ) =>
-            total +
-            Number(
-              item.quantidade ||
-                0
-            ) *
-              Number(
-                item.custo_diario ||
-                  0
-              ),
-          0
-        );
-
-      return {
-        custoDiarioEquipes,
-        custoMensalEquipes,
-        profissionais,
-        valorInsumos,
-        custoMaquinariosDia,
-      };
-    }, [
-      equipes,
-      insumos,
-      maquinarios,
-    ]);
+  const dados = useMemo(() => ({ custoDiarioEquipes: somarRecursos(equipes, "custo_diario"), custoMensalEquipes: somarRecursos(equipes, "custo_mensal"), profissionais: somarRecursos(equipes, "quantidade_profissionais"), valorInsumos: somarRecursos(insumos, "quantidade_disponivel", "valor_unitario"), custoMaquinariosDia: somarRecursos(maquinarios, "quantidade", "custo_diario") }), [equipes, insumos, maquinarios]);
 
   return (
     <div>

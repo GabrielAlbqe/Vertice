@@ -1,3 +1,4 @@
+import { confirmarSaida } from "../shared/useUnsavedChanges";
 import { useEffect, useRef, useState } from "react";
 import { lerUsuario, sairCanteiro, usuarioSeguro } from "../../canteiro/sessao";
 import Header from "./Header";
@@ -55,6 +56,7 @@ function Layout({ children, onNavegar }) {
   }
 
   function sair() {
+    if (!confirmarSaida()) return;
     sairCanteiro();
 
     if (

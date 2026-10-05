@@ -5,6 +5,28 @@ import { calcularAnalytics, normalizarAnalytics, FILTROS_VAZIOS } from "../src/a
 import { usuarioCanteiro, usuarioSeguro } from "../src/canteiro/sessao.js";
 import { normalizarObra } from "../src/api/obras.js";
 import { requisitar } from "../src/api/api.js";
+import { calcularPrazo, somarRecursos } from "../src/api/obraIndicadores.js";
+
+test("prazo usa dias de calendário, limita percentuais e rejeita datas ausentes ou inválidas", () => {
+  const obra = { data_inicio_planejada: "2026-10-01", data_termino_planejada: "2026-10-11" };
+  assert.deepEqual(calcularPrazo(obra, "2026-10-04"), { duracao: 10, decorridos: 3, restantes: 7, percentual: 30 });
+  assert.deepEqual(calcularPrazo(obra, "2026-09-01"), { duracao: 10, decorridos: 0, restantes: 10, percentual: 0 });
+  assert.deepEqual(calcularPrazo(obra, "2026-11-01"), { duracao: 10, decorridos: 10, restantes: 0, percentual: 100 });
+  assert.equal(calcularPrazo({}, "2026-10-04"), null);
+  assert.equal(calcularPrazo({ ...obra, data_inicio_planejada: "2026-02-30" }, "2026-10-04"), null);
+  assert.equal(calcularPrazo({ ...obra, data_inicio_planejada: "2026-11-01" }, "2026-10-04"), null);
+  assert.equal(calcularPrazo({ ...obra, data_termino_planejada: "2026-10-01" }, "2026-10-01").percentual, 100);
+});
+
+test("indicadores distinguem ausência, zero real e soma incompleta", () => {
+  assert.equal(somarRecursos([], "custo_diario"), null);
+  assert.equal(somarRecursos([{ custo_diario: null }], "custo_diario"), null);
+  assert.equal(somarRecursos([{ custo_diario: 0 }], "custo_diario"), 0);
+  assert.equal(somarRecursos([{ custo_diario: 0 }, { custo_diario: "150.50" }], "custo_diario"), 150.5);
+  assert.equal(somarRecursos([{ custo_diario: 150 }, {}], "custo_diario"), null);
+  assert.equal(somarRecursos([{ quantidade: 3, custo_diario: 25 }], "quantidade", "custo_diario"), 75);
+  assert.equal(somarRecursos([{ quantidade: 0, custo_diario: null }], "quantidade", "custo_diario"), null);
+});
 
 test("sessão preserva dados do perfil e exclui credenciais retornadas pela API", () => {
   assert.deepEqual(usuarioSeguro({ id_usuario: 7, nome: "Ana", ambiente: "Canteiro", senha: "segredo", token: "segredo", chave_privada: "segredo" }), { id_usuario: 7, nome: "Ana", ambiente: "Canteiro" });

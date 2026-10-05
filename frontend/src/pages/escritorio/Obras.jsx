@@ -1,3 +1,6 @@
+import Toast from "../../componentes/shared/Toast";
+import Skeleton from "../../componentes/shared/Skeleton";
+import useUnsavedChanges, { confirmarSaida } from "../../componentes/shared/useUnsavedChanges";
 import { useDialogFocus } from "../../componentes/escritorio/Modal";
 import {
   useEffect,
@@ -185,8 +188,10 @@ function Obras({
     setErroRecursos,
   ] = useState("");
 
+  const baseline = useRef(JSON.stringify(formularioObraVazio));
+  useUnsavedChanges(modalObraAberto && JSON.stringify(formulario) !== baseline.current, salvando);
   const dialogRef = useRef(null);
-  useDialogFocus(dialogRef, () => { if (!trava.current) { setModalObraAberto(false); setModalRecursos(false); } }, modalObraAberto || modalRecursos);
+  useDialogFocus(dialogRef, () => { if (!trava.current && confirmarSaida()) { setModalObraAberto(false); setModalRecursos(false); } }, modalObraAberto || modalRecursos);
 
   const idConstrutora =
     localStorage.getItem(
@@ -249,6 +254,7 @@ function Obras({
   // ===================================================
 
   function abrirCadastroObra() {
+    baseline.current = JSON.stringify(formularioObraVazio);
     setObraEditando(null);
     setFormulario(
       formularioObraVazio
@@ -262,7 +268,7 @@ function Obras({
   ) {
     setObraEditando(obra);
 
-    setFormulario({
+    const inicial = {
       nome:
         obra.nome ||
         obra.obra ||
@@ -296,13 +302,15 @@ function Obras({
       orcamento_planejado:
         obra.orcamento_planejado ??
         "",
-    });
+    };
+    baseline.current = JSON.stringify(inicial); setFormulario(inicial);
 
     setErro("");
     setModalObraAberto(true);
   }
 
   function fecharModalObra() {
+    if (!confirmarSaida()) return;
     if (salvando) {
       return;
     }
@@ -406,7 +414,7 @@ function Obras({
         );
       }
 
-      setSucesso("Obra salva com sucesso.");
+      setSucesso(obraEditando ? "Obra editada com sucesso." : "Obra criada com sucesso.");
       setModalObraAberto(false);
       setObraEditando(null);
       setFormulario(formularioObraVazio);
@@ -908,7 +916,7 @@ function Obras({
                       colSpan="7"
                       className="tabela-vazia"
                     >
-                      Carregando obras...
+                      <Skeleton label="Carregando obras…" />
                     </td>
                   </tr>
                 ) : obras.length === 0 ? (
@@ -1066,7 +1074,7 @@ function Obras({
             MODAL OBRA
         ================================================= */}
 
-        {sucesso && <p className="mensagem-sucesso" role="status">{sucesso}</p>}
+        <Toast message={sucesso} />
         {modalObraAberto && (
           <div className="modal-overlay">
             <div className="modal-container modal-obra" role="dialog" ref={dialogRef} tabIndex={-1} aria-modal="true" aria-label="Cadastro de obra">

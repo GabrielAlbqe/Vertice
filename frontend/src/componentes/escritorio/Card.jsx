@@ -2,6 +2,7 @@ function Card({
   title,
   value,
   description,
+  onClick,
 }) {
   const textoValor =
     String(
@@ -23,8 +24,9 @@ function Card({
       " card-value--longo";
   }
 
+  const Elemento = onClick ? "button" : "div";
   return (
-    <div className="card">
+    <Elemento className={`card${onClick ? " card-interactive" : ""}`} {...(onClick ? { type: "button", onClick, "aria-label": `${title}: ${textoValor}. Abrir detalhes` } : {})}>
 
       <h3>
         {title}
@@ -47,7 +49,7 @@ function Card({
         </p>
       )}
 
-    </div>
+    </Elemento>
   );
 }
 

@@ -21,12 +21,7 @@ function Sidebar({
   function navegar(
     pagina
   ) {
-    localStorage.setItem(
-      "pagina_atual",
-      pagina
-    );
-
-    if (
+if (
       typeof onNavegar ===
       "function"
     ) {
@@ -66,7 +61,7 @@ function Sidebar({
         </div>
       </div>
 
-      <div className="sidebar-menu">
+      <nav className="sidebar-menu" aria-label="Escrit?rio">
 
         <button
           type="button"
@@ -114,7 +109,7 @@ function Sidebar({
         <button type="button" aria-current={paginaAtiva === "recursos" ? "page" : undefined} className={classeBotao("recursos")} onClick={() => navegar("recursos")}><span className="sidebar-dot" />Recursos</button>
         <button type="button" className={classeBotao("perfil")} aria-current={paginaAtiva === "perfil" ? "page" : undefined} onClick={() => navegar("perfil")}><span className="sidebar-dot" />Perfil</button>
 
-      </div>
+      </nav>
 
       <div className="sidebar-footer">
         <span>

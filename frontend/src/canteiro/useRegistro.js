@@ -1,3 +1,4 @@
+import useUnsavedChanges from "../componentes/shared/useUnsavedChanges";
 import { useEffect, useRef, useState } from "react";
 import { useCanteiro } from "../layouts/CanteiroLayout";
 import { gravarRascunho, removerRascunho } from "./rascunhos";
@@ -7,7 +8,10 @@ export default function useRegistro(tipo, criarInicial) {
   const [mensagem, setMensagem] = useState("");
   const [erro, setErro] = useState("");
   const [salvando, setSalvando] = useState(false);
-  const [idLocal, setIdLocal] = useState(null);
+  const baseline = useRef(JSON.stringify(form));
+  const localId = useRef(null);
+  const [versaoSalva, setVersaoSalva] = useState(JSON.stringify(form));
+  useUnsavedChanges(JSON.stringify(form) !== versaoSalva, salvando);
   const trava = useRef(false);
   const montado = useRef(true);
   const ultimaObra = useRef(null);
@@ -18,14 +22,28 @@ export default function useRegistro(tipo, criarInicial) {
   useEffect(() => {
     if (!restaurado && ultimaObra.current === ctx.obra?.id_obra) return;
     ultimaObra.current = ctx.obra?.id_obra;
-    setForm(restaurado?.payload || criarInicial());
-    setIdLocal(restaurado?.id || null); setMensagem(restaurado ? "Rascunho restaurado. Revise os dados antes de enviar." : ""); setErro("");
+    const inicial = restaurado?.payload || criarInicial();
+    baseline.current = JSON.stringify(inicial); setVersaoSalva(baseline.current); localId.current = restaurado?.id || null;
+    setForm(inicial);
+    setMensagem(restaurado ? "Rascunho restaurado. Revise os dados antes de enviar." : ""); setErro("");
   }, [ctx.obra?.id_obra, restaurado?.id]);
+  useEffect(() => {
+    const snapshot = JSON.stringify(form);
+    if (salvando || !ctx.obra || snapshot === versaoSalva || (!localId.current && snapshot === baseline.current)) return;
+    const timer = setTimeout(() => {
+      try {
+        const item = gravarRascunho(ctx.usuario.id_usuario, { id: localId.current, obra: ctx.obra.id_obra, nomeObra: ctx.obra.nome, tipo, payload: form });
+        localId.current = item.id; setVersaoSalva(snapshot); ctx.atualizarRascunhos();
+        setMensagem("Salvo neste dispositivo. Rascunho salvo automaticamente. O envio continua manual.");
+      } catch { setErro("Não foi possível salvar automaticamente. Salve o rascunho antes de sair."); }
+    }, 700);
+    return () => clearTimeout(timer);
+  }, [form, salvando, ctx.obra?.id_obra, versaoSalva]);
   function campo(nome, valor) { setForm(f => ({ ...f, [nome]: valor })); setErro(""); setMensagem(""); }
   function rascunhar() {
     try {
-      const item = gravarRascunho(ctx.usuario.id_usuario, { id: idLocal, obra: ctx.obra.id_obra, nomeObra: ctx.obra.nome, tipo, payload: form });
-      setIdLocal(item.id); ctx.atualizarRascunhos(); setErro(""); setMensagem("Rascunho salvo neste navegador. Envie manualmente quando estiver conectado.");
+      const item = gravarRascunho(ctx.usuario.id_usuario, { id: localId.current, obra: ctx.obra.id_obra, nomeObra: ctx.obra.nome, tipo, payload: form });
+      localId.current = item.id; setVersaoSalva(JSON.stringify(form)); ctx.atualizarRascunhos(); setErro(""); setMensagem("Rascunho salvo neste navegador. Envie manualmente quando estiver conectado.");
     } catch (e) { console.error("Rascunho:", e); setErro("Não foi possível salvar o rascunho neste navegador."); }
   }
   async function enviar(evento, validar, salvar, payload = form) {
@@ -49,10 +67,10 @@ export default function useRegistro(tipo, criarInicial) {
     }
     // Nenhuma escrita posterior no armazenamento pode converter um POST bem-sucedido em falha.
     let avisoLocal = "";
-    try { if (idLocal) removerRascunho(ctx.usuario.id_usuario, idLocal); } catch (e) { console.error(e); avisoLocal = " O rascunho local não pôde ser removido; não o reenvie."; }
+    try { if (localId.current) removerRascunho(ctx.usuario.id_usuario, localId.current); } catch (e) { console.error(e); avisoLocal = " O rascunho local não pôde ser removido; não o reenvie."; }
     ctx.atualizarRascunhos(); ctx.atualizar();
     if (montado.current) {
-      if (obraAtual.current === obraEnviada) { setIdLocal(null); setForm(criarInicial()); setMensagem("Registro enviado com sucesso." + avisoLocal); }
+      if (obraAtual.current === obraEnviada) { localId.current = null; const inicial = criarInicial(); baseline.current = JSON.stringify(inicial); setVersaoSalva(baseline.current); setForm(inicial); setMensagem("Registro enviado com sucesso." + avisoLocal); }
       ctx.fecharRascunho(); setSalvando(false);
     }
     trava.current = false;

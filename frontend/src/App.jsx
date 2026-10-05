@@ -13,6 +13,7 @@ import Perfil from "./pages/escritorio/Perfil";
 import AnalyticsFinanceiro from "./pages/escritorio/AnalyticsFinanceiro";
 
 import "./styles.css";
+import { confirmarSaida } from "./componentes/shared/useUnsavedChanges";
 
 const rotas = { dashboard: "/escritorio", obras: "/escritorio/obras", equipes: "/escritorio/equipes", recursos: "/escritorio/recursos", perfil: "/escritorio/perfil", "obra-detalhes": "/escritorio/obra", "analytics-financeiro": "/escritorio/analytics", login: "/login", cadastro: "/cadastro" };
 paginasCanteiro.forEach(p => { rotas[p] = p === "canteiro-home" ? "/canteiro" : "/canteiro/" + p.replace("canteiro-", ""); });
@@ -21,7 +22,7 @@ function App() {
   useEffect(() => {
     const lerRota = () => {
       const destino = Object.keys(rotas).find(p => rotas[p] === window.location.pathname.replace(/\/$/, ""));
-      navegar(destino || (localStorage.getItem("id_usuario") ? (usuarioCanteiro() ? "canteiro-home" : "dashboard") : "login"), true);
+      if (navegar(destino || (localStorage.getItem("id_usuario") ? (usuarioCanteiro() ? "canteiro-home" : "dashboard") : "login"), true) === false) history.pushState(null, "", rotas[localStorage.getItem("pagina_atual")] || "/login");
     };
     lerRota();
     window.addEventListener("popstate", lerRota);
@@ -80,6 +81,7 @@ function App() {
       catch { paginaDestino = "obras"; }
     }
     const rota = rotas[paginaDestino] || rotas.dashboard;
+    if (paginaDestino !== localStorage.getItem("pagina_atual") && !confirmarSaida()) return false;
     if (location.pathname !== rota) history[substituir ? "replaceState" : "pushState"](null, "", rota);
     localStorage.setItem(
       "pagina_atual",

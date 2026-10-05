@@ -1520,6 +1520,7 @@ export default function AnalyticsFinanceiro({
                     )}.`
                   : "Cards e gráficos refletem o mesmo recorte aplicado."}
             </p>
+            {!carregando && !erro && resultado && <p className="analytics-filter-status" role="status">{resultado.quantidade} {resultado.quantidade === 1 ? "lançamento encontrado" : "lançamentos encontrados"} no recorte aplicado.</p>}
           </form>
         </section>
 

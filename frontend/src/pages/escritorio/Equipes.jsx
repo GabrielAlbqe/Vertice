@@ -1,3 +1,5 @@
+import Toast from "../../componentes/shared/Toast";
+import useUnsavedChanges, { confirmarSaida } from "../../componentes/shared/useUnsavedChanges";
 import {
   useEffect,
   useMemo,
@@ -111,6 +113,8 @@ function Equipes({
     ...FORMULARIO_VAZIO,
   });
 
+  const baseline = useRef(JSON.stringify(FORMULARIO_VAZIO));
+  useUnsavedChanges(formularioAberto && JSON.stringify(formulario) !== baseline.current, salvando);
   useEffect(() => {
     localStorage.setItem(
       "pagina_atual",
@@ -227,6 +231,8 @@ function Equipes({
   }
 
   function abrirCadastro() {
+    if (!confirmarSaida()) return;
+    baseline.current = JSON.stringify(FORMULARIO_VAZIO);
     setEquipeEditando(
       null
     );
@@ -246,11 +252,12 @@ function Equipes({
   function abrirEdicao(
     equipe
   ) {
+    if (!confirmarSaida()) return;
     setEquipeEditando(
       equipe
     );
 
-    setFormulario({
+    const inicial = {
       ...equipe,
       nome_equipe:
         equipe?.nome_equipe ??
@@ -267,7 +274,8 @@ function Equipes({
       custo_diario:
         equipe?.custo_diario ??
         "",
-    });
+    };
+    baseline.current = JSON.stringify(inicial); setFormulario(inicial);
 
     setErro("");
     setSucesso("");
@@ -558,11 +566,7 @@ function Equipes({
           </div>
         )}
 
-        {sucesso && (
-          <div className="mensagem-sucesso" role="status">
-            {sucesso}
-          </div>
-        )}
+        <Toast message={sucesso} />
 
         {formularioAberto && (
 
@@ -711,9 +715,7 @@ function Equipes({
                   type="button"
               disabled={salvando}
                   className="cancel-button"
-                  onClick={
-                    cancelar
-                  }
+                  onClick={() => { if (confirmarSaida()) cancelar(); }}
                 >
                   Cancelar
                 </button>
@@ -828,6 +830,7 @@ function Equipes({
 
           </div>
 
+          <div className="filter-results"><button type="button" className="secondary-button" onClick={() => { setPesquisa(""); setFiltroArea(""); setFiltroObra(""); }}>Limpar filtros</button>{!carregando && !erro && <p role="status">{equipesFiltradas.length} {equipesFiltradas.length === 1 ? "equipe encontrada" : "equipes encontradas"}</p>}</div>
           <div className="tabela-container">
 
             <table>

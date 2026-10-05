@@ -1,3 +1,4 @@
+import { confirmarSaida } from "../componentes/shared/useUnsavedChanges";
 import { createContext, useContext, useEffect, useRef, useState } from "react";
 import HeaderCanteiro from "../componentes/canteiro/HeaderCanteiro";
 import BottomNav from "../componentes/canteiro/BottomNav";
@@ -90,22 +91,25 @@ export default function CanteiroLayout({ children, pagina, onNavegar }) {
   }, [obra, revisao]);
   function selecionarObra(id) {
     const escolhida = obras.find(item => String(item.id_obra) === String(id)) || null;
-    if (String(escolhida?.id_obra) === String(obra?.id_obra)) { setRascunhoAberto(null); return; }
+    if (String(escolhida?.id_obra) === String(obra?.id_obra)) { return true; }
+    if (!confirmarSaida()) return false;
     setObra(escolhida); setDados(vazio); setAvisos([]); setCarregando(Boolean(escolhida)); setRascunhoAberto(null);
     if (escolhida) localStorage.setItem("obra_selecionada", JSON.stringify(escolhida));
     else localStorage.removeItem("obra_selecionada");
+    return true;
   }
   function atualizarRascunhos() { setRascunhos(lerRascunhos(usuario.id_usuario)); }
   function abrirRascunho(item) {
     const escolhida = obras.find(o => String(o.id_obra) === String(item.obra));
     if (!escolhida) return;
-    selecionarObra(escolhida.id_obra); setRascunhoAberto(item);
+    if (!confirmarSaida() || selecionarObra(escolhida.id_obra) === false) return;
+    setRascunhoAberto(item);
     onNavegar(({ diario: "canteiro-diario", atividade: "canteiro-atividade", material: "canteiro-material", ocorrencia: "canteiro-ocorrencia" })[item.tipo] || "canteiro-registrar");
   }
   const contexto = { usuario, obras, obra, ...dados, carregando: carregando || carregandoObras, avisos, online,
     selecionarObra, onNavegar, atualizar: () => setRevisao(v => v + 1),
     rascunhos, atualizarRascunhos, rascunhoAberto, abrirRascunho, fecharRascunho: () => setRascunhoAberto(null),
-    sair: () => { sairCanteiro(); onNavegar("login"); } };
+    sair: () => { if (!confirmarSaida()) return; sairCanteiro(); onNavegar("login"); } };
   return <Contexto.Provider value={contexto}><div className="ct-app"><a href="#ct-main" className="ct-skip">Ir para o conteúdo</a><HeaderCanteiro usuario={usuario} onNavegar={onNavegar} /><main id="ct-main" ref={main} tabIndex="-1" className="ct-main">
     {!online && <p className="ct-message" role="status">Você está offline. Salve um rascunho e envie manualmente quando a conexão retornar.</p>}
     {erroObras && <div className="ct-message ct-error" role="alert">{erroObras}<button className="ct-link" type="button" onClick={() => setTentativa(v => v + 1)}>Tentar novamente</button></div>}

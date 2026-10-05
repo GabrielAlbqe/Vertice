@@ -21,6 +21,8 @@ try {
   ws = new WebSocket(alvo.webSocketDebuggerUrl);
   await new Promise((resolve, reject) => { ws.addEventListener("open", resolve); ws.addEventListener("error", reject); });
   let seq = 0;
+  const redeFalhas = [], consoleFalhas = [], requestsReais = [];
+  let modoReal = false;
   const pendentes = new Map(), excecoes = [], errosReact = [], requests = [], resultados = [];
   const usuario = { senha: "nao-deve-ser-armazenada", token: "nao-deve-ser-armazenado", id_usuario: 7, nome: "Equipe de Teste", email: "canteiro@teste.local", ocupacao: "Engenheiro", ambiente: "Canteiro", status: "Ativo", idconstrutora: 1 };
   const obras = [
@@ -29,7 +31,7 @@ try {
     { id_obra: 99, nome: "Outra construtora", status: "Em andamento", id_construtora: 99 }
   ];
   const diarios = [{ id_diario: 11, data: "2026-09-30", clima: "Ensolarado", turno: "Manhã", etapa_atuacao: "Infraestrutura", equipe_interna: "A", equipe_terceirizada: "B", paralisacoes: "Nenhuma", origem_paralisacoes: "", atrasos: "Entrega atrasada", origem_atrasos: "Fornecedor", obrax_id: 1, usuario_id: 7 }];
-  let falha = "", falhaPost = false;
+  let falha = "", falhaPost = false, aceitarSaida = true, dialogos = 0;
   const equipes = [{ id_cadastro_equipes: 3, nome_equipe: "Equipe interna teste", idobra: 1, quantidade_profissionais: 5, etapa_atuacao: "Infraestrutura", custo_diario: 100, custo_mensal: 2000 }];
   const insumos = [{ id_insumos: 4, nome: "Cimento teste", quantidade_disponivel: 20, valor_unitario: 10, idobra: 1 }];
   const maquinas = [{ id_maquina: 5, nome: "Betoneira teste", quantidade: 1, idobra: 1, status: "Ativo", etapa_atuacao: "Infraestrutura", custo_diario: 120 }];
@@ -78,16 +80,20 @@ try {
       if (!p) return;
       clearTimeout(p.timeout); pendentes.delete(msg.id);
       if (msg.error) p.reject(new Error(JSON.stringify(msg.error))); else p.resolve(msg.result);
-    } else if (msg.method === "Page.javascriptDialogOpening") { await cmd("Page.handleJavaScriptDialog", { accept: true });
+    } else if (msg.method === "Network.requestWillBeSent" && modoReal && msg.params.request.url.includes("localhost:3000/api/")) { requestsReais.push({ method: msg.params.request.method, url: msg.params.request.url });
+    } else if (msg.method === "Page.javascriptDialogOpening") { dialogos++; await cmd("Page.handleJavaScriptDialog", { accept: aceitarSaida });
     } else if (msg.method === "Fetch.requestPaused") {
       try { await responder(msg.params); } catch (e) { if (!e.message.includes("Invalid InterceptionId")) excecoes.push(e.message); }
     } else if (msg.method === "Runtime.exceptionThrown") excecoes.push(msg.params.exceptionDetails.text + " " + (msg.params.exceptionDetails.exception?.description || ""));
+    else if (msg.method === "Network.loadingFailed") redeFalhas.push(msg.params);
+    else if (msg.method === "Network.responseReceived" && msg.params.response.status >= 400) redeFalhas.push({ url: msg.params.response.url, status: msg.params.response.status });
     else if (msg.method === "Runtime.consoleAPICalled" && msg.params.type === "error") {
       const text = msg.params.args.map(a => a.value || a.description || "").join(" ");
+      consoleFalhas.push(text);
       if (/React|Warning:|Maximum update|unmounted|unique.*key/i.test(text)) errosReact.push(text);
     }
   });
-  await cmd("Runtime.enable"); await cmd("Page.enable");
+  await cmd("Runtime.enable"); await cmd("Page.enable"); await cmd("Network.enable");
   await cmd("Fetch.enable", { patterns: [{ urlPattern: "*localhost:3000/api/*" }] });
   async function evaluate(expression) {
     const r = await cmd("Runtime.evaluate", { expression, awaitPromise: true, returnByValue: true });
@@ -95,8 +101,8 @@ try {
     return r.result.value;
   }
   async function esperar(expression) {
-    for (let i = 0; i < 100; i++) { if (await evaluate(expression)) return; await sleep(100); }
-    throw new Error("Não encontrado: " + expression + "\n" + await evaluate("document.body.innerText") + "\n" + JSON.stringify(excecoes) + "\n" + await evaluate("location.href"));
+    for (let i = 0; i < 200; i++) { if (await evaluate(expression)) return; await sleep(100); }
+    throw new Error("Não encontrado: " + expression + "\n" + await evaluate("document.body.innerText") + "\n" + JSON.stringify({excecoes, redeFalhas, consoleFalhas}) + "\n" + await evaluate("location.href"));
   }
   async function click(texto) {
     await esperar("[...document.querySelectorAll('button')].some(b=>b.textContent.trim()===" + JSON.stringify(texto) + ")");
@@ -112,6 +118,7 @@ try {
     await evaluate("localStorage.clear(); localStorage.setItem('usuario'," + JSON.stringify(JSON.stringify({ ...usuario, ambiente })) + "); localStorage.setItem('id_usuario','7'); localStorage.setItem('idconstrutora','1'); localStorage.setItem('ambiente'," + JSON.stringify(ambiente) + "); localStorage.setItem('pagina_atual'," + JSON.stringify(pagina) + ");" + (obra ? "localStorage.setItem('obra_selecionada'," + JSON.stringify(JSON.stringify(obra)) + ");" : ""));
     await cmd("Page.navigate", { url: base }); await sleep(250);
   }
+  if (!process.argv.includes("--analytics-only")) {
   await cmd("Page.navigate", { url: base }); await esperar("!!document.querySelector('#email')");
   await input("#email", "canteiro@teste.local"); await input("#senha", "teste");
   await click("Entrar"); await esperar("!!document.querySelector('.ct-app') && document.querySelector('#ct-obra')?.options.length===3");
@@ -144,6 +151,28 @@ try {
     }
     resultados.push("Todas as telas: navegação e ausência de scroll horizontal em " + width + "px");
   }
+  await click("Início"); await click("Registrar ocorrência");
+  await esperar("!!document.querySelector('#ct-descricao')");
+  const antesVazio = dialogos;
+  await click("Início"); assert.equal(dialogos, antesVazio, "Formulário vazio não deve pedir confirmação");
+  await click("Registrar ocorrência");
+  const antesAutosave = requests.filter(r => r.method === "POST").length;
+  await input("#ct-descricao", "Ocorrência com salvamento local automático");
+  aceitarSaida = false; await click("Início");
+  assert.equal(await evaluate("location.pathname"), "/canteiro/ocorrencia");
+  assert.ok(dialogos > antesVazio, "Alteração ainda não salva deve pedir confirmação");
+  aceitarSaida = true;
+  await esperar("JSON.parse(localStorage.getItem('vertice:canteiro:rascunhos:7') || '[]').length === 1");
+  assert.equal(requests.filter(r => r.method === "POST").length, antesAutosave, "Autosave não envia à API");
+  await esperar("!!document.querySelector('.vertice-toast')");
+  await sleep(6700); assert.equal(await evaluate("!!document.querySelector('.vertice-toast')"), false);
+  const antesSalvo = dialogos; await click("Início"); assert.equal(dialogos, antesSalvo);
+  await click("Perfil"); assert.equal(await evaluate("document.body.innerText.includes('1 rascunho local aguardando envio')"), true);
+  await click("Pendências"); await click("Revisar e enviar");
+  await esperar("document.querySelector('#ct-descricao')?.value==='Ocorrência com salvamento local automático'");
+  await click("Pendências"); await click("Descartar"); await click("Confirmar descarte");
+  await esperar("JSON.parse(localStorage.getItem('vertice:canteiro:rascunhos:7')).length === 0");
+  resultados.push("Autosave local sem POST, saída recusada só quando alterado, restauração, singular e toast automático");
   await click("Perfil"); await click("Escuro");
   assert.equal(await evaluate("document.documentElement.dataset.theme"), "dark");
   await cmd("Page.reload"); await sleep(300); await esperar("!!document.querySelector('.ct-app') && document.documentElement.dataset.theme === 'dark'");
@@ -216,10 +245,26 @@ try {
     await cmd("Emulation.setDeviceMetricsOverride", { width, height: 900, deviceScaleFactor: 1, mobile: width < 768 });
     for (const nome of ["Dashboard", "Obras", "Equipes", "Analytics Financeiro", "Recursos", "Perfil"]) {
       await click(nome); await sleep(150);
+      if (nome === "Obras") {
+        await esperar("!!document.querySelector('tbody tr button')"); await evaluate("document.querySelector('tbody tr button').click()");
+        await esperar("document.body.innerText.includes('Prazo planejado')");
+        assert.equal(await evaluate("document.documentElement.scrollWidth > innerWidth + 1"), false, 'Detalhes da obra overflow ' + width);
+        await click("Obras");
+      }
       assert.equal(await evaluate("document.documentElement.scrollWidth > innerWidth + 1"), false, nome + ' overflow ' + width);
     }
   }
   resultados.push("Escritório e Perfil: navegação em 375, 430, 768, 1024 e 1366px");
+  await click("Dashboard"); await esperar("document.querySelectorAll('.dashboard-kpis button').length === 7");
+  await evaluate("[...document.querySelectorAll('.dashboard-kpis button')].find(b=>b.querySelector('h3').textContent==='Equipes').click()");
+  await esperar("location.pathname==='/escritorio/equipes'");
+  await input('#pesquisa-equipe', 'Busca sem resultado'); await esperar("document.body.innerText.includes('0 equipes encontradas')");
+  await click("Limpar filtros"); await esperar("document.body.innerText.includes('Equipe interna teste')");
+  await click("Recursos"); await esperar("!!document.querySelector('.resource-table table')");
+  assert.equal(await evaluate("getComputedStyle(document.querySelector('.resource-card')).display"), 'table-row');
+  await input('.resource-tools input[type=search]', 'Busca sem resultado'); await esperar("document.body.innerText.includes('0 resultados encontrados')");
+  await click("Limpar filtros"); await esperar("document.body.innerText.includes('Cimento teste')");
+  resultados.push("Sete KPIs com navegação, recursos em tabela e filtros com contagem e limpeza");
   await click("Obras");
   await evaluate("[...document.querySelectorAll('button')].find(b=>b.textContent.trim()==='+ Nova obra').focus()");
   await click("+ Nova obra");
@@ -247,6 +292,7 @@ try {
   await evaluate("[...document.querySelectorAll('.resource-card')].find(c => c.textContent.includes('Material teste CRUD')).querySelectorAll('button')[1].click()");
   await input('[name="quantidade_disponivel"]', 15); await click("Salvar"); await esperar("!document.querySelector('[role=dialog]')");
   assert.equal(insumos.find(r => r.nome === 'Material teste CRUD').quantidade_disponivel, 15);
+  await esperar("!![...document.querySelectorAll('.resource-card')].find(c => c.textContent.includes('Material teste CRUD'))");
   await evaluate("[...document.querySelectorAll('.resource-card')].find(c => c.textContent.includes('Material teste CRUD')).querySelectorAll('button')[2].click()");
   await esperar("!document.body.innerText.includes('Material teste CRUD')");
   resultados.push("Insumos: cadastro, edição e exclusão atualizam a visão geral");
@@ -326,9 +372,47 @@ try {
   await input("#email", "canteiro@teste.local"); await input("#senha", "teste"); await click("Entrar");
   await esperar("!!document.querySelector('.ct-app')");
   resultados.push("Cadastro direto e recarga sem sessão; login novamente após logout");
+  }
+  if (process.argv.includes("--analytics-real") || process.argv.includes("--analytics-only")) {
+    if (process.argv.includes("--analytics-only")) { await cmd("Page.navigate", { url: base }); await esperar("!!document.querySelector('#email')"); }
+    await cmd("Fetch.disable"); modoReal = true;
+    const corpo = await (await fetch("http://localhost:3000/api/usuarios/1")).json();
+    const atual = corpo.usuario || corpo;
+    const perfil = { id_usuario: atual.id_usuario, nome: atual.nome, idconstrutora: 1, ambiente: "Escritório" };
+    assert.equal(perfil.id_usuario, 1);
+    await evaluate("localStorage.clear(); localStorage.setItem('usuario',"+JSON.stringify(JSON.stringify(perfil))+"); localStorage.setItem('id_usuario','1'); localStorage.setItem('idconstrutora','1'); localStorage.setItem('ambiente','Escritório'); localStorage.setItem('pagina_atual','dashboard');");
+    await cmd("Page.navigate", { url: base + "/escritorio" });
+    await esperar("!!document.querySelector('.dashboard-kpis button') && document.body.innerText.includes('Vértice Teste - Residencial Aurora')");
+    await click("Analytics Financeiro"); await esperar("!!document.querySelector('#analytics-obra')");
+    const projetos = await (await fetch("http://localhost:3000/api/obras?id_construtora=1")).json();
+    const cenarios = projetos.filter(o=>o.nome.startsWith('Vértice Teste -'));
+    assert.equal(cenarios.length, 6);
+    const moeda = n => Number(n).toLocaleString('pt-BR',{style:'currency',currency:'BRL'}).replace(/\s/g,'');
+    for (const obra of cenarios) {
+      const realizados = await (await fetch('http://localhost:3000/api/custos-realizados?id_obra='+obra.id_obra)).json();
+      const total = realizados.filter(r=>Number(r.id_obra)===Number(obra.id_obra)).reduce((v,r)=>v+Number(r.valor_total),0);
+      await input('#analytics-obra', obra.id_obra); await click('Limpar filtros');
+      await input('[name=inicio]', ''); await input('[name=fim]', ''); await click('Aplicar filtros');
+      await esperar("document.querySelector('.analytics-cards')?.textContent.replace(/\\s/g,'').includes("+JSON.stringify(moeda(total))+")");
+      assert.equal(await evaluate("document.querySelector('.analytics-cards').textContent.replace(/\\s/g,'').includes("+JSON.stringify(moeda(obra.orcamento_planejado))+")"), true);
+      assert.equal(await evaluate("document.body.innerText.includes('Não foi possível consultar')"), false);
+    }
+    for (const width of [375, 430, 768, 1024, 1366]) {
+      await cmd('Emulation.setDeviceMetricsOverride', {width,height:900,deviceScaleFactor:1,mobile:width<768});
+      assert.equal(await evaluate('document.documentElement.scrollWidth>innerWidth+1'),false,'Analytics real overflow '+width);
+      assert.equal(await evaluate("[...document.querySelectorAll('.analytics-cards .card-value')].every(el=>getComputedStyle(el).textOverflow!=='ellipsis' && el.scrollWidth<=el.clientWidth+1)"),true,'Valor financeiro cortado em '+width);
+    }
+    const foto = await cmd('Page.captureScreenshot',{format:'png'});
+    await writeFile('tests/screenshots/analytics-real-1366.png',Buffer.from(foto.data,'base64'));
+    await evaluate("document.documentElement.dataset.theme='dark'; localStorage.setItem('vertice_tema','dark');");
+    const fotoEscura = await cmd('Page.captureScreenshot',{format:'png'});
+    await writeFile('tests/screenshots/analytics-real-dark.png',Buffer.from(fotoEscura.data,'base64'));
+    assert.ok(requestsReais.length>0); assert.ok(requestsReais.every(r=>['GET','OPTIONS'].includes(r.method)),'Teste real fez gravação na API');
+    resultados.push('Analytics no navegador com as seis obras do MySQL real; totais conferidos, cinco larguras e somente leitura');
+  }
   assert.deepEqual(excecoes, [], "Exceções no navegador");
   assert.deepEqual(errosReact, [], "Erros React");
-  await writeFile("tests/canteiro-browser-result.json", JSON.stringify({ passou: true, resultados, excecoes, errosReact, posts: requests.filter(r => r.method === "POST") }, null, 2));
+  await writeFile(process.argv.includes("--analytics-only") ? "tests/analytics-real-browser-result.json" : "tests/canteiro-browser-result.json", JSON.stringify({ passou: true, resultados, excecoes, errosReact, requestsReais, posts: requests.filter(r => r.method === "POST") }, null, 2));
   console.log(resultados.join("\n"));
   console.log("PASSOU: sem exceções no navegador ou erros React.");
 } finally {
