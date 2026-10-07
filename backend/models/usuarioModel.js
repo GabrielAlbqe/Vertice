@@ -27,25 +27,26 @@ const Usuario = {
 
   // Insere um novo usuário
   create: (data, callback) => {
-    const insert = `
-      INSERT INTO usuario 
-      (nome, email, senha, ocupacao, ambiente, status, idconstrutora) 
-      VALUES (?, ?, ?, ?, ?, ?, ?)
-    `;
-    bd.query(
-      insert, 
-      [
-        data.nome, 
-        data.email, 
-        data.senha, 
-        data.ocupacao || null, 
-        data.ambiente || null, 
-        data.status || 'Ativo', 
-        data.idconstrutora
-      ], 
-      callback
-    );
-  },
+  const insert = `
+    INSERT INTO usuario 
+    (nome, email, senha, ocupacao, ambiente, status, idconstrutora) 
+    VALUES (?, ?, ?, ?, ?, ?, ?)
+  `;
+
+  bd.query(
+    insert,
+    [
+      data.nome,
+      data.email,
+      data.senha,
+      data.ocupacao || null,
+      data.ambiente || null,
+      data.status || "Ativo",
+      data.idconstrutora || null
+    ],
+    callback
+  );
+},
 
   // Atualiza os dados de um usuário existente
   update: (id, data, callback) => {
@@ -69,7 +70,7 @@ const Usuario = {
         data.ocupacao, 
         data.ambiente, 
         data.status, 
-        data.idconstrutora, 
+        data.idconstrutora || null,
         id
       ], 
       callback
