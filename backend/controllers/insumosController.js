@@ -6,11 +6,24 @@ exports.listarPorObra = (req, res) => {
   const idobra = req.query.idobra || req.headers["idobra"];
 
   if (!idobra) {
-    return res.status(400).send("O identificador da obra (idobra) é obrigatório.");
+    return Insumos.getAll((err, results) => {
+      if (err) {
+        return res
+          .status(dbStatus(err))
+          .send("Erro interno no servidor ao listar insumos.");
+      }
+
+      return res.json(results);
+    });
   }
 
   Insumos.getByObra(idobra, (err, results) => {
-    if (err) return res.status(dbStatus(err)).send("Erro interno no servidor ao listar insumos.");
+    if (err) {
+      return res
+        .status(dbStatus(err))
+        .send("Erro interno no servidor ao listar insumos.");
+    }
+
     res.json(results);
   });
 };

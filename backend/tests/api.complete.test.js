@@ -76,12 +76,12 @@ const resources = [
     update: () => ({ descricao: "Atividade atualizada", idx_obra: ids.obra }), changedField: "descricao"
   },
   {
-    key: "insumo", base: "/api/insumos", idColumn: "id_insumos", listQuery: () => ({ idobra: ids.obra }),
+    key: "insumo", base: "/api/insumos", idColumn: "id_insumos", listQuery: () => ({ idobra: ids.obra }), filterRequired: false,
     payload: () => ({ nome: "Cimento Teste", quantidade_disponivel: 100, valor_unitario: 40, idobra: ids.obra }),
     update: () => ({ nome: "Cimento Atualizado", quantidade_disponivel: 120, valor_unitario: 42, idobra: ids.obra }), changedField: "nome"
   },
   {
-    key: "maquinario", base: "/api/maquinarios", idColumn: "id_maquina", listQuery: () => ({ idobra: ids.obra }),
+    key: "maquinario", base: "/api/maquinarios", idColumn: "id_maquina", listQuery: () => ({ idobra: ids.obra }), filterRequired: false,
     payload: () => ({ nome: "Betoneira Teste", quantidade: 1, etapa_atuacao: "Infraestrutura", custo_diario: 120, status: "Ativo", idobra: ids.obra }),
     update: () => ({ nome: "Betoneira Atualizada", quantidade: 2, etapa_atuacao: "Infraestrutura", custo_diario: 130, status: "Ativo", idobra: ids.obra }), changedField: "nome"
   },

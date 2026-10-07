@@ -6,11 +6,24 @@ exports.listarPorObra = (req, res) => {
   const idobra = req.query.idobra || req.headers["idobra"];
 
   if (!idobra) {
-    return res.status(400).send("O identificador da obra (idobra) é obrigatório.");
+    return Maquinario.getAll((err, results) => {
+      if (err) {
+        return res
+          .status(dbStatus(err))
+          .send("Erro interno no servidor ao listar maquinários.");
+      }
+
+      return res.json(results);
+    });
   }
 
   Maquinario.getByObra(idobra, (err, results) => {
-    if (err) return res.status(dbStatus(err)).send("Erro interno no servidor ao listar maquinários.");
+    if (err) {
+      return res
+        .status(dbStatus(err))
+        .send("Erro interno no servidor ao listar maquinários.");
+    }
+
     res.json(results);
   });
 };

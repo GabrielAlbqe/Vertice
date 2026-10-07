@@ -2,7 +2,7 @@
 --
 -- Host: 127.0.0.1    Database: valen
 -- ------------------------------------------------------
--- Server version 8.0.43
+-- Server version	8.0.43
 
 /*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
 /*!40101 SET @OLD_CHARACTER_SET_RESULTS=@@CHARACTER_SET_RESULTS */;
@@ -33,7 +33,7 @@ CREATE TABLE `apontamento_fisico` (
   KEY `atividade_eap_id_idx` (`atividade_eap_id`),
   CONSTRAINT `atividade_eap_id` FOREIGN KEY (`atividade_eap_id`) REFERENCES `atividade_eap` (`id_atividade`),
   CONSTRAINT `diario_id` FOREIGN KEY (`diario_id`) REFERENCES `diario_obra` (`id_diario`)
-) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=11 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -67,7 +67,7 @@ CREATE TABLE `apropriacao` (
   CONSTRAINT `id_atividade` FOREIGN KEY (`id_atividade`) REFERENCES `atividade_eap` (`id_atividade`),
   CONSTRAINT `id_insumo` FOREIGN KEY (`id_insumo`) REFERENCES `cadastro_de_insumos` (`id_insumos`),
   CONSTRAINT `id_usuario` FOREIGN KEY (`id_usuario`) REFERENCES `usuario` (`id_usuario`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=10 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -93,7 +93,7 @@ CREATE TABLE `atividade_eap` (
   PRIMARY KEY (`id_atividade`),
   KEY `idobra_idx` (`idx_obra`),
   CONSTRAINT `idx_obra` FOREIGN KEY (`idx_obra`) REFERENCES `obra` (`id_obra`)
-) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=20 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -123,7 +123,7 @@ CREATE TABLE `atraso` (
   PRIMARY KEY (`id_atraso`),
   KEY `fk_atraso_rdo` (`id_rdo`),
   CONSTRAINT `fk_atraso_rdo` FOREIGN KEY (`id_rdo`) REFERENCES `rdo` (`id_rdo`) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=10 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -149,11 +149,11 @@ CREATE TABLE `cadastro_de_equipes` (
   `quantidade_profissionais` int NOT NULL,
   `custo_diario` decimal(10,2) NOT NULL,
   `custo_mensal` decimal(10,2) NOT NULL,
-  `idobra` int NOT NULL,
+  `idobra` int DEFAULT NULL,
   PRIMARY KEY (`id_cadastro_equipes`),
   KEY `idobra_idx` (`idobra`),
   CONSTRAINT `idobra` FOREIGN KEY (`idobra`) REFERENCES `obra` (`id_obra`)
-) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=11 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -162,7 +162,7 @@ CREATE TABLE `cadastro_de_equipes` (
 
 LOCK TABLES `cadastro_de_equipes` WRITE;
 /*!40000 ALTER TABLE `cadastro_de_equipes` DISABLE KEYS */;
-INSERT INTO `cadastro_de_equipes` VALUES (1,'Equipe de Estruturas','Instalações',6,900.00,19800.00,1);
+INSERT INTO `cadastro_de_equipes` VALUES (1,'Equipe de Estruturas','Instalações',6,900.00,19800.00,NULL);
 /*!40000 ALTER TABLE `cadastro_de_equipes` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -181,7 +181,7 @@ CREATE TABLE `cadastro_de_equipes_terceirizadas` (
   PRIMARY KEY (`id_equipe_terceirizada`),
   KEY `fk_equipes_terceirizadas_obra` (`id_obra`),
   CONSTRAINT `fk_equipes_terceirizadas_obra` FOREIGN KEY (`id_obra`) REFERENCES `obra` (`id_obra`) ON DELETE CASCADE ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=10 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -205,11 +205,11 @@ CREATE TABLE `cadastro_de_insumos` (
   `nome` varchar(45) DEFAULT NULL,
   `quantidade_disponivel` int DEFAULT NULL,
   `valor_unitario` int DEFAULT NULL,
-  `idobra` int NOT NULL,
+  `idobra` int DEFAULT NULL,
   PRIMARY KEY (`id_insumos`),
   KEY `idobra_idx` (`idobra`),
   CONSTRAINT `id_obra` FOREIGN KEY (`idobra`) REFERENCES `obra` (`id_obra`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=10 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -235,11 +235,11 @@ CREATE TABLE `cadastro_de_maquinario` (
   `etapa_atuacao` enum('Mobilização','Infraestrutura','Supraestrutura e Alvenaria','Instalações','Revestimentos','Acabamentos') DEFAULT NULL,
   `custo_diario` decimal(10,2) DEFAULT NULL,
   `status` enum('Ativo','Inativo') DEFAULT NULL,
-  `idobra` int NOT NULL,
+  `idobra` int DEFAULT NULL,
   PRIMARY KEY (`id_maquina`),
   KEY `obra_id` (`idobra`),
   CONSTRAINT `obra_id` FOREIGN KEY (`idobra`) REFERENCES `obra` (`id_obra`)
-) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=11 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -248,7 +248,7 @@ CREATE TABLE `cadastro_de_maquinario` (
 
 LOCK TABLES `cadastro_de_maquinario` WRITE;
 /*!40000 ALTER TABLE `cadastro_de_maquinario` DISABLE KEYS */;
-INSERT INTO `cadastro_de_maquinario` VALUES (1,'Betoneira 400L',2,'Infraestrutura',120.00,'Ativo',1);
+INSERT INTO `cadastro_de_maquinario` VALUES (1,'Betoneira 400L',2,'Infraestrutura',120.00,'Ativo',NULL);
 /*!40000 ALTER TABLE `cadastro_de_maquinario` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -264,7 +264,7 @@ CREATE TABLE `cargo` (
   `nome_cargo` varchar(100) NOT NULL,
   `descricao` varchar(255) DEFAULT NULL,
   PRIMARY KEY (`id_cargo`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=10 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -288,7 +288,7 @@ CREATE TABLE `construtora` (
   `cnpj` varchar(14) DEFAULT NULL,
   `razao_social` varchar(255) DEFAULT NULL,
   PRIMARY KEY (`id_construtora`)
-) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=11 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -321,7 +321,7 @@ CREATE TABLE `consumo_insumo` (
   KEY `fk_consumo_insumo_insumo` (`id_insumo`),
   CONSTRAINT `fk_consumo_insumo_insumo` FOREIGN KEY (`id_insumo`) REFERENCES `cadastro_de_insumos` (`id_insumos`),
   CONSTRAINT `fk_consumo_insumo_rdo` FOREIGN KEY (`id_rdo`) REFERENCES `rdo` (`id_rdo`) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=10 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -351,7 +351,7 @@ CREATE TABLE `custo_planejado` (
   PRIMARY KEY (`id_custo_planejado`),
   KEY `fk_custo_planejado_obra` (`id_obra`),
   CONSTRAINT `fk_custo_planejado_obra` FOREIGN KEY (`id_obra`) REFERENCES `obra` (`id_obra`) ON DELETE CASCADE ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=10 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -388,7 +388,7 @@ CREATE TABLE `custo_realizado` (
   CONSTRAINT `fk_custo_realizado_etapa` FOREIGN KEY (`id_etapa`) REFERENCES `etapa` (`id_etapa`),
   CONSTRAINT `fk_custo_realizado_obra` FOREIGN KEY (`id_obra`) REFERENCES `obra` (`id_obra`),
   CONSTRAINT `fk_custo_realizado_rdo` FOREIGN KEY (`id_rdo`) REFERENCES `rdo` (`id_rdo`) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=10 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -426,7 +426,7 @@ CREATE TABLE `diario_obra` (
   KEY `id_usuario_idx` (`usuario_id`),
   CONSTRAINT `obrax_id` FOREIGN KEY (`obrax_id`) REFERENCES `obra` (`id_obra`),
   CONSTRAINT `usuario_id` FOREIGN KEY (`usuario_id`) REFERENCES `usuario` (`id_usuario`)
-) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=11 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -455,7 +455,7 @@ CREATE TABLE `equipe_etapa` (
   PRIMARY KEY (`id_equipe_etapa`),
   KEY `fk_equipe_etapa_equipe` (`id_equipe`),
   CONSTRAINT `fk_equipe_etapa_equipe` FOREIGN KEY (`id_equipe`) REFERENCES `cadastro_de_equipes` (`id_cadastro_equipes`) ON DELETE CASCADE ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=10 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -482,7 +482,7 @@ CREATE TABLE `etapa` (
   PRIMARY KEY (`id_etapa`),
   KEY `fk_etapa_obra` (`id_obra`),
   CONSTRAINT `fk_etapa_obra` FOREIGN KEY (`id_obra`) REFERENCES `obra` (`id_obra`) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=10 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -513,7 +513,7 @@ CREATE TABLE `historico_obras` (
   KEY `id_obra` (`id_obra`),
   CONSTRAINT `historico_obras_ibfk_1` FOREIGN KEY (`usuario_id`) REFERENCES `usuario` (`id_usuario`) ON DELETE CASCADE,
   CONSTRAINT `historico_obras_ibfk_2` FOREIGN KEY (`id_obra`) REFERENCES `obra` (`id_obra`) ON DELETE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=11 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -543,7 +543,7 @@ CREATE TABLE `metricas_eva` (
   PRIMARY KEY (`id_metrica`),
   KEY `obra_idxx_idx` (`obra_idxx`),
   CONSTRAINT `obra_idxx` FOREIGN KEY (`obra_idxx`) REFERENCES `obra` (`id_obra`)
-) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=11 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -576,7 +576,7 @@ CREATE TABLE `obra` (
   PRIMARY KEY (`id_obra`),
   KEY `idconstrutora_idx` (`id_construtora`),
   CONSTRAINT `id_construtora` FOREIGN KEY (`id_construtora`) REFERENCES `construtora` (`id_construtora`)
-) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=11 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -632,7 +632,7 @@ CREATE TABLE `paralisacao` (
   PRIMARY KEY (`id_paralisacao`),
   KEY `fk_paralisacao_rdo` (`id_rdo`),
   CONSTRAINT `fk_paralisacao_rdo` FOREIGN KEY (`id_rdo`) REFERENCES `rdo` (`id_rdo`) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=10 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -664,7 +664,7 @@ CREATE TABLE `projecao_financeira` (
   PRIMARY KEY (`id_projecao`),
   KEY `fk_projecao_financeira_obra` (`id_obra`),
   CONSTRAINT `fk_projecao_financeira_obra` FOREIGN KEY (`id_obra`) REFERENCES `obra` (`id_obra`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=10 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -692,7 +692,7 @@ CREATE TABLE `rdo` (
   PRIMARY KEY (`id_rdo`),
   KEY `fk_rdo_obra` (`id_obra`),
   CONSTRAINT `fk_rdo_obra` FOREIGN KEY (`id_obra`) REFERENCES `obra` (`id_obra`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=19 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -722,7 +722,7 @@ CREATE TABLE `rdo_equipe` (
   KEY `fk_rdo_equipe_equipe` (`id_equipe`),
   CONSTRAINT `fk_rdo_equipe_equipe` FOREIGN KEY (`id_equipe`) REFERENCES `cadastro_de_equipes` (`id_cadastro_equipes`),
   CONSTRAINT `fk_rdo_equipe_rdo` FOREIGN KEY (`id_rdo`) REFERENCES `rdo` (`id_rdo`) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=10 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -753,7 +753,7 @@ CREATE TABLE `rdo_maquinario` (
   KEY `fk_rdo_maquinario_maquinario` (`id_maquinario`),
   CONSTRAINT `fk_rdo_maquinario_maquinario` FOREIGN KEY (`id_maquinario`) REFERENCES `cadastro_de_maquinario` (`id_maquina`),
   CONSTRAINT `fk_rdo_maquinario_rdo` FOREIGN KEY (`id_rdo`) REFERENCES `rdo` (`id_rdo`) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=10 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -782,7 +782,7 @@ CREATE TABLE `registro_relatorios` (
   KEY `id_obra` (`id_obra`),
   CONSTRAINT `registro_relatorios_ibfk_1` FOREIGN KEY (`id_diario`) REFERENCES `diario_obra` (`id_diario`) ON DELETE CASCADE,
   CONSTRAINT `registro_relatorios_ibfk_2` FOREIGN KEY (`id_obra`) REFERENCES `obra` (`id_obra`) ON DELETE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=11 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -815,7 +815,7 @@ CREATE TABLE `usuario` (
   PRIMARY KEY (`id_usuario`),
   KEY `idconstrutora_idx` (`idconstrutora`),
   CONSTRAINT `idconstrutora` FOREIGN KEY (`idconstrutora`) REFERENCES `construtora` (`id_construtora`)
-) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=11 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -837,4 +837,4 @@ UNLOCK TABLES;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2026-09-23 17:49:03
+-- Dump completed on 2026-10-07 17:47:38
