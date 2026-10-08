@@ -1,7 +1,11 @@
-const bd = require("../config/connection");
+const bd = require(
+  "../config/connection"
+);
 
 const Insumos = {
-  getAll: (callback) => {
+  getAll: (
+    callback
+  ) => {
     const select = `
       SELECT *
       FROM cadastro_de_insumos
@@ -70,7 +74,8 @@ const Insumos = {
     callback
   ) => {
     const insert = `
-      INSERT INTO cadastro_de_insumos (
+      INSERT INTO cadastro_de_insumos
+      (
         nome,
         quantidade_disponivel,
         valor_unitario,
@@ -85,7 +90,10 @@ const Insumos = {
         data.nome,
         data.quantidade_disponivel,
         data.valor_unitario,
-        data.idobra,
+
+        data.idobra
+          ? Number(data.idobra)
+          : null,
       ],
       callback
     );
@@ -112,7 +120,32 @@ const Insumos = {
         data.nome,
         data.quantidade_disponivel,
         data.valor_unitario,
-        data.idobra,
+
+        data.idobra
+          ? Number(data.idobra)
+          : null,
+
+        id,
+      ],
+      callback
+    );
+  },
+
+  alterarObra: (
+    id,
+    idobra,
+    callback
+  ) => {
+    const update = `
+      UPDATE cadastro_de_insumos
+      SET idobra = ?
+      WHERE id_insumos = ?
+    `;
+
+    bd.query(
+      update,
+      [
+        idobra,
         id,
       ],
       callback

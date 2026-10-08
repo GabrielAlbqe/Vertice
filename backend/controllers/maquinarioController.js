@@ -1,65 +1,306 @@
-const Maquinario = require("../models/maquinarioModel");
-const { dbStatus } = require("../utils/dbError");
+const Maquinario = require(
+  "../models/maquinarioModel"
+);
 
-// Lista os maquinários filtrando pelo ID da obra
-exports.listarPorObra = (req, res) => {
-  const idobra = req.query.idobra || req.headers["idobra"];
+const {
+  dbStatus,
+} = require(
+  "../utils/dbError"
+);
+
+exports.listarPorObra = (
+  req,
+  res
+) => {
+  const idobra =
+    req.query.idobra ||
+    req.headers.idobra;
 
   if (!idobra) {
-    return Maquinario.getAll((err, results) => {
-      if (err) {
-        return res
-          .status(dbStatus(err))
-          .send("Erro interno no servidor ao listar maquinários.");
-      }
+    return Maquinario.getAll(
+      (
+        err,
+        results
+      ) => {
+        if (err) {
+          return res
+            .status(
+              dbStatus(err)
+            )
+            .json({
+              error:
+                err.message,
+            });
+        }
 
-      return res.json(results);
-    });
+        return res.json(
+          results
+        );
+      }
+    );
   }
 
-  Maquinario.getByObra(idobra, (err, results) => {
-    if (err) {
-      return res
-        .status(dbStatus(err))
-        .send("Erro interno no servidor ao listar maquinários.");
+  Maquinario.getByObra(
+    idobra,
+    (
+      err,
+      results
+    ) => {
+      if (err) {
+        return res
+          .status(
+            dbStatus(err)
+          )
+          .json({
+            error:
+              err.message,
+          });
+      }
+
+      res.json(
+        results
+      );
     }
-
-    res.json(results);
-  });
+  );
 };
 
-// Busca detalhes de um maquinário específico por ID
-exports.buscarPorId = (req, res) => {
-  Maquinario.getById(req.params.id, (err, results) => {
-    if (err) return res.status(dbStatus(err)).send("Erro interno no servidor ao buscar maquinário.");
-    if (results.length === 0) return res.status(404).send("Maquinário não encontrado.");
-    res.json(results[0]);
-  });
+exports.buscarPorId = (
+  req,
+  res
+) => {
+  Maquinario.getById(
+    req.params.id,
+    (
+      err,
+      results
+    ) => {
+      if (err) {
+        return res
+          .status(
+            dbStatus(err)
+          )
+          .json({
+            error:
+              err.message,
+          });
+      }
+
+      if (
+        !results ||
+        results.length === 0
+      ) {
+        return res
+          .status(404)
+          .json({
+            message:
+              "Maquinário não encontrado.",
+          });
+      }
+
+      res.json(
+        results[0]
+      );
+    }
+  );
 };
 
-// Remove um registro de maquinário do sistema
-exports.deletar = (req, res) => {
-  Maquinario.delete(req.params.id, (err, result) => {
-    if (err) return res.status(dbStatus(err)).send("Erro interno no servidor ao deletar maquinário.");
-    if (result.affectedRows === 0) return res.status(404).send("Maquinário não encontrado.");
-    res.send("Maquinário removido com sucesso!");
-  });
+exports.deletar = (
+  req,
+  res
+) => {
+  Maquinario.delete(
+    req.params.id,
+    (
+      err,
+      result
+    ) => {
+      if (err) {
+        return res
+          .status(
+            dbStatus(err)
+          )
+          .json({
+            error:
+              err.message,
+          });
+      }
+
+      if (
+        result.affectedRows ===
+        0
+      ) {
+        return res
+          .status(404)
+          .json({
+            message:
+              "Maquinário não encontrado.",
+          });
+      }
+
+      res.json({
+        message:
+          "Maquinário removido com sucesso!",
+      });
+    }
+  );
 };
 
-// Registra um novo maquinário
-exports.criar = (req, res) => {
-  // req.body deve conter: nome, quantidade, etapa_atuacao, custo_diario, status, idobra
-  Maquinario.create(req.body, (err) => {
-    if (err) return res.status(dbStatus(err)).send("Erro interno no servidor ao cadastrar maquinário.");
-    res.status(201).send("Maquinário registrado com sucesso!");
-  });
+exports.criar = (
+  req,
+  res
+) => {
+  const dados = {
+    ...req.body,
+
+    idobra:
+      req.body?.idobra ||
+      null,
+  };
+
+  Maquinario.create(
+    dados,
+    (
+      err,
+      result
+    ) => {
+      if (err) {
+        return res
+          .status(
+            dbStatus(err)
+          )
+          .json({
+            error:
+              err.message,
+          });
+      }
+
+      res
+        .status(201)
+        .json({
+          message:
+            "Maquinário registrado com sucesso!",
+
+          insertId:
+            result.insertId,
+        });
+    }
+  );
 };
 
-// Atualiza os dados de um maquinário existente
-exports.atualizar = (req, res) => {
-  Maquinario.update(req.params.id, req.body, (err, result) => {
-    if (err) return res.status(dbStatus(err)).send("Erro interno no servidor ao atualizar maquinário.");
-    if (result.affectedRows === 0) return res.status(404).send("Maquinário não encontrado.");
-    res.send("Maquinário atualizado com sucesso!");
-  });
+exports.atualizar = (
+  req,
+  res
+) => {
+  Maquinario.update(
+    req.params.id,
+    req.body,
+    (
+      err,
+      result
+    ) => {
+      if (err) {
+        return res
+          .status(
+            dbStatus(err)
+          )
+          .json({
+            error:
+              err.message,
+          });
+      }
+
+      if (
+        result.affectedRows ===
+        0
+      ) {
+        return res
+          .status(404)
+          .json({
+            message:
+              "Maquinário não encontrado.",
+          });
+      }
+
+      res.json({
+        message:
+          "Maquinário atualizado com sucesso!",
+      });
+    }
+  );
+};
+
+exports.alterarObra = (
+  req,
+  res
+) => {
+  let {
+    idobra,
+  } = req.body || {};
+
+  if (
+    idobra === "" ||
+    idobra === undefined
+  ) {
+    idobra = null;
+  }
+
+  if (
+    idobra !== null
+  ) {
+    idobra =
+      Number(idobra);
+
+    if (
+      !Number.isInteger(
+        idobra
+      ) ||
+      idobra <= 0
+    ) {
+      return res
+        .status(400)
+        .json({
+          message:
+            "ID da obra inválido.",
+        });
+    }
+  }
+
+  Maquinario.alterarObra(
+    req.params.id,
+    idobra,
+    (
+      err,
+      result
+    ) => {
+      if (err) {
+        return res
+          .status(
+            dbStatus(err)
+          )
+          .json({
+            error:
+              err.message,
+          });
+      }
+
+      if (
+        result.affectedRows ===
+        0
+      ) {
+        return res
+          .status(404)
+          .json({
+            message:
+              "Maquinário não encontrado.",
+          });
+      }
+
+      res.json({
+        message:
+          idobra
+            ? "Maquinário atribuído à obra com sucesso."
+            : "Maquinário desatribuído da obra com sucesso.",
+      });
+    }
+  );
 };

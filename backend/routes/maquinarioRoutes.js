@@ -1,12 +1,43 @@
-const express = require("express");
-const router = express.Router();
-const maquinarioController = require("../controllers/maquinarioController");
+const express =
+  require("express");
 
-// Endpoints da API para controle de Maquinários
-router.get("/", maquinarioController.listarPorObra);
-router.get("/:id", maquinarioController.buscarPorId);
-router.delete("/del/:id", maquinarioController.deletar);
-router.post("/insert", maquinarioController.criar);
-router.put("/insert/:id", maquinarioController.atualizar);
+const router =
+  express.Router();
 
-module.exports = router;
+const maquinarioController =
+  require(
+    "../controllers/maquinarioController"
+  );
+
+router.get(
+  "/",
+  maquinarioController.listarPorObra
+);
+
+router.get(
+  "/:id",
+  maquinarioController.buscarPorId
+);
+
+router.post(
+  "/insert",
+  maquinarioController.criar
+);
+
+router.put(
+  "/insert/:id",
+  maquinarioController.atualizar
+);
+
+router.patch(
+  "/:id/obra",
+  maquinarioController.alterarObra
+);
+
+router.delete(
+  "/del/:id",
+  maquinarioController.deletar
+);
+
+module.exports =
+  router;

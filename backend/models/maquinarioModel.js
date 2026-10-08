@@ -1,7 +1,11 @@
-const bd = require("../config/connection");
+const bd = require(
+  "../config/connection"
+);
 
 const Maquinario = {
-  getAll: (callback) => {
+  getAll: (
+    callback
+  ) => {
     const select = `
       SELECT *
       FROM cadastro_de_maquinario
@@ -70,7 +74,8 @@ const Maquinario = {
     callback
   ) => {
     const insert = `
-      INSERT INTO cadastro_de_maquinario (
+      INSERT INTO cadastro_de_maquinario
+      (
         nome,
         quantidade,
         etapa_atuacao,
@@ -86,10 +91,18 @@ const Maquinario = {
       [
         data.nome,
         data.quantidade,
-        data.etapa_atuacao,
+
+        data.etapa_atuacao ||
+          null,
+
         data.custo_diario,
-        data.status,
-        data.idobra,
+
+        data.status ||
+          "Ativo",
+
+        data.idobra
+          ? Number(data.idobra)
+          : null,
       ],
       callback
     );
@@ -117,10 +130,40 @@ const Maquinario = {
       [
         data.nome,
         data.quantidade,
-        data.etapa_atuacao,
+
+        data.etapa_atuacao ||
+          null,
+
         data.custo_diario,
-        data.status,
-        data.idobra,
+
+        data.status ||
+          "Ativo",
+
+        data.idobra
+          ? Number(data.idobra)
+          : null,
+
+        id,
+      ],
+      callback
+    );
+  },
+
+  alterarObra: (
+    id,
+    idobra,
+    callback
+  ) => {
+    const update = `
+      UPDATE cadastro_de_maquinario
+      SET idobra = ?
+      WHERE id_maquina = ?
+    `;
+
+    bd.query(
+      update,
+      [
+        idobra,
         id,
       ],
       callback
