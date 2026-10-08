@@ -1,5 +1,13 @@
+const path = require("path");
+
+require("dotenv").config({
+  path: path.join(__dirname, ".env"),
+});
+
 const express = require("express");
 const cors = require("cors");
+
+const autenticar = require("./middlewares/autenticar");
 
 // Inicialização do aplicativo Express
 const app = express();
@@ -9,6 +17,25 @@ const app = express();
 // =============================================================
 app.use(cors()); // Permite que o Front-End se comunique com a API
 app.use(express.json()); // Habilita o recebimento de dados em formato JSON no corpo das requisições
+
+app.use((req, res, next) => {
+  console.log("PASSOU PELO MIDDLEWARE:", req.method, req.path);
+  next();
+});
+
+app.use((req, res, next) => {
+  console.log("JWT middleware:", req.method, req.path);
+  const rotaPublica =
+    (req.method === "POST" && req.path === "/api/usuarios/login") ||
+    (req.method === "POST" && req.path === "/api/usuarios/insert") ||
+    (req.method === "GET" && req.path === "/api/health");
+
+  if (rotaPublica) {
+    return next();
+  }
+
+  return autenticar(req, res, next);
+});
 
 // =============================================================
 // IMPORTAÇÃO DAS ROTAS (Em ordem alfabética)
@@ -45,6 +72,8 @@ const projecaoFinanceiraRoutes = require("./routes/projecaoFinanceiraRoutes");
 // VINCULAÇÃO DOS ENDPOINTS DA API
 // =============================================================
 // Módulos Gerais e Estruturais
+app.use("/api/obras", obraRoutes);
+app.use("/api/equipes", equipeRoutes);
 app.use("/api/apontamentos-fisicos", apontamentoFisicoRoutes);
 app.use("/api/apropriacoes", apropriacaoRoutes);
 app.use("/api/atividades-eap", atividadeEapRoutes);
@@ -53,14 +82,12 @@ app.use("/api/construtoras", construtoraRoutes);
 app.use("/api/custos-planejados", custoPlanejadoRoutes);
 app.use("/api/diarios-obra", diarioObraRoutes);
 app.use("/api/equipes-etapas", equipeEtapaRoutes);
-app.use("/api/equipes", equipeRoutes);
 app.use("/api/equipes-terceirizadas", equipeTerceirizadaRoutes);
 app.use("/api/etapas", etapaRoutes);
 app.use("/api/historico-obras", historicoObrasRoutes);
 app.use("/api/insumos", insumoRoutes);
 app.use("/api/maquinarios", maquinarioRoutes);
 app.use("/api/metricas-eva", metricaEvaRoutes);
-app.use("/api/obras", obraRoutes);
 app.use("/api/orcamentos-previstos", orcamentoPrevistoRoutes);
 app.use("/api/registro-relatorios", registroRelatoriosRoutes);
 app.use("/api/usuarios", usuarioRoutes);
@@ -80,14 +107,14 @@ app.get("/api/health", (req, res) => {
   res.status(200).json({
     status: "online",
     timestamp: new Date(),
-    banco_dados: "conectado"
+    banco_dados: "conectado",
   });
 });
 
 // =============================================================
 // INICIALIZAÇÃO DO SERVIDOR
 // =============================================================
-if (process.env.NODE_ENV !== 'test') {
+if (process.env.NODE_ENV !== "test") {
   const PORT = process.env.PORT || 3000;
   app.listen(PORT, () => {
     console.log(`====================================================`);
