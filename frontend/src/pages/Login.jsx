@@ -1,18 +1,45 @@
-import { useEffect, useRef, useState } from "react";
-import { requisitar } from "../api/api";
-import { usuarioSeguro } from "../canteiro/sessao";
+import {
+  useEffect,
+  useRef,
+  useState,
+} from "react";
+
+import {
+  requisitar,
+} from "../api/api";
+
+import {
+  usuarioSeguro,
+} from "../canteiro/sessao";
+
 import logoVertice from "../assets/logo-vertice.png";
 
-function Login({ onLogin, onCadastro }) {
+function Login({
+  onLogin,
+  onCadastro,
+}) {
   const trava = useRef(false);
-  const [email, setEmail] = useState("");
-  const [senha, setSenha] = useState("");
-  const [lembrarEmail, setLembrarEmail] =
-    useState(false);
-  const [mensagem, setMensagem] =
+
+  const [email, setEmail] =
     useState("");
-  const [carregando, setCarregando] =
-    useState(false);
+
+  const [senha, setSenha] =
+    useState("");
+
+  const [
+    lembrarEmail,
+    setLembrarEmail,
+  ] = useState(false);
+
+  const [
+    mensagem,
+    setMensagem,
+  ] = useState("");
+
+  const [
+    carregando,
+    setCarregando,
+  ] = useState(false);
 
   // =====================================================
   // CARREGAR E-MAIL LEMBRADO
@@ -36,7 +63,11 @@ function Login({ onLogin, onCadastro }) {
 
   async function entrar(evento) {
     evento.preventDefault();
-    if (trava.current) return;
+
+    if (trava.current) {
+      return;
+    }
+
     trava.current = true;
 
     try {
@@ -55,6 +86,10 @@ function Login({ onLogin, onCadastro }) {
         );
       }
 
+      // =================================================
+      // ENVIAR LOGIN PARA O BACKEND
+      // =================================================
+
       const dados =
         await requisitar(
           "/usuarios/login",
@@ -63,14 +98,33 @@ function Login({ onLogin, onCadastro }) {
 
             body: JSON.stringify({
               email:
-                email.trim(),
+                email
+                  .trim()
+                  .toLowerCase(),
+
               senha,
             }),
           }
         );
 
+      // =================================================
+      // VALIDAR TOKEN JWT
+      // =================================================
+
+      if (!dados?.token) {
+        throw new Error(
+          "O servidor não retornou o token de autenticação."
+        );
+      }
+
+      // =================================================
+      // VALIDAR USUÁRIO
+      // =================================================
+
       const usuario =
-        usuarioSeguro(dados?.usuario || {});
+        usuarioSeguro(
+          dados?.usuario || {}
+        );
 
       if (!usuario) {
         throw new Error(
@@ -84,7 +138,31 @@ function Login({ onLogin, onCadastro }) {
         );
       }
 
-      ["usuario", "idconstrutora", "id_construtora", "obra_selecionada"].forEach(chave => localStorage.removeItem(chave));
+      // =================================================
+      // LIMPAR SESSÃO ANTERIOR
+      // =================================================
+
+      [
+        "usuario",
+        "idconstrutora",
+        "id_construtora",
+        "obra_selecionada",
+        "token",
+      ].forEach(
+        (chave) =>
+          localStorage.removeItem(
+            chave
+          )
+      );
+
+      // =================================================
+      // SALVAR TOKEN JWT
+      // =================================================
+
+      localStorage.setItem(
+        "token",
+        dados.token
+      );
 
       // =================================================
       // SALVAR USUÁRIO LOGADO
@@ -122,6 +200,10 @@ function Login({ onLogin, onCadastro }) {
         usuario.status || ""
       );
 
+      // =================================================
+      // CONSTRUTORA É OPCIONAL
+      // =================================================
+
       if (
         usuario.idconstrutora !==
           undefined &&
@@ -135,8 +217,7 @@ function Login({ onLogin, onCadastro }) {
           )
         );
 
-        // Mantido também para compatibilidade
-        // com partes antigas do frontend.
+        // Compatibilidade com partes antigas do frontend
         localStorage.setItem(
           "id_construtora",
           String(
@@ -152,13 +233,15 @@ function Login({ onLogin, onCadastro }) {
 
       // =================================================
       // LEMBRAR SOMENTE O E-MAIL
-      // Nunca salvamos a senha.
+      // A SENHA NUNCA É SALVA
       // =================================================
 
       if (lembrarEmail) {
         localStorage.setItem(
           "email_lembrado",
-          email.trim()
+          email
+            .trim()
+            .toLowerCase()
         );
       } else {
         localStorage.removeItem(
@@ -167,7 +250,7 @@ function Login({ onLogin, onCadastro }) {
       }
 
       // =================================================
-      // IR PARA O SISTEMA
+      // ENTRAR NO SISTEMA
       // =================================================
 
       if (
@@ -193,12 +276,11 @@ function Login({ onLogin, onCadastro }) {
   }
 
   // =====================================================
-  // JSX
+  // INTERFACE
   // =====================================================
 
   return (
     <div className="auth-page">
-
       <div className="auth-container">
 
         <div className="auth-brand">
@@ -212,7 +294,6 @@ function Login({ onLogin, onCadastro }) {
         <div className="auth-card">
 
           <div className="auth-header">
-
             <h2>
               Entrar
             </h2>
@@ -220,21 +301,27 @@ function Login({ onLogin, onCadastro }) {
             <p>
               Acesse sua conta para continuar.
             </p>
-
           </div>
 
           {mensagem && (
             <div
-              className="auth-error" role="alert"
+              className="auth-error"
+              role="alert"
               style={{
-                marginBottom: "18px",
+                marginBottom:
+                  "18px",
               }}
             >
               {mensagem}
             </div>
           )}
 
-          <form onSubmit={entrar}>
+          <form
+            onSubmit={entrar}
+            aria-busy={
+              carregando
+            }
+          >
 
             <div className="form-group">
 
@@ -246,14 +333,19 @@ function Login({ onLogin, onCadastro }) {
                 id="email"
                 type="email"
                 value={email}
-                onChange={(evento) =>
-                  setEmail(
-                    evento.target.value
-                  )
+                onChange={
+                  (evento) =>
+                    setEmail(
+                      evento
+                        .target
+                        .value
+                    )
                 }
                 placeholder="seuemail@empresa.com"
                 autoComplete="email"
-                disabled={carregando}
+                disabled={
+                  carregando
+                }
                 required
               />
 
@@ -269,14 +361,19 @@ function Login({ onLogin, onCadastro }) {
                 id="senha"
                 type="password"
                 value={senha}
-                onChange={(evento) =>
-                  setSenha(
-                    evento.target.value
-                  )
+                onChange={
+                  (evento) =>
+                    setSenha(
+                      evento
+                        .target
+                        .value
+                    )
                 }
                 placeholder="Digite sua senha"
                 autoComplete="current-password"
-                disabled={carregando}
+                disabled={
+                  carregando
+                }
                 required
               />
 
@@ -286,22 +383,32 @@ function Login({ onLogin, onCadastro }) {
 
               <label
                 style={{
-                  display: "flex",
-                  alignItems: "center",
+                  display:
+                    "flex",
+                  alignItems:
+                    "center",
                   gap: "8px",
-                  cursor: "pointer",
+                  cursor:
+                    "pointer",
                 }}
               >
 
                 <input
                   type="checkbox"
-                  checked={lembrarEmail}
-                  onChange={(evento) =>
-                    setLembrarEmail(
-                      evento.target.checked
-                    )
+                  checked={
+                    lembrarEmail
                   }
-                  disabled={carregando}
+                  onChange={
+                    (evento) =>
+                      setLembrarEmail(
+                        evento
+                          .target
+                          .checked
+                      )
+                  }
+                  disabled={
+                    carregando
+                  }
                   style={{
                     width: "auto",
                   }}
@@ -316,7 +423,9 @@ function Login({ onLogin, onCadastro }) {
             <button
               type="submit"
               className="auth-button"
-              disabled={carregando}
+              disabled={
+                carregando
+              }
             >
               {carregando
                 ? "Entrando..."
@@ -328,7 +437,8 @@ function Login({ onLogin, onCadastro }) {
           <div
             className="auth-footer"
             style={{
-              marginTop: "22px",
+              marginTop:
+                "22px",
             }}
           >
 
@@ -346,7 +456,9 @@ function Login({ onLogin, onCadastro }) {
                   onCadastro();
                 }
               }}
-              disabled={carregando}
+              disabled={
+                carregando
+              }
             >
               Cadastre-se
             </button>
@@ -356,7 +468,6 @@ function Login({ onLogin, onCadastro }) {
         </div>
 
       </div>
-
     </div>
   );
 }
