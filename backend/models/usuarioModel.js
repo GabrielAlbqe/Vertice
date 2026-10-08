@@ -80,12 +80,13 @@ const Usuario = {
   // =====================================================
   // LOGIN
   // =====================================================
-  buscarUsuarioPorEmailESenha: (email, senha, callback) => {
+  buscarPorEmail: (email, callback) => {
     const select = `
       SELECT
         id_usuario,
         nome,
         email,
+        senha,
         ocupacao,
         ambiente,
         status,
@@ -93,14 +94,14 @@ const Usuario = {
         idconstrutora
       FROM usuario
       WHERE email = ?
-        AND senha = ?
+
         AND status = 'Ativo'
       LIMIT 1
     `;
 
     bd.query(
       select,
-      [email, senha],
+      [email],
       callback
     );
   }
