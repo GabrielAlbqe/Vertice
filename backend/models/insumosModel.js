@@ -1,110 +1,88 @@
-const bd = require(
-  "../config/connection"
-);
+
+const bd = require("../config/connection");
 
 const Insumos = {
-  getAll: (
-    callback
-  ) => {
-    const select = `
+  getAll: (idConstrutora, callback) => {
+    const sql = `
       SELECT *
       FROM cadastro_de_insumos
+      WHERE id_construtora = ?
       ORDER BY id_insumos DESC
     `;
 
-    bd.query(
-      select,
-      callback
-    );
+    bd.query(sql, [idConstrutora], callback);
   },
 
-  getByObra: (
-    idobra,
-    callback
-  ) => {
-    const select = `
+  getByObra: (idObra, idConstrutora, callback) => {
+    const sql = `
       SELECT *
       FROM cadastro_de_insumos
       WHERE idobra = ?
+        AND id_construtora = ?
       ORDER BY id_insumos DESC
     `;
 
-    bd.query(
-      select,
-      [idobra],
-      callback
-    );
+    bd.query(sql, [idObra, idConstrutora], callback);
   },
 
-  getById: (
-    id,
-    callback
-  ) => {
-    const select = `
+  getSemObra: (idConstrutora, callback) => {
+    const sql = `
+      SELECT *
+      FROM cadastro_de_insumos
+      WHERE idobra IS NULL
+        AND id_construtora = ?
+      ORDER BY id_insumos DESC
+    `;
+
+    bd.query(sql, [idConstrutora], callback);
+  },
+
+  getById: (id, idConstrutora, callback) => {
+    const sql = `
       SELECT *
       FROM cadastro_de_insumos
       WHERE id_insumos = ?
+        AND id_construtora = ?
     `;
 
-    bd.query(
-      select,
-      [id],
-      callback
-    );
+    bd.query(sql, [id, idConstrutora], callback);
   },
 
-  delete: (
-    id,
-    callback
-  ) => {
-    const del = `
-      DELETE FROM cadastro_de_insumos
-      WHERE id_insumos = ?
+  verificarObra: (idObra, idConstrutora, callback) => {
+    const sql = `
+      SELECT id_obra
+      FROM obra
+      WHERE id_obra = ?
+        AND id_construtora = ?
     `;
 
-    bd.query(
-      del,
-      [id],
-      callback
-    );
+    bd.query(sql, [idObra, idConstrutora], callback);
   },
 
-  create: (
-    data,
-    callback
-  ) => {
-    const insert = `
+  create: (dados, idConstrutora, callback) => {
+    const sql = `
       INSERT INTO cadastro_de_insumos
       (
         nome,
         quantidade_disponivel,
         valor_unitario,
-        idobra
+        idobra,
+        id_construtora
       )
-      VALUES (?, ?, ?, ?)
+      VALUES (?, ?, ?, ?, ?)
     `;
 
-    bd.query(
-      insert,
-      [
-        data.nome,
-        data.quantidade_disponivel,
-        data.valor_unitario,
-
-        data.idobra
-          ? Number(data.idobra)
-          : null,
-      ],
-      callback
-    );
+    bd.query(sql, [
+      dados.nome,
+      dados.quantidade_disponivel,
+      dados.valor_unitario,
+      dados.idobra ?? null,
+      idConstrutora
+    ], callback);
   },
 
-  update: (
-    id,
-    data,
-    callback
-  ) => {
-    const update = `
+  update: (id, dados, idConstrutora, callback) => {
+    const sql = `
       UPDATE cadastro_de_insumos
       SET
         nome = ?,
@@ -112,46 +90,43 @@ const Insumos = {
         valor_unitario = ?,
         idobra = ?
       WHERE id_insumos = ?
+        AND id_construtora = ?
     `;
 
-    bd.query(
-      update,
-      [
-        data.nome,
-        data.quantidade_disponivel,
-        data.valor_unitario,
-
-        data.idobra
-          ? Number(data.idobra)
-          : null,
-
-        id,
-      ],
-      callback
-    );
+    bd.query(sql, [
+      dados.nome,
+      dados.quantidade_disponivel,
+      dados.valor_unitario,
+      dados.idobra ?? null,
+      id,
+      idConstrutora
+    ], callback);
   },
 
-  alterarObra: (
-    id,
-    idobra,
-    callback
-  ) => {
-    const update = `
+  updateObra: (id, idObra, idConstrutora, callback) => {
+    const sql = `
       UPDATE cadastro_de_insumos
       SET idobra = ?
       WHERE id_insumos = ?
+        AND id_construtora = ?
     `;
 
-    bd.query(
-      update,
-      [
-        idobra,
-        id,
-      ],
-      callback
-    );
+    bd.query(sql, [
+      idObra,
+      id,
+      idConstrutora
+    ], callback);
   },
+
+  delete: (id, idConstrutora, callback) => {
+    const sql = `
+      DELETE FROM cadastro_de_insumos
+      WHERE id_insumos = ?
+        AND id_construtora = ?
+    `;
+
+    bd.query(sql, [id, idConstrutora], callback);
+  }
 };
 
-module.exports =
-  Insumos;
+module.exports = Insumos;

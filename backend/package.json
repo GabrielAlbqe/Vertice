@@ -1,4 +1,12 @@
+
 {
+  "name": "vertice-backend",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "start": "node app.js",
+    "test": "node --test --test-concurrency=1 tests/recursos.test.js tests/equipes.construtora.test.js tests/maquinarios.construtora.test.js"
+  },
   "dependencies": {
     "bcryptjs": "^3.0.3",
     "cors": "^2.8.6",
@@ -6,5 +14,8 @@
     "express": "^5.2.1",
     "jsonwebtoken": "^9.0.3",
     "mysql2": "^3.22.5"
+  },
+  "devDependencies": {
+    "supertest": "^7.1.4"
   }
 }

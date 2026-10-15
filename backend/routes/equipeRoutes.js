@@ -1,44 +1,15 @@
-const express =
-  require("express");
+const express = require('express');
+const router = express.Router();
 
-const router =
-  express.Router();
+const exigirConstrutora = require('../middlewares/exigirConstrutora');
+const equipeController = require('../controllers/equipeController');
 
-const equipeController =
-  require(
-    "../controllers/equipeController"
-  );
+router.use(exigirConstrutora);
+router.get('/', equipeController.listarPorObra);
+router.post('/insert', equipeController.criar);
+router.patch('/:id/obra', equipeController.alterarObra);
+router.get('/:id', equipeController.buscarPorId);
+router.put('/insert/:id', equipeController.atualizar);
+router.delete('/del/:id', equipeController.deletar);
 
-router.get(
-  "/",
-  equipeController.listarPorObra
-);
-
-router.get(
-  "/:id",
-  equipeController.buscarPorId
-);
-
-router.post(
-  "/insert",
-  equipeController.criar
-);
-
-router.put(
-  "/insert/:id",
-  equipeController.atualizar
-);
-
-// Nova rota específica para atribuição
-router.patch(
-  "/:id/obra",
-  equipeController.alterarObra
-);
-
-router.delete(
-  "/del/:id",
-  equipeController.deletar
-);
-
-module.exports =
-  router;
+module.exports = router;

@@ -1,188 +1,82 @@
-const bd = require("../config/connection");
+const bd = require('../config/connection');
 
 const Equipe = {
-  // =====================================================
-  // LISTAR TODAS
-  // =====================================================
-
-  getAll: (callback) => {
-    const select = `
-      SELECT *
-      FROM cadastro_de_equipes
-      ORDER BY id_cadastro_equipes DESC
-    `;
-
+  getAll: (idConstrutora, callback) => {
     bd.query(
-      select,
-      callback
+      'SELECT * FROM cadastro_de_equipes WHERE id_construtora = ? ORDER BY id_cadastro_equipes DESC',
+      [idConstrutora], callback
     );
   },
 
-  // =====================================================
-  // LISTAR POR OBRA
-  // =====================================================
-
-  getByObra: (
-    idobra,
-    callback
-  ) => {
-    const select = `
-      SELECT *
-      FROM cadastro_de_equipes
-      WHERE idobra = ?
-      ORDER BY id_cadastro_equipes DESC
-    `;
-
+  getByObra: (idobra, idConstrutora, callback) => {
     bd.query(
-      select,
-      [idobra],
-      callback
+      'SELECT * FROM cadastro_de_equipes WHERE idobra = ? AND id_construtora = ? ORDER BY id_cadastro_equipes DESC',
+      [idobra, idConstrutora], callback
     );
   },
 
-  // =====================================================
-  // BUSCAR POR ID
-  // =====================================================
-
-  getById: (
-    id,
-    callback
-  ) => {
-    const select = `
-      SELECT *
-      FROM cadastro_de_equipes
-      WHERE id_cadastro_equipes = ?
-    `;
-
+  getSemObra: (idConstrutora, callback) => {
     bd.query(
-      select,
-      [id],
-      callback
+      'SELECT * FROM cadastro_de_equipes WHERE idobra IS NULL AND id_construtora = ? ORDER BY id_cadastro_equipes DESC',
+      [idConstrutora], callback
     );
   },
 
-  // =====================================================
-  // EXCLUIR
-  // =====================================================
-
-  delete: (
-    id,
-    callback
-  ) => {
-    const del = `
-      DELETE FROM cadastro_de_equipes
-      WHERE id_cadastro_equipes = ?
-    `;
-
+  getById: (id, idConstrutora, callback) => {
     bd.query(
-      del,
-      [id],
-      callback
+      'SELECT * FROM cadastro_de_equipes WHERE id_cadastro_equipes = ? AND id_construtora = ?',
+      [id, idConstrutora], callback
     );
   },
 
-  // =====================================================
-  // CRIAR
-  // =====================================================
+  verificarObra: (idobra, idConstrutora, callback) => {
+    bd.query(
+      'SELECT id_obra FROM obra WHERE id_obra = ? AND id_construtora = ?',
+      [idobra, idConstrutora], callback
+    );
+  },
 
-  create: (
-    data,
-    callback
-  ) => {
-    const insert = `
+  create: (dados, idConstrutora, callback) => {
+    const sql = `
       INSERT INTO cadastro_de_equipes
-      (
-        nome_equipe,
-        etapa_atuacao,
-        quantidade_profissionais,
-        custo_diario,
-        custo_mensal,
-        idobra
-      )
-      VALUES (?, ?, ?, ?, ?, ?)
+      (nome_equipe, etapa_atuacao, quantidade_profissionais,
+       custo_diario, custo_mensal, idobra, id_construtora)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
     `;
-
-    bd.query(
-      insert,
-      [
-        data.nome_equipe,
-        data.etapa_atuacao,
-        data.quantidade_profissionais,
-        data.custo_diario,
-        data.custo_mensal,
-
-        data.idobra
-          ? Number(data.idobra)
-          : null,
-      ],
-      callback
-    );
+    bd.query(sql, [
+      dados.nome_equipe, dados.etapa_atuacao,
+      dados.quantidade_profissionais, dados.custo_diario,
+      dados.custo_mensal, dados.idobra ?? null, idConstrutora
+    ], callback);
   },
 
-  // =====================================================
-  // ATUALIZAR CADASTRO
-  // =====================================================
-
-  update: (
-    id,
-    data,
-    callback
-  ) => {
-    const update = `
+  update: (id, dados, idConstrutora, callback) => {
+    const sql = `
       UPDATE cadastro_de_equipes
-      SET
-        nome_equipe = ?,
-        etapa_atuacao = ?,
-        quantidade_profissionais = ?,
-        custo_diario = ?,
-        custo_mensal = ?,
-        idobra = ?
-      WHERE id_cadastro_equipes = ?
+      SET nome_equipe = ?, etapa_atuacao = ?, quantidade_profissionais = ?,
+          custo_diario = ?, custo_mensal = ?, idobra = ?
+      WHERE id_cadastro_equipes = ? AND id_construtora = ?
     `;
+    bd.query(sql, [
+      dados.nome_equipe, dados.etapa_atuacao,
+      dados.quantidade_profissionais, dados.custo_diario,
+      dados.custo_mensal, dados.idobra ?? null, id, idConstrutora
+    ], callback);
+  },
 
+  updateObra: (id, idobra, idConstrutora, callback) => {
     bd.query(
-      update,
-      [
-        data.nome_equipe,
-        data.etapa_atuacao,
-        data.quantidade_profissionais,
-        data.custo_diario,
-        data.custo_mensal,
-
-        data.idobra
-          ? Number(data.idobra)
-          : null,
-
-        id,
-      ],
-      callback
+      'UPDATE cadastro_de_equipes SET idobra = ? WHERE id_cadastro_equipes = ? AND id_construtora = ?',
+      [idobra, id, idConstrutora], callback
     );
   },
 
-  // =====================================================
-  // ATRIBUIR / TRANSFERIR / DESATRIBUIR
-  // =====================================================
-
-  alterarObra: (
-    id,
-    idobra,
-    callback
-  ) => {
-    const update = `
-      UPDATE cadastro_de_equipes
-      SET idobra = ?
-      WHERE id_cadastro_equipes = ?
-    `;
-
+  delete: (id, idConstrutora, callback) => {
     bd.query(
-      update,
-      [
-        idobra,
-        id,
-      ],
-      callback
+      'DELETE FROM cadastro_de_equipes WHERE id_cadastro_equipes = ? AND id_construtora = ?',
+      [id, idConstrutora], callback
     );
-  },
+  }
 };
 
 module.exports = Equipe;

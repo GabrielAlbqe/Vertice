@@ -1,43 +1,29 @@
-const express =
-  require("express");
 
-const router =
-  express.Router();
+const express = require("express");
+const router = express.Router();
 
-const insumosController =
-  require(
-    "../controllers/insumosController"
-  );
+const exigirConstrutora = require("../middlewares/exigirConstrutora");
+const insumosController = require("../controllers/insumosController");
 
-router.get(
-  "/",
-  insumosController.listarPorObra
-);
+// Exigir construtora autorizada em todas as rotas
+router.use(exigirConstrutora);
 
-router.get(
-  "/:id",
-  insumosController.buscarPorId
-);
+// Listagem de insumos
+router.get("/", insumosController.listarPorObra);
 
-router.post(
-  "/insert",
-  insumosController.criar
-);
+// Cadastro de insumos
+router.post("/insert", insumosController.criar);
 
-router.put(
-  "/insert/:id",
-  insumosController.atualizar
-);
+// Atribuição e desatribuição de obras
+router.patch("/:id/obra", insumosController.alterarObra);
 
-router.patch(
-  "/:id/obra",
-  insumosController.alterarObra
-);
+// Consulta por ID
+router.get("/:id", insumosController.buscarPorId);
 
-router.delete(
-  "/del/:id",
-  insumosController.deletar
-);
+// Atualização
+router.put("/insert/:id", insumosController.atualizar);
 
-module.exports =
-  router;
+// Exclusão
+router.delete("/del/:id", insumosController.deletar);
+
+module.exports = router;

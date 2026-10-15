@@ -1,308 +1,317 @@
-const Insumos = require(
-  "../models/insumosModel"
-);
 
-const {
-  dbStatus,
-} = require(
-  "../utils/dbError"
-);
+const Insumos = require("../models/insumosModel");
+const { dbStatus } = require("../utils/dbError");
 
-exports.listarPorObra = (
-  req,
-  res
-) => {
-  const idobra =
-    req.query.idobra ||
-    req.headers.idobra;
-
-  if (!idobra) {
-    return Insumos.getAll(
-      (
-        err,
-        results
-      ) => {
-        if (err) {
-          return res
-            .status(
-              dbStatus(err)
-            )
-            .json({
-              error:
-                err.message,
-            });
-        }
-
-        return res.json(
-          results
-        );
-      }
-    );
+function idValido(valor) {
+  if (
+    valor === null ||
+    valor === undefined ||
+    valor === "" ||
+    typeof valor === "boolean"
+  ) {
+    return false;
   }
 
-  Insumos.getByObra(
-    idobra,
-    (
-      err,
-      results
-    ) => {
-      if (err) {
-        return res
-          .status(
-            dbStatus(err)
-          )
-          .json({
-            error:
-              err.message,
-          });
+  const numero = Number(valor);
+  return Number.isSafeInteger(numero) && numero > 0;
+}
+
+function obterObra(dados) {
+  const valor = dados?.idobra;
+
+  if (valor === null || valor === undefined || valor === "") {
+    return null;
+  }
+
+  return valor;
+}
+
+function erroBanco(res, erro) {
+  console.error("Erro no módulo de insumos:", erro.message);
+
+  return res.status(dbStatus(erro)).json({
+    message: "Erro ao processar operação no banco."
+  });
+}
+
+function validarObra(idObra, idConstrutora, res, continuar) {
+  if (idObra === null) {
+    return continuar();
+  }
+
+  if (!idValido(idObra)) {
+    return res.status(400).json({
+      message: "ID da obra inválido."
+    });
+  }
+
+  Insumos.verificarObra(
+    Number(idObra),
+    idConstrutora,
+    (erro, obras) => {
+      if (erro) return erroBanco(res, erro);
+
+      if (!obras.length) {
+        return res.status(404).json({
+          message: "Obra não encontrada nesta construtora."
+        });
       }
 
-      return res.json(
-        results
-      );
+      return continuar();
     }
   );
-};
+}
 
-exports.buscarPorId = (
-  req,
-  res
-) => {
-  Insumos.getById(
-    req.params.id,
-    (
-      err,
-      results
-    ) => {
-      if (err) {
-        return res
-          .status(
-            dbStatus(err)
-          )
-          .json({
-            error:
-              err.message,
-          });
-      }
+function validarDados(dados) {
+  if (
+    typeof dados?.nome !== "string" ||
+    !dados.nome.trim() ||
+    dados.nome.trim().length > 45
+  ) {
+    return "Informe um nome válido de até 45 caracteres.";
+  }
 
-      if (
-        !results ||
-        results.length === 0
-      ) {
-        return res
-          .status(404)
-          .json({
-            message:
-              "Insumo não encontrado.",
-          });
-      }
+  const quantidade = dados.quantidade_disponivel;
+  const valor = dados.valor_unitario;
 
-      res.json(
-        results[0]
-      );
-    }
-  );
-};
+  if (
+    !Number.isSafeInteger(quantidade) ||
+    quantidade < 0
+  ) {
+    return "Quantidade disponível inválida.";
+  }
 
-exports.deletar = (
-  req,
-  res
-) => {
-  Insumos.delete(
-    req.params.id,
-    (
-      err,
-      result
-    ) => {
-      if (err) {
-        return res
-          .status(
-            dbStatus(err)
-          )
-          .json({
-            error:
-              err.message,
-          });
-      }
+  if (
+    typeof valor !== "number" ||
+    !Number.isFinite(valor) ||
+    valor < 0
+  ) {
+    return "Valor unitário inválido.";
+  }
 
-      if (
-        result.affectedRows ===
-        0
-      ) {
-        return res
-          .status(404)
-          .json({
-            message:
-              "Insumo não encontrado.",
-          });
-      }
+  return null;
+}
 
-      res.json({
-        message:
-          "Insumo removido com sucesso!",
-      });
-    }
-  );
-};
+exports.listarPorObra = (req, res) => {
+  const idConstrutora = req.idConstrutora;
+  const filtro = req.query.idobra ?? req.headers["idobra"];
 
-exports.criar = (
-  req,
-  res
-) => {
-  const dados = {
-    ...req.body,
-
-    idobra:
-      req.body?.idobra ||
-      null,
+  const responder = (erro, registros) => {
+    if (erro) return erroBanco(res, erro);
+    return res.json(registros);
   };
 
-  Insumos.create(
-    dados,
-    (
-      err,
-      result
-    ) => {
-      if (err) {
-        return res
-          .status(
-            dbStatus(err)
-          )
-          .json({
-            message:
-              "Erro ao cadastrar insumo.",
+  if (filtro === undefined || filtro === "") {
+    return Insumos.getAll(idConstrutora, responder);
+  }
 
-            error:
-              err.message,
-          });
+  if (filtro === "null") {
+    return Insumos.getSemObra(idConstrutora, responder);
+  }
+
+  if (!idValido(filtro)) {
+    return res.status(400).json({
+      message: "ID da obra inválido."
+    });
+  }
+
+  return Insumos.getByObra(
+    Number(filtro),
+    idConstrutora,
+    responder
+  );
+};
+
+exports.buscarPorId = (req, res) => {
+  const id = req.params.id;
+
+  if (!idValido(id)) {
+    return res.status(400).json({
+      message: "ID do insumo inválido."
+    });
+  }
+
+  Insumos.getById(
+    Number(id),
+    req.idConstrutora,
+    (erro, registros) => {
+      if (erro) return erroBanco(res, erro);
+
+      if (!registros.length) {
+        return res.status(404).json({
+          message: "Insumo não encontrado."
+        });
       }
 
-      res
-        .status(201)
-        .json({
-          insertId:
-            result.insertId,
-
-          message:
-            "Insumo cadastrado com sucesso!",
-        });
+      return res.json(registros[0]);
     }
   );
 };
 
-exports.atualizar = (
-  req,
-  res
-) => {
-  Insumos.update(
-    req.params.id,
-    req.body,
-    (
-      err,
-      result
-    ) => {
-      if (err) {
-        return res
-          .status(
-            dbStatus(err)
-          )
-          .json({
-            error:
-              err.message,
-          });
-      }
+exports.criar = (req, res) => {
+  const dados = req.body || {};
+  const erroValidacao = validarDados(dados);
 
-      if (
-        result.affectedRows ===
-        0
-      ) {
-        return res
-          .status(404)
-          .json({
-            message:
-              "Insumo não encontrado.",
-          });
-      }
+  if (erroValidacao) {
+    return res.status(400).json({
+      message: erroValidacao
+    });
+  }
 
-      res.json({
-        message:
-          "Insumo atualizado com sucesso!",
-      });
+  const idObra = obterObra(dados);
+
+  return validarObra(
+    idObra,
+    req.idConstrutora,
+    res,
+    () => {
+      Insumos.create(
+        {
+          nome: dados.nome.trim(),
+          quantidade_disponivel: dados.quantidade_disponivel,
+          valor_unitario: dados.valor_unitario,
+          idobra: idObra === null ? null : Number(idObra)
+        },
+        req.idConstrutora,
+        (erro, resultado) => {
+          if (erro) return erroBanco(res, erro);
+
+          return res.status(201).json({
+            message: "Insumo cadastrado com sucesso.",
+            insertId: resultado.insertId
+          });
+        }
+      );
     }
   );
 };
 
-exports.alterarObra = (
-  req,
-  res
-) => {
-  let {
-    idobra,
-  } = req.body || {};
+exports.atualizar = (req, res) => {
+  const id = req.params.id;
+  const dados = req.body || {};
 
-  if (
-    idobra === "" ||
-    idobra === undefined
-  ) {
-    idobra = null;
+  if (!idValido(id)) {
+    return res.status(400).json({
+      message: "ID do insumo inválido."
+    });
   }
 
-  if (
-    idobra !== null
-  ) {
-    idobra =
-      Number(idobra);
+  const erroValidacao = validarDados(dados);
 
-    if (
-      !Number.isInteger(
-        idobra
-      ) ||
-      idobra <= 0
-    ) {
-      return res
-        .status(400)
-        .json({
-          message:
-            "ID da obra inválido.",
-        });
+  if (erroValidacao) {
+    return res.status(400).json({
+      message: erroValidacao
+    });
+  }
+
+  const idObra = obterObra(dados);
+
+  return validarObra(
+    idObra,
+    req.idConstrutora,
+    res,
+    () => {
+      Insumos.update(
+        Number(id),
+        {
+          nome: dados.nome.trim(),
+          quantidade_disponivel: dados.quantidade_disponivel,
+          valor_unitario: dados.valor_unitario,
+          idobra: idObra === null ? null : Number(idObra)
+        },
+        req.idConstrutora,
+        (erro, resultado) => {
+          if (erro) return erroBanco(res, erro);
+
+          if (!resultado.affectedRows) {
+            return res.status(404).json({
+              message: "Insumo não encontrado."
+            });
+          }
+
+          return res.json({
+            message: "Insumo atualizado com sucesso."
+          });
+        }
+      );
     }
+  );
+};
+
+exports.alterarObra = (req, res) => {
+  const id = req.params.id;
+
+  if (!idValido(id)) {
+    return res.status(400).json({
+      message: "ID do insumo inválido."
+    });
   }
 
-  Insumos.alterarObra(
-    req.params.id,
-    idobra,
-    (
-      err,
-      result
-    ) => {
-      if (err) {
-        return res
-          .status(
-            dbStatus(err)
-          )
-          .json({
-            error:
-              err.message,
+  if (
+    !req.body ||
+    !Object.prototype.hasOwnProperty.call(req.body, "idobra")
+  ) {
+    return res.status(400).json({
+      message: "Informe idobra ou null para desatribuir."
+    });
+  }
+
+  const idObra = obterObra(req.body);
+
+  return validarObra(
+    idObra,
+    req.idConstrutora,
+    res,
+    () => {
+      Insumos.updateObra(
+        Number(id),
+        idObra === null ? null : Number(idObra),
+        req.idConstrutora,
+        (erro, resultado) => {
+          if (erro) return erroBanco(res, erro);
+
+          if (!resultado.affectedRows) {
+            return res.status(404).json({
+              message: "Insumo não encontrado."
+            });
+          }
+
+          return res.json({
+            message: idObra === null
+              ? "Insumo desatribuído com sucesso."
+              : "Vínculo atualizado com sucesso.",
+            id_insumos: Number(id),
+            idobra: idObra === null ? null : Number(idObra)
           });
+        }
+      );
+    }
+  );
+};
+
+exports.deletar = (req, res) => {
+  const id = req.params.id;
+
+  if (!idValido(id)) {
+    return res.status(400).json({
+      message: "ID do insumo inválido."
+    });
+  }
+
+  Insumos.delete(
+    Number(id),
+    req.idConstrutora,
+    (erro, resultado) => {
+      if (erro) return erroBanco(res, erro);
+
+      if (!resultado.affectedRows) {
+        return res.status(404).json({
+          message: "Insumo não encontrado."
+        });
       }
 
-      if (
-        result.affectedRows ===
-        0
-      ) {
-        return res
-          .status(404)
-          .json({
-            message:
-              "Insumo não encontrado.",
-          });
-      }
-
-      res.json({
-        message:
-          idobra
-            ? "Insumo atribuído à obra com sucesso."
-            : "Insumo desatribuído da obra com sucesso.",
+      return res.json({
+        message: "Insumo excluído definitivamente."
       });
     }
   );
