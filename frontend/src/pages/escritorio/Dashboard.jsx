@@ -1,3 +1,4 @@
+import "./dashboardOverview.css";
 import {
   useEffect,
   useState,
@@ -207,7 +208,7 @@ function Dashboard({
       }
     >
 
-      <div className="dashboard">
+      <div className="dashboard overview-page">
 
         <section className="dashboard-header">
 
@@ -222,8 +223,7 @@ function Dashboard({
             </h1>
 
             <p>
-              Acompanhe as informações
-              principais da construtora.
+              Obras, recursos e planejamento da construtora em um só lugar.
             </p>
 
           </div>
@@ -233,6 +233,7 @@ function Dashboard({
             <button
               type="button"
               className="secondary-button"
+              disabled={carregando}
               onClick={
                 carregar
               }
@@ -263,15 +264,29 @@ function Dashboard({
         <section className="cards-grid dashboard-kpis" aria-label="Indicadores da construtora">
           {carregando ? <Skeleton label="Carregando indicadores da construtora…" rows={4} /> : [
             ["Total de obras", obras.length, "Cadastros da construtora", "obras"],
-            ["Planejamento", obras.filter(o => normalizarStatus(o.status) === "planejamento").length, "Preparação e planejamento", "obras"],
+
             ["Obras ativas", obrasAtivas, "Em execução", "obras"],
-            ["Concluídas", obras.filter(o => normalizarStatus(o.status) === "concluida").length, "Obras finalizadas", "obras"],
-            ["Paralisadas", paralisadas, "Necessitam acompanhamento", "obras"],
-            ["Equipes", equipes.length, profissionais + " profissionais", "equipes"],
+
+
+            ["Profissionais", profissionais, equipes.length + " equipes cadastradas", "equipes"],
             ["Orçamento", formatarReal(orcamentoTotal), "Planejado da construtora", "analytics-financeiro"]
           ].map(([title, value, description, destino]) => <Card key={title} title={title} value={erro ? "Não informado" : value} description={erro ? "Consulta indisponível" : description} onClick={() => onNavegar(destino)} />)}
         </section>
 
+
+        {!carregando && !erro && obras.some(o => String(o.nome || o.obra || "").startsWith("[DEMO]")) && <p className="overview-demo" role="status"><strong>Dados de demonstração incluídos.</strong> Os totais também consideram as obras identificadas com [DEMO].</p>}
+        <div className="overview-columns">
+        <section className="dashboard-section overview-status">
+          <div className="section-header"><div><span className="section-label">PORTFÓLIO</span><h2>Situação das obras</h2></div></div>
+          {carregando || erro ? <p role="status">{carregando ? "Carregando situação das obras…" : "Consulta indisponível."}</p> : obras.length === 0 ? <p>Nenhuma obra cadastrada.</p> : <ul className="overview-status-list">{[
+            ["Em andamento",obrasAtivas,"ativa"],
+            ["Planejamento",obras.filter(o => normalizarStatus(o.status) === "planejamento").length,"planejamento"],
+            ["Concluídas",obras.filter(o => normalizarStatus(o.status) === "concluida").length,"concluida"],
+            ["Paralisadas ou pausadas",paralisadas,"paralisada"],
+            ["Outros status",obras.filter(o => !["iniciada","em andamento","planejamento","concluida","paralisada","pausada"].includes(normalizarStatus(o.status))).length,"outros"]
+          ].map(([nome,total,classe]) => <li key={nome}><div><span><i className={classe} aria-hidden="true" />{nome}</span><strong>{total}<small>{Math.round(total/obras.length*100)}%</small></strong></div><div className="overview-track" aria-hidden="true"><span className={classe} style={{width: total/obras.length*100+"%"}} /></div></li>)}</ul>}
+          {!carregando && !erro && paralisadas > 0 && <p className="overview-caption">{paralisadas} {paralisadas === 1 ? "obra paralisada ou pausada para acompanhar." : "obras paralisadas ou pausadas para acompanhar."}</p>}
+        </section>
         <section className="dashboard-section">
 
           <div className="section-header">
@@ -344,6 +359,12 @@ function Dashboard({
 
         </section>
 
+
+        </div>
+        <section className="overview-shortcuts" aria-label="Análises da construtora">
+          <button type="button" onClick={() => onNavegar("inteligencia-operacional")}><span className="section-label">ANÁLISE DE CAMPO</span><strong>Inteligência Operacional <span aria-hidden="true">↗</span></strong><p>Acompanhe padrões, ocorrências e tendências das obras.</p></button>
+          <button type="button" onClick={() => onNavegar("analytics-financeiro")}><span className="section-label">PLANEJAMENTO E CUSTOS</span><strong>Análise financeira <span aria-hidden="true">↗</span></strong><p>Consulte indicadores financeiros e a evolução dos custos.</p></button>
+        </section>
         <section className="dashboard-section">
 
           <div className="section-header">
@@ -390,22 +411,22 @@ function Dashboard({
 
           <div className="dashboard-table">
 
-            <table>
+            <table aria-label="Obras em acompanhamento">
 
               <thead>
 
                 <tr>
-                  <th>Obra</th>
-                  <th>Status</th>
-                  <th>Categoria</th>
-                  <th>Orçamento</th>
+                  <th scope="col">Obra</th>
+                  <th scope="col">Status</th>
+                  <th scope="col">Categoria</th>
+                  <th scope="col">Orçamento</th>
                 </tr>
 
               </thead>
 
               <tbody>
 
-                {obras.length ===
+                {carregando || erro || obras.length ===
                 0 ? (
 
                   <tr>
@@ -442,8 +463,7 @@ function Dashboard({
                           </td>
 
                           <td>
-                            {obra.status ||
-                              "-"}
+                            <span className={"overview-badge " + (["paralisada","pausada"].includes(normalizarStatus(obra.status)) ? "paralisada" : ["iniciada","em andamento"].includes(normalizarStatus(obra.status)) ? "ativa" : normalizarStatus(obra.status) === "concluida" ? "concluida" : "outros")}>{obra.status || "Não informado"}</span>
                           </td>
 
                           <td>

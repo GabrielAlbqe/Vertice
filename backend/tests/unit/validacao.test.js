@@ -1,0 +1,30 @@
+const {test}=require('node:test');
+const assert=require('node:assert/strict');
+const {spawnSync}=require('node:child_process');
+const {randomBytes}=require('node:crypto');
+const {validar,idValido,dataValida}=require('../../utils/validar');
+const {projetar}=require('../../utils/financeiro');
+for(const value of [null,undefined,'',true,{},[],0,-1,1.5,'1 OR 1=1','1e2',Infinity,Number.MAX_SAFE_INTEGER+1])test('ID inválido: '+String(value),()=>assert.equal(idValido(value),false));
+for(const value of [1,'1',100,'12345'])test('ID válido: '+value,()=>assert.equal(idValido(value),true));
+for(const value of ['2026-02-29','2026-02-30','2026-13-01','2026-00-01','2026-04-31','2026-1-1','x',null])test('Data inválida: '+value,()=>assert.equal(dataValida(value),false));
+for(const value of ['2024-02-29','2026-10-28','2026-12-31'])test('Data válida: '+value,()=>assert.equal(dataValida(value),true));
+const work={nome:'Teste',id_construtora:1,numero_pavimentos:2,data_inicio_planejada:'2026-01-01',data_termino_planejada:'2026-12-31',orcamento_planejado:100};
+test('Obra válida',()=>assert.equal(validar('obra',work,true),null));
+for(const [field,value] of [['nome',''],['nome','a'.repeat(151)],['numero_pavimentos',-1],['numero_pavimentos',1.5],['data_inicio_planejada','2026-02-30'],['data_termino_planejada','2025-01-01'],['orcamento_planejado',-1],['orcamento_planejado',NaN],['orcamento_planejado',0.001],['status','inexistente']])test('Obra rejeita '+field+'='+value,()=>assert.ok(validar('obra',{...work,[field]:value},true)));
+test('Percentual físico fora do intervalo',()=>assert.ok(validar('apontamento_fisico',{percentual_dia:101},false)));
+test('Preço fracionário de insumo',()=>assert.equal(validar('cadastro_de_insumos',{valor_unitario:10.25},false),null));
+test('Custo multiplicado não pode exceder DECIMAL(12,2)',()=>assert.ok(validar('custo_realizado',{quantidade:99999999,custo_unitario:99999999},false)));
+test('Cálculo financeiro usa centavos',()=>assert.deepEqual(projetar('0.10','0.20','0.25'),{custo_realizado:0.1,custo_restante_estimado:0.2,custo_final_projetado:0.3,desvio_projetado:0.05,desvio_projetado_percentual:20}));
+test('Desvio favorável negativo',()=>assert.equal(projetar(10,10,100).desvio_projetado,-80));
+test('Orçamento zero não divide por zero',()=>assert.equal(projetar(10,0,0).desvio_projetado_percentual,null));
+test('Sem planejamento não inventa desvios',()=>assert.equal(projetar(10,0,null).desvio_projetado,null));
+test('Percentual além do limite fica indisponível',()=>assert.equal(projetar(100000,0,1).desvio_projetado_percentual,null));
+for(const value of [-1,NaN,Infinity,null,true,0.001])test('Custo inválido '+value,()=>assert.throws(()=>projetar(value,0,100)));
+test('Configuração recusa testes no valen antes de conectar',()=>{
+ const r=spawnSync(process.execPath,['-e',"require('./config/env')"],{cwd:require('node:path').join(__dirname,'../..'),env:{...process.env,NODE_ENV:'test',DB_NAME:'valen',JWT_SECRET:randomBytes(48).toString('hex')},encoding:'utf8'});
+ assert.notEqual(r.status,0);assert.match(r.stderr,/DB_NAME=valen_testes/);
+});
+test('Configuração recusa JWT ausente',()=>{
+ const r=spawnSync(process.execPath,['-e',"require('./config/env')"],{cwd:require('node:path').join(__dirname,'../..'),env:{...process.env,NODE_ENV:'test',DB_NAME:'valen_testes',JWT_SECRET:''},encoding:'utf8'});
+ assert.notEqual(r.status,0);assert.match(r.stderr,/JWT_SECRET/);
+});

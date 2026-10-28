@@ -1,0 +1,220 @@
+{
+  "apontamento_fisico": {
+    "id_apontamento": "int NOT NULL AUTO_INCREMENT",
+    "percentual_dia": "decimal(5,2) NOT NULL",
+    "url_foto": "varchar(512) NOT NULL",
+    "diario_id": "int NOT NULL",
+    "atividade_eap_id": "int NOT NULL"
+  },
+  "apropriacao": {
+    "id_apropriacao": "int NOT NULL AUTO_INCREMENT",
+    "quantidade_consumida": "float DEFAULT NULL",
+    "tipo_compra": "enum('Planejada','Emergencial') DEFAULT NULL",
+    "id_insumo": "int NOT NULL",
+    "id_atividade": "int NOT NULL",
+    "id_usuario": "int NOT NULL"
+  },
+  "atividade_eap": {
+    "id_atividade": "int NOT NULL AUTO_INCREMENT",
+    "descricao": "varchar(45) NOT NULL",
+    "idx_obra": "int NOT NULL"
+  },
+  "atraso": {
+    "id_atraso": "int NOT NULL AUTO_INCREMENT",
+    "id_rdo": "int NOT NULL",
+    "etapa": "enum('Mobilização','Infraestrutura','Supraestrutura e Alvenaria','Instalações','Revestimentos','Acabamento') NOT NULL",
+    "origem_atraso": "enum('Equipes','Insumos','Maquinários') NOT NULL",
+    "duracao": "decimal(5,2) NOT NULL",
+    "descricao": "varchar(255) DEFAULT NULL"
+  },
+  "cadastro_de_equipes": {
+    "id_cadastro_equipes": "int NOT NULL AUTO_INCREMENT",
+    "nome_equipe": "varchar(45) DEFAULT NULL",
+    "etapa_atuacao": "enum('Mobilização','Infraestrutura','Supraestrutura e Alvenaria','Instalações','Revestimentos','Acabamentos') NOT NULL",
+    "quantidade_profissionais": "int NOT NULL",
+    "custo_diario": "decimal(10,2) NOT NULL",
+    "custo_mensal": "decimal(10,2) NOT NULL",
+    "idobra": "int DEFAULT NULL"
+  },
+  "cadastro_de_equipes_terceirizadas": {
+    "id_equipe_terceirizada": "int NOT NULL AUTO_INCREMENT",
+    "nome_equipe": "varchar(255) NOT NULL",
+    "custo_diario_total": "decimal(10,2) NOT NULL",
+    "id_obra": "int NOT NULL"
+  },
+  "cadastro_de_insumos": {
+    "id_insumos": "int NOT NULL AUTO_INCREMENT",
+    "nome": "varchar(45) DEFAULT NULL",
+    "quantidade_disponivel": "int DEFAULT NULL",
+    "valor_unitario": "decimal(12,2) DEFAULT NULL",
+    "idobra": "int DEFAULT NULL"
+  },
+  "cadastro_de_maquinario": {
+    "id_maquina": "int NOT NULL AUTO_INCREMENT",
+    "nome": "varchar(45) NOT NULL",
+    "quantidade": "int DEFAULT NULL",
+    "etapa_atuacao": "enum('Mobilização','Infraestrutura','Supraestrutura e Alvenaria','Instalações','Revestimentos','Acabamentos') DEFAULT NULL",
+    "custo_diario": "decimal(10,2) DEFAULT NULL",
+    "status": "enum('Ativo','Inativo') DEFAULT NULL",
+    "idobra": "int DEFAULT NULL"
+  },
+  "cargo": {
+    "id_cargo": "int NOT NULL AUTO_INCREMENT",
+    "nome_cargo": "varchar(100) NOT NULL",
+    "descricao": "varchar(255) DEFAULT NULL"
+  },
+  "construtora": {
+    "id_construtora": "int NOT NULL AUTO_INCREMENT",
+    "cnpj": "varchar(14) DEFAULT NULL",
+    "razao_social": "varchar(255) DEFAULT NULL",
+    "status": "enum('Ativo','Inativo') NOT NULL DEFAULT 'Ativo'"
+  },
+  "consumo_insumo": {
+    "id_consumo": "int NOT NULL AUTO_INCREMENT",
+    "id_rdo": "int NOT NULL",
+    "id_insumo": "int NOT NULL",
+    "etapa": "enum('Mobilização','Infraestrutura','Supraestrutura e Alvenaria','Instalações','Revestimentos','Acabamento') NOT NULL",
+    "quantidade_consumida": "decimal(10,2) NOT NULL",
+    "custo_unitario": "decimal(10,2) NOT NULL",
+    "custo_total": "decimal(12,2) GENERATED ALWAYS AS ((`quantidade_consumida` * `custo_unitario`)) STORED"
+  },
+  "custo_planejado": {
+    "id_custo_planejado": "int NOT NULL AUTO_INCREMENT",
+    "id_obra": "int NOT NULL",
+    "etapa": "enum('Mobilização','Infraestrutura','Supraestrutura e Alvenaria','Instalações','Revestimentos','Acabamento') NOT NULL",
+    "origem_custo": "enum('Equipe','Insumo','Maquinário') NOT NULL",
+    "valor_planejado": "decimal(10,2) NOT NULL",
+    "data_inicio_prevista": "date NOT NULL",
+    "data_fim_prevista": "date NOT NULL"
+  },
+  "custo_realizado": {
+    "id_custo_realizado": "int NOT NULL AUTO_INCREMENT",
+    "id_obra": "int NOT NULL",
+    "id_etapa": "int NOT NULL",
+    "id_rdo": "int NOT NULL",
+    "origem_custo": "enum('Equipe','Insumo','Maquinário') NOT NULL",
+    "id_origem": "int NOT NULL",
+    "data": "date NOT NULL",
+    "quantidade": "decimal(10,2) NOT NULL",
+    "custo_unitario": "decimal(10,2) NOT NULL",
+    "valor_total": "decimal(12,2) GENERATED ALWAYS AS ((`quantidade` * `custo_unitario`)) STORED"
+  },
+  "diario_obra": {
+    "id_diario": "int NOT NULL AUTO_INCREMENT",
+    "data": "date NOT NULL",
+    "clima": "enum('Ensolarado','Chuvoso') DEFAULT NULL",
+    "turno": "enum('Manhã','Tarde','Noite') DEFAULT NULL",
+    "etapa_atuacao": "enum('Mobilização','Infraestrutura','Supraestrutura e Alvenaria','Instalações','Revestimentos','Acabamentos') DEFAULT NULL",
+    "equipe_interna": "enum('A','B','C') DEFAULT NULL",
+    "equipe_terceirizada": "enum('A','B','C') DEFAULT NULL",
+    "paralisacoes": "text",
+    "origem_paralisacoes": "varchar(255) DEFAULT NULL",
+    "atrasos": "text",
+    "origem_atrasos": "varchar(255) DEFAULT NULL",
+    "obrax_id": "int NOT NULL",
+    "usuario_id": "int NOT NULL"
+  },
+  "equipe_etapa": {
+    "id_equipe_etapa": "int NOT NULL AUTO_INCREMENT",
+    "id_equipe": "int NOT NULL",
+    "etapa": "enum('Mobilização','Infraestrutura','Supraestrutura e Alvenaria','Instalações','Revestimentos','Acabamento') NOT NULL",
+    "data_inicio": "date NOT NULL",
+    "data_fim": "date NOT NULL"
+  },
+  "etapa": {
+    "id_etapa": "int NOT NULL AUTO_INCREMENT",
+    "id_obra": "int NOT NULL",
+    "nome_etapa": "enum('Mobilização','Infraestrutura','Supraestrutura e Alvenaria','Instalações','Revestimentos','Acabamento') NOT NULL",
+    "descricao": "text"
+  },
+  "historico_obras": {
+    "id_historico": "int NOT NULL AUTO_INCREMENT",
+    "usuario_id": "int NOT NULL",
+    "id_obra": "int NOT NULL",
+    "status": "enum('iniciada','em andamento','concluida','pausada') NOT NULL DEFAULT 'em andamento'",
+    "data_atribuicao": "timestamp NULL DEFAULT CURRENT_TIMESTAMP",
+    "data_fim": "date DEFAULT NULL"
+  },
+  "metricas_eva": {
+    "id_metrica": "int NOT NULL AUTO_INCREMENT",
+    "data_calculo": "date NOT NULL",
+    "idc": "decimal(6,4) NOT NULL",
+    "idp": "decimal(6,4) NOT NULL",
+    "eac": "decimal(15,2) NOT NULL",
+    "obra_idxx": "int DEFAULT NULL"
+  },
+  "obra": {
+    "id_obra": "int NOT NULL AUTO_INCREMENT",
+    "nome": "varchar(150) NOT NULL",
+    "status": "enum('Planejamento','Em Andamento','Concluida','Paralisada') DEFAULT NULL",
+    "id_construtora": "int NOT NULL",
+    "categoria": "enum('Residencial','Comercial','Industrial','Reforma') DEFAULT NULL",
+    "numero_pavimentos": "int NOT NULL",
+    "data_inicio_planejada": "date NOT NULL",
+    "data_termino_planejada": "date NOT NULL",
+    "orcamento_planejado": "decimal(10,2) NOT NULL"
+  },
+  "orcamento_previsto": {
+    "id_orcamento": "int NOT NULL",
+    "valor_planejado": "decimal(15,2) NOT NULL",
+    "id_atividade_eap": "int NOT NULL"
+  },
+  "paralisacao": {
+    "id_paralisacao": "int NOT NULL AUTO_INCREMENT",
+    "id_rdo": "int NOT NULL",
+    "etapa": "enum('Mobilização','Infraestrutura','Supraestrutura e Alvenaria','Instalações','Revestimentos','Acabamento') NOT NULL",
+    "origem_paralisacao": "enum('Condições Climáticas','Acidente no Trabalho') NOT NULL",
+    "duracao": "decimal(5,2) NOT NULL",
+    "descricao": "varchar(255) DEFAULT NULL"
+  },
+  "projecao_financeira": {
+    "id_projecao": "int NOT NULL AUTO_INCREMENT",
+    "id_obra": "int NOT NULL",
+    "etapa": "enum('Mobilização','Infraestrutura','Supraestrutura e Alvenaria','Instalações','Revestimentos','Acabamento','Nenhum') DEFAULT 'Nenhum'",
+    "data_projecao": "date NOT NULL",
+    "custo_realizado": "decimal(12,2) NOT NULL DEFAULT '0.00'",
+    "custo_restante_estimado": "decimal(12,2) NOT NULL DEFAULT '0.00'",
+    "custo_final_projetado": "decimal(12,2) GENERATED ALWAYS AS ((`custo_realizado` + `custo_restante_estimado`)) STORED",
+    "desvio_projetado": "decimal(12,2) DEFAULT NULL",
+    "desvio_projetado_percentual": "decimal(5,2) DEFAULT NULL"
+  },
+  "rdo": {
+    "id_rdo": "int NOT NULL AUTO_INCREMENT",
+    "id_obra": "int NOT NULL",
+    "data_rdo": "date NOT NULL",
+    "turno": "enum('Manhã','Tarde','Noite','Integral') NOT NULL",
+    "clima": "enum('Ensolarado','Nublado','Chuvoso','Impraticável') NOT NULL"
+  },
+  "rdo_equipe": {
+    "id_rdo_equipe": "int NOT NULL AUTO_INCREMENT",
+    "id_rdo": "int NOT NULL",
+    "id_equipe": "int NOT NULL",
+    "etapa": "enum('Mobilização','Infraestrutura','Supraestrutura e Alvenaria','Instalações','Revestimentos','Acabamento') NOT NULL",
+    "dias_atuacao": "decimal(5,2) NOT NULL"
+  },
+  "rdo_maquinario": {
+    "id_rdo_maquinario": "int NOT NULL AUTO_INCREMENT",
+    "id_rdo": "int NOT NULL",
+    "id_maquinario": "int NOT NULL",
+    "etapa": "enum('Mobilização','Infraestrutura','Supraestrutura e Alvenaria','Instalações','Revestimentos','Acabamento') NOT NULL",
+    "quantidade_utilizada": "decimal(10,2) NOT NULL",
+    "tempo_utilizacao": "decimal(10,2) NOT NULL"
+  },
+  "registro_relatorios": {
+    "id_registro_relatorio": "int NOT NULL AUTO_INCREMENT",
+    "id_diario": "int NOT NULL",
+    "id_obra": "int NOT NULL",
+    "data_registro": "timestamp NULL DEFAULT CURRENT_TIMESTAMP"
+  },
+  "usuario": {
+    "id_usuario": "int NOT NULL AUTO_INCREMENT",
+    "nome": "varchar(150) NOT NULL",
+    "email": "varchar(191) NOT NULL",
+    "ocupacao": "varchar(100) DEFAULT NULL",
+    "ambiente": "varchar(100) DEFAULT NULL",
+    "status": "enum('Ativo','Inativo') NOT NULL DEFAULT 'Ativo'",
+    "data_cadastro": "datetime NOT NULL DEFAULT CURRENT_TIMESTAMP",
+    "senha": "varchar(255) NOT NULL",
+    "idconstrutora": "int DEFAULT NULL"
+  }
+}

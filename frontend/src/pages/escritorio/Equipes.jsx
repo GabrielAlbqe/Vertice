@@ -1,3 +1,4 @@
+import "./equipes.css";
 import Toast from "../../componentes/shared/Toast";
 import useUnsavedChanges, { confirmarSaida } from "../../componentes/shared/useUnsavedChanges";
 import {
@@ -510,7 +511,7 @@ function Equipes({
       }
     >
 
-      <div className="dashboard">
+      <div className="dashboard equipes-page">
 
         <section className="dashboard-header">
 
@@ -740,14 +741,14 @@ function Equipes({
 
         )}
 
-        <section className="cards-grid">
+        <section className="cards-grid equipes-indicadores" aria-label="Resumo das equipes cadastradas">
 
           <div className="dashboard-section">
             <span className="section-label">
               EQUIPES
             </span>
             <h2>{equipes.length}</h2>
-            <p>Cadastradas</p>
+            <p>Equipes cadastradas</p>
           </div>
 
           <div className="dashboard-section">
@@ -755,7 +756,7 @@ function Equipes({
               PROFISSIONAIS
             </span>
             <h2>{profissionais}</h2>
-            <p>Total</p>
+            <p>Profissionais cadastrados</p>
           </div>
 
           <div className="dashboard-section">
@@ -767,14 +768,15 @@ function Equipes({
                 custo
               )}
             </h2>
-            <p>Total</p>
+            <p>Custo diário das equipes cadastradas</p>
           </div>
 
         </section>
 
         <section className="dashboard-section">
 
-          <div className="filtros-equipes"><label className="form-group">Obra<select value={filtroObra} onChange={e => setFiltroObra(e.target.value)}><option value="">Todas as obras</option>{obras.map(o => <option key={o.id_obra} value={o.id_obra}>{o.nome}</option>)}</select></label>
+          <div className="equipes-lista-heading"><div><span className="section-label">CADASTROS</span><h2>Equipes por obra</h2></div><p>Filtre os cadastros por obra, nome ou área de atuação.</p></div>
+          <div className="filtros-equipes"><label className="equipe-filtro-obra">Obra<select value={filtroObra} onChange={e => setFiltroObra(e.target.value)}><option value="">Todas as obras</option>{obras.map(o => <option key={o.id_obra} value={o.id_obra}>{o.nome}</option>)}</select></label>
 
             <div className="filtro-pesquisa">
 
@@ -788,7 +790,7 @@ function Equipes({
                     event.target.value
                   )
                 }
-                placeholder="Nome ou área..."
+                placeholder="Pesquisar nome ou área..."
               />
 
             </div>
@@ -833,15 +835,15 @@ function Equipes({
           <div className="filter-results"><button type="button" className="secondary-button" onClick={() => { setPesquisa(""); setFiltroArea(""); setFiltroObra(""); }}>Limpar filtros</button>{!carregando && !erro && <p role="status">{equipesFiltradas.length} {equipesFiltradas.length === 1 ? "equipe encontrada" : "equipes encontradas"}</p>}</div>
           <div className="tabela-container">
 
-            <table>
+            <table aria-label="Equipes cadastradas">
 
               <thead>
                 <tr>
-                  <th>Equipe</th>
-                  <th>Área</th>
-                  <th>Profissionais</th>
-                  <th>Custo diário</th>
-                  <th>Ações</th>
+                  <th scope="col">Equipe</th>
+                  <th scope="col">Área</th>
+                  <th scope="col">Profissionais</th>
+                  <th scope="col">Custo diário</th>
+                  <th scope="col">Ações</th>
                 </tr>
               </thead>
 
@@ -894,7 +896,7 @@ function Equipes({
                         >
 
                           <td>
-                            {equipe.nome_equipe}<small style={{ display: "block" }}>{obras.find(o => String(o.id_obra) === String(equipe.idobra))?.nome || "Obra não informada"}</small>
+                            <strong className="equipe-nome">{equipe.nome_equipe}</strong><small className="equipe-obra">{obras.find(o => String(o.id_obra) === String(equipe.idobra))?.nome || "Obra não informada"}</small>
                           </td>
 
                           <td>
@@ -913,7 +915,7 @@ function Equipes({
 
                           <td>
 
-                            <div className="acoes-inline">
+                            <div className="acoes-inline" aria-label={`Ações de ${equipe.nome_equipe}`}>
 
                               <button
                                 type="button"

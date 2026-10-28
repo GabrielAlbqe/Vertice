@@ -1,0 +1,10 @@
+
+.sidebar-tools .sidebar-menu { display: flex; flex-direction: column; gap: 22px; overflow-y: auto; min-height: 0; }
+.sidebar-tools .sidebar-tool-group { min-width: 0; }
+.sidebar-tools .sidebar-tool-group h2 { margin: 0 12px 9px; color: var(--text-secondary); font-family: inherit; font-size: 10px; font-weight: 750; letter-spacing: .1em; line-height: 1.5; text-transform: uppercase; }
+.sidebar-tools .sidebar-menu .sidebar-item { width: 100%; min-height: 44px; height: auto; margin: 3px 0; padding: 12px; text-align: left; white-space: normal; line-height: 1.45; }
+.sidebar-tools .sidebar-tool-name { min-width: 0; }
+.sidebar-tools .sidebar-dot { flex-shrink: 0; }
+.sidebar-tools .sidebar-tool-name small { display: block; margin-top: 3px; font-size: 10px; font-weight: 400; }
+.sidebar-tools .sidebar-menu .sidebar-item:disabled { opacity: .5; cursor: not-allowed; background: transparent; box-shadow: none; }
+.sidebar-tools .sidebar-menu .sidebar-item:focus-visible { outline: 2px solid var(--link,#1677ff); outline-offset: -2px; }

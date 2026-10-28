@@ -35,11 +35,11 @@ exports.deletar = (req, res) => {
 
 // Registra um novo relatório
 exports.criar = (req, res) => {
-  console.log("PAYLOAD REGISTRO RELATORIOS RECEBIDO:", req.body);
+
 
   RegistroRelatorios.create(req.body, (err, result) => {
     if (err) {
-      console.error("❌ ERRO NO BANCO AO INSERIR REGISTRO RELATORIO:", err);
+      console.error("Falha no módulo registroRelatorios.");
       return res.status(dbStatus(err)).json({ error: err.message || "Erro interno no servidor ao cadastrar registro de relatório." });
     }
 

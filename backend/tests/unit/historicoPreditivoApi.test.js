@@ -1,0 +1,42 @@
+const { test, beforeEach } = require('node:test');
+const assert = require('node:assert/strict');
+const { randomBytes } = require('node:crypto');
+process.env.NODE_ENV = 'test'; process.env.DB_NAME = 'valen_testes'; process.env.JWT_SECRET = randomBytes(48).toString('hex');
+const jwt = require('jsonwebtoken'), request = require('supertest');
+const calls = [];
+const { AsyncLocalStorage } = require('node:async_hooks');
+let role, ambiente, status, tenant, companyStatus, failure;
+const docs = [{ id_registro: 'rdo:1', id_obra: 1, data: '2026-10-01', turno: 'Manhã', clima: 'Chuvoso' }];
+const events = [{ id: 'atraso:1', id_registro: 'rdo:1', id_obra: 1, data: '2026-10-01', turno: 'Manhã', clima: 'Chuvoso', etapa: 'Infraestrutura', tipo: 'atraso', origem: 'Equipes', duracao: '1.50', descricao: null }];
+const mock = { context: new AsyncLocalStorage(), getConnection(cb) { cb(null,{ release(){}, promise(){return {async beginTransaction(){},async commit(){},async rollback(){}};} }); }, query(sql, params, cb) {
+  calls.push({ sql, params });
+  queueMicrotask(() => {
+    if (failure) return cb(new Error('Informação SQL privada'));
+    if (sql.startsWith('SELECT u.id_usuario')) return cb(null, [{ id_usuario: 1, idconstrutora: tenant, status, ocupacao: role, ambiente, status_construtora: companyStatus }]);
+    if (sql.startsWith('SELECT id_obra,nome FROM obra WHERE id_obra')) return cb(null, params[0] === 1 && params[1] === 1 ? [{ id_obra: 1, nome: 'Obra A' }] : []);
+    if (sql.startsWith('SELECT id_obra,nome FROM obra WHERE id_construtora')) return cb(null, params[0] === 1 ? [{ id_obra: 1, nome: 'Obra A' }] : []);
+    if (sql.startsWith('SELECT b.*')) return cb(null, docs);
+    if (sql.startsWith('SELECT ev.*')) return cb(null, events);
+    if (sql.startsWith('SELECT c.data')) return cb(null, [{data:'2026-10-01',valor:'25'}]);
+    if (sql.startsWith('SELECT m.id_metrica')) return cb(null, [{id_metrica:1,data_calculo:'2026-10-01',idc:'1',idp:'1',eac:'100'}]);
+    if (sql.startsWith('SELECT id_obra,nome,orcamento_planejado')) return cb(null, [{id_obra:1,nome:'Obra A',orcamento_planejado:'100'}]);
+    if (sql.startsWith('SELECT DISTINCT')) return cb(null, [{ origem: 'Equipes' }]);
+    if (sql.includes('FROM cadastro_de_')) return cb(null, [{ id: 1, nome: 'Recurso A' }]);
+    cb(new Error('Consulta não prevista'));
+  });
+} };
+require.cache[require.resolve('../../config/connection')] = { id: require.resolve('../../config/connection'), filename: require.resolve('../../config/connection'), loaded: true, exports: mock };
+const app = require('../../app');
+beforeEach(() => { calls.length = 0; role = 'Gerência'; ambiente = 'Escritório'; status = 'Ativo'; tenant = 1; companyStatus = 'Ativo'; failure = false; });
+const token = (company = 1) => jwt.sign({ id_usuario: 1, idconstrutora: company }, process.env.JWT_SECRET, { algorithm: 'HS256', expiresIn: '1h' });
+const get = (query = 'id_obra=1&fonte=rdo') => request(app).get('/api/historico-preditivo?' + query).set('Authorization', 'Bearer ' + token());
+
+test('Histórico exige JWT antes de qualquer consulta',async()=>{assert.equal((await request(app).get('/api/historico-preditivo?id_obra=1')).status,401);assert.equal(calls.length,0);});
+test('Histórico bloqueia obra de outra construtora',async()=>{assert.equal((await get('id_obra=2')).status,404);assert.ok(!calls.some(c=>c.sql.startsWith('SELECT c.data')));});
+test('Histórico bloqueia token de vínculo antigo',async()=>{tenant=2;assert.equal((await get()).status,403);});
+for(const caso of ['perfil','ambiente','empresa','inativo'])test('Histórico restringe acesso: '+caso,async()=>{if(caso==='perfil')role='Operacional';if(caso==='ambiente')ambiente='Canteiro';if(caso==='empresa')companyStatus='Inativo';if(caso==='inativo')status='Inativo';assert.equal((await get()).status,403);});
+test('Histórico retorna séries e restringe consultas pela empresa e obra',async()=>{const r=await get();assert.equal(r.status,200,JSON.stringify(r.body));assert.equal(r.body.resumo.custo_ate_fim,25);assert.equal(r.body.eva[0].idc,1);assert.equal(r.headers['cache-control'],'no-store');const scoped=calls.filter(c=>c.sql.startsWith('SELECT c.data')||c.sql.startsWith('SELECT m.id_metrica'));assert.equal(scoped.length,2);assert.ok(scoped.every(c=>c.sql.includes('o.id_construtora=?')&&c.params[0]===1&&c.params[1]===1));assert.ok(calls.every(c=>/^SELECT/.test(c.sql)));});
+test('Histórico valida datas e filtros sem interpolação SQL',async()=>{for(const q of ['id_obra=1&inicio=2026-02-30','id_obra=1&fim=2026-01-01&inicio=2026-02-01','id_obra=1&extra=1','id_obra=1&id_obra=2'])assert.equal((await get(q)).status,400);});
+test('Data inicial filtra exibição sem zerar custo anterior',async()=>{const r=await get('id_obra=1&inicio=2026-10-02');assert.equal(r.status,200);assert.equal(r.body.resumo.custo_ate_fim,25);assert.equal(r.body.financeiro.length,0);assert.equal(r.body.eva.length,0);assert.equal(r.body.ultimo,null);});
+test('Histórico não permite gravações',async()=>{const r=await request(app).post('/api/historico-preditivo').set('Authorization','Bearer '+token()).send({});assert.equal(r.status,405);assert.equal(r.headers.allow,'GET');assert.ok(calls.every(c=>/^SELECT/.test(c.sql)));});
+test('Histórico esconde erro interno',async()=>{failure=true;const r=await get();assert.equal(r.status,500);assert.ok(!JSON.stringify(r.body).includes('privada'));});

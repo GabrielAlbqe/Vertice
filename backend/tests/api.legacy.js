@@ -1,3 +1,4 @@
+if (process.env.NODE_ENV !== 'test' || process.env.DB_NAME !== 'valen_testes') throw new Error('Suíte legada exige NODE_ENV=test e DB_NAME=valen_testes.');
 const request = require("supertest");
 const app = require("../app");
 const connection = require("../config/connection");

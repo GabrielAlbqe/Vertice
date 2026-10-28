@@ -94,8 +94,7 @@ const Usuario = {
     callback
   ) => {
     const del = `
-      DELETE FROM usuario
-      WHERE id_usuario = ?
+      UPDATE usuario SET status = 'Inativo' WHERE id_usuario = ?
     `;
 
     bd.query(

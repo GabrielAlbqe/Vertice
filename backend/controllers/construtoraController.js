@@ -23,7 +23,7 @@ exports.deletar = (req, res) => {
   Construtora.delete(req.params.id, (err, result) => {
     if (err) return res.status(dbStatus(err)).json({ error: "Erro interno no servidor ao deletar construtora." });
     if (result.affectedRows === 0) return res.status(404).json({ message: "Construtora não encontrada." });
-    res.json({ message: "Construtora removida com sucesso!" });
+    res.json({ message: "Construtora desativada com sucesso!" });
   });
 };
 

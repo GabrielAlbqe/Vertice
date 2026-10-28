@@ -4,6 +4,8 @@ function autenticar(req, res, next) {
   const authorization =
     req.headers.authorization || "";
 
+  if (!/^Bearer [^\s]+$/.test(authorization)) return res.status(401).json({ message: "Token de autenticação inválido." });
+
   const [tipo, token] =
     authorization.split(" ");
 
@@ -33,7 +35,7 @@ function autenticar(req, res, next) {
 
   try {
     const usuario =
-      jwt.verify(token, secret);
+      jwt.verify(token, secret, { algorithms: ["HS256"] });
 
     req.usuario = usuario;
 

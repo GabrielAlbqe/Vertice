@@ -1,76 +1,121 @@
+
 const bd = require("../config/connection");
 
 const CustoPlanejado = {
-  // Lista todos os custos planejados
-  getAll: (callback) => {
-    const select = "SELECT * FROM custo_planejado";
-    bd.query(select, callback);
-  },
-
-  // Lista os custos planejados vinculados a uma obra específica
-  getByObra: (id_obra, callback) => {
-    const select = "SELECT * FROM custo_planejado WHERE id_obra = ?";
-    bd.query(select, [id_obra], callback);
-  },
-
-  // Busca um custo planejado por ID
-  getById: (id, callback) => {
-    const select = "SELECT * FROM custo_planejado WHERE id_custo_planejado = ?";
-    bd.query(select, [id], callback);
-  },
-
-  // Remove um custo planejado
-  delete: (id, callback) => {
-    const del = "DELETE FROM custo_planejado WHERE id_custo_planejado = ?";
-    bd.query(del, [id], callback);
-  },
-
-  // Insere um novo custo planejado
-  create: (data, callback) => {
-    const insert = `
-      INSERT INTO custo_planejado 
-      (id_obra, etapa, origem_custo, valor_planejado, data_inicio_prevista, data_fim_prevista) 
-      VALUES (?, ?, ?, ?, ?, ?)
+  getAll: (idConstrutora, callback) => {
+    const sql = `
+      SELECT cp.*
+      FROM custo_planejado cp
+      INNER JOIN obra o ON o.id_obra = cp.id_obra
+      WHERE o.id_construtora = ?
     `;
+
+    bd.query(sql, [idConstrutora], callback);
+  },
+
+  getByObra: (idObra, idConstrutora, callback) => {
+    const sql = `
+      SELECT cp.*
+      FROM custo_planejado cp
+      INNER JOIN obra o ON o.id_obra = cp.id_obra
+      WHERE cp.id_obra = ?
+        AND o.id_construtora = ?
+    `;
+
+    bd.query(sql, [idObra, idConstrutora], callback);
+  },
+
+  getById: (id, idConstrutora, callback) => {
+    const sql = `
+      SELECT cp.*
+      FROM custo_planejado cp
+      INNER JOIN obra o ON o.id_obra = cp.id_obra
+      WHERE cp.id_custo_planejado = ?
+        AND o.id_construtora = ?
+    `;
+
+    bd.query(sql, [id, idConstrutora], callback);
+  },
+
+  create: (dados, idConstrutora, callback) => {
+    const sql = `
+      INSERT INTO custo_planejado (
+        id_obra,
+        etapa,
+        origem_custo,
+        valor_planejado,
+        data_inicio_prevista,
+        data_fim_prevista
+      )
+      SELECT
+        o.id_obra,
+        ?, ?, ?, ?, ?
+      FROM obra o
+      WHERE o.id_obra = ?
+        AND o.id_construtora = ?
+    `;
+
     bd.query(
-      insert, 
+      sql,
       [
-        data.id_obra, 
-        data.etapa, 
-        data.origem_custo, 
-        data.valor_planejado, 
-        data.data_inicio_prevista, 
-        data.data_fim_prevista
-      ], 
+        dados.etapa,
+        dados.origem_custo,
+        dados.valor_planejado,
+        dados.data_inicio_prevista,
+        dados.data_fim_prevista,
+        dados.id_obra,
+        idConstrutora
+      ],
       callback
     );
   },
 
-  // Atualiza um custo planejado existente
-  update: (id, data, callback) => {
-    const update = `
-      UPDATE custo_planejado SET 
-        id_obra = ?, 
-        etapa = ?, 
-        origem_custo = ?, 
-        valor_planejado = ?, 
-        data_inicio_prevista = ?, 
-        data_fim_prevista = ? 
-      WHERE id_custo_planejado = ?
+  update: (id, dados, idConstrutora, callback) => {
+    const sql = `
+      UPDATE custo_planejado cp
+      INNER JOIN obra origem
+        ON origem.id_obra = cp.id_obra
+      INNER JOIN obra destino
+        ON destino.id_obra = ?
+       AND destino.id_construtora = ?
+      SET
+        cp.id_obra = destino.id_obra,
+        cp.etapa = ?,
+        cp.origem_custo = ?,
+        cp.valor_planejado = ?,
+        cp.data_inicio_prevista = ?,
+        cp.data_fim_prevista = ?
+      WHERE cp.id_custo_planejado = ?
+        AND origem.id_construtora = ?
     `;
+
     bd.query(
-      update, 
+      sql,
       [
-        data.id_obra, 
-        data.etapa, 
-        data.origem_custo, 
-        data.valor_planejado, 
-        data.data_inicio_prevista, 
-        data.data_fim_prevista, 
-        id
-      ], 
+        dados.id_obra,
+        idConstrutora,
+        dados.etapa,
+        dados.origem_custo,
+        dados.valor_planejado,
+        dados.data_inicio_prevista,
+        dados.data_fim_prevista,
+        id,
+        idConstrutora
+      ],
       callback
     );
+  },
+
+  delete: (id, idConstrutora, callback) => {
+    const sql = `
+      DELETE cp
+      FROM custo_planejado cp
+      INNER JOIN obra o ON o.id_obra = cp.id_obra
+      WHERE cp.id_custo_planejado = ?
+        AND o.id_construtora = ?
+    `;
+
+    bd.query(sql, [id, idConstrutora], callback);
   }
 };
 

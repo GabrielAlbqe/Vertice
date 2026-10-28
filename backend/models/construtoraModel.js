@@ -15,7 +15,7 @@ const Construtora = {
 
   // Remove um registro de construtora
   delete: (id, callback) => {
-    const del = "DELETE FROM construtora WHERE id_construtora = ?";
+    const del = "UPDATE construtora SET status = 'Inativo' WHERE id_construtora = ?";
     bd.query(del, [id], callback);
   },
 

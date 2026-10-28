@@ -1,28 +1,13 @@
-const mysql = require("mysql2");
-const path = require("path");
-require("dotenv").config({
-  path: path.join(__dirname, "../.env")
-});
-
-const connection = mysql.createConnection({
-  host: process.env.DB_HOST || "localhost",
-  user: process.env.DB_USER || "root",
-  password: process.env.DB_PASSWORD || "Password",
-  database: process.env.DB_NAME || "valen"
-});
-
-connection.connect((err) => {
-  if (err) {
-    console.error(
-      "❌ Erro ao conectar ao banco de dados MySQL:",
-      err.message
-    );
-    return;
-  }
-
-  console.log(
-    `✅ Conexão com MySQL realizada com sucesso (${process.env.DB_NAME || "valen"})!`
-  );
-});
-
-module.exports = connection;
+const env = require('./env');
+const mysql = require('mysql2');
+const { AsyncLocalStorage } = require('node:async_hooks');
+const context = new AsyncLocalStorage();
+const pool = mysql.createPool({ host: env.DB_HOST || 'localhost', user: env.DB_USER,
+  password: env.DB_PASSWORD, database: env.DB_NAME || 'valen', connectionLimit: 10,
+  dateStrings: true, decimalNumbers: false, multipleStatements: false });
+module.exports = {
+  query(...args) { return (context.getStore() || pool).query(...args); },
+  end(...args) { return pool.end(...args); },
+  getConnection(...args) { return pool.getConnection(...args); },
+  context,
+};

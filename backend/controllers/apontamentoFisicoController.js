@@ -46,7 +46,7 @@ exports.criar = (req, res) => {
 
   ApontamentoFisico.create(req.body, (err, result) => {
     if (err) {
-      console.error("❌ ERRO NO BANCO AO INSERIR APONTAMENTO FISICO:", err);
+      console.error("Falha no módulo apontamentoFisico.");
       return res.status(dbStatus(err)).json({ 
         error: err.message || "Erro interno no servidor ao cadastrar apontamento." 
       });

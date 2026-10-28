@@ -1,8 +1,4 @@
-const path = require("path");
-
-require("dotenv").config({
-  path: path.join(__dirname, ".env"),
-});
+require('./config/env');
 
 const express = require("express");
 const cors = require("cors");
@@ -15,26 +11,26 @@ const app = express();
 // =============================================================
 // MIDDLEWARES GLOBAIS
 // =============================================================
-app.use(cors()); // Permite que o Front-End se comunique com a API
-app.use(express.json()); // Habilita o recebimento de dados em formato JSON no corpo das requisições
+const origins = (process.env.CORS_ORIGINS || 'http://localhost:5173,http://127.0.0.1:5173').split(',').map(s => s.trim());
+app.use(cors({ origin(origin, callback) { callback(null, !origin || origins.includes(origin)); } })); // Permite que o Front-End se comunique com a API
+app.use(express.json({ limit: "1mb" }));
+app.use(require("./middlewares/respostas"));
+app.use("/api/usuarios/login", require("./middlewares/limitarLogin")); // Habilita o recebimento de dados em formato JSON no corpo das requisições
 
 app.use((req, res, next) => {
-  console.log("PASSOU PELO MIDDLEWARE:", req.method, req.path);
-  next();
-});
-
-app.use((req, res, next) => {
-  console.log("JWT middleware:", req.method, req.path);
   const rotaPublica =
     (req.method === "POST" && req.path === "/api/usuarios/login") ||
     (req.method === "POST" && req.path === "/api/usuarios/insert") ||
     (req.method === "GET" && req.path === "/api/health");
 
+  if (req.method === 'POST' && req.path === '/api/usuarios/insert' && req.headers.authorization) {
+    return autenticar(req, res, () => require('./middlewares/seguranca')(req, res, next));
+  }
   if (rotaPublica) {
     return next();
   }
 
-  return autenticar(req, res, next);
+  return autenticar(req, res, () => require("./middlewares/seguranca")(req, res, next));
 });
 
 // =============================================================
@@ -103,18 +99,28 @@ app.use("/api/rdo-equipes", rdoEquipeRoutes);
 app.use("/api/rdo-maquinarios", rdoMaquinarioRoutes);
 
 // Rota padrão para teste de integridade da API
+app.use('/api/inteligencia-operacional', require('./routes/inteligenciaOperacionalRoutes'));
+app.use('/api/historico-preditivo', require('./routes/historicoPreditivoRoutes'));
+
 app.get("/api/health", (req, res) => {
   res.status(200).json({
     status: "online",
     timestamp: new Date(),
-    banco_dados: "conectado",
+    banco_dados: "não verificado",
   });
 });
 
 // =============================================================
 // INICIALIZAÇÃO DO SERVIDOR
 // =============================================================
-if (process.env.NODE_ENV !== "test") {
+app.use((req, res) => res.status(404).json({ message: "Rota não encontrada." }));
+app.use((err, req, res, next) => {
+  if (res.headersSent) return next(err);
+  const status = err.type === "entity.parse.failed" ? 400 : err.status || 500;
+  res.status(status).json({ message: err.type === "entity.parse.failed" ? "JSON inválido." : status === 413 ? "Corpo da requisição excede o limite permitido." : status < 500 ? err.message : "Erro ao processar requisição." });
+});
+
+if (require.main === module) {
   const PORT = process.env.PORT || 3000;
   app.listen(PORT, () => {
     console.log(`====================================================`);

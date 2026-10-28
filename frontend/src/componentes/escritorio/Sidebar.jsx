@@ -1,126 +1,51 @@
 import iconeVertice from "../../assets/icone-vertice.png";
+import "./sidebar.css";
 
-function Sidebar({
-  onNavegar,
-}) {
-  const paginaSalva =
-    localStorage.getItem(
-      "pagina_atual"
-    ) || "dashboard";
+const grupos = [
+  { titulo: "Visão geral", itens: [
+    { pagina: "dashboard", nome: "Dashboard" },
+    { pagina: "obras", nome: "Planejamento de Obras" },
+  ] },
+  { titulo: "Gestão de Recursos", itens: [
+    { pagina: "equipes", nome: "Equipes" },
+    { pagina: "recursos", nome: "Insumos e Maquinários" },
+  ] },
+  { titulo: "Análises", itens: [
+    { pagina: "analytics-financeiro", nome: "Analytics Financeiro" },
+    { pagina: "inteligencia-operacional", nome: "Inteligência Operacional" },
+    { pagina: "historico-preditivo", nome: "Histórico Preditivo" },
+  ] },
+];
 
-  // Quando está dentro de uma obra,
-  // mantemos "Obras" aceso no menu.
-  const paginaInicial =
-    paginaSalva ===
-    "obra-detalhes"
-      ? "obras"
-      : paginaSalva;
-
-  const paginaAtiva = paginaInicial;
-
-  function navegar(
-    pagina
-  ) {
-if (
-      typeof onNavegar ===
-      "function"
-    ) {
-      onNavegar(
-        pagina
-      );
-    }
-  }
-
-  function classeBotao(
-    pagina
-  ) {
-    return paginaAtiva ===
-      pagina
-      ? "sidebar-item ativo"
-      : "sidebar-item";
-  }
+function Sidebar({ onNavegar }) {
+  const paginaSalva = localStorage.getItem("pagina_atual") || "dashboard";
+  const paginaAtiva = paginaSalva === "obra-detalhes" ? "obras" : paginaSalva;
 
   return (
-    <aside className="sidebar">
-
+    <aside className="sidebar sidebar-tools">
       <div className="sidebar-brand">
-        <img
-          src={iconeVertice}
-          alt=""
-          className="sidebar-brand-icon"
-        />
-
-        <div className="sidebar-brand-text">
-          <strong>
-            VÉRTICE
-          </strong>
-
-          <span>
-            Engenharia & Obras
-          </span>
-        </div>
+        <img src={iconeVertice} alt="" className="sidebar-brand-icon" />
+        <div className="sidebar-brand-text"><strong>VÉRTICE</strong><span>Engenharia & Obras</span></div>
       </div>
-
-      <nav className="sidebar-menu" aria-label="Escrit?rio">
-
-        <button
-          type="button"
-          aria-current={paginaAtiva === "dashboard" ? "page" : undefined} className={classeBotao("dashboard")}
-          onClick={() =>
-            navegar(
-              "dashboard"
-            )
-          }
-        >
-          <span className="sidebar-dot" />
-          Dashboard
-        </button>
-
-        <button
-          type="button"
-          aria-current={paginaAtiva === "obras" ? "page" : undefined} className={classeBotao("obras")}
-          onClick={() =>
-            navegar(
-              "obras"
-            )
-          }
-        >
-          <span className="sidebar-dot" />
-          Obras
-        </button>
-
-        <button
-          type="button"
-          aria-current={paginaAtiva === "equipes" ? "page" : undefined} className={classeBotao("equipes")}
-          onClick={() =>
-            navegar(
-              "equipes"
-            )
-          }
-        >
-          <span className="sidebar-dot" />
-          Equipes
-        </button>
-
-        <button type="button" aria-current={paginaAtiva === "analytics-financeiro" ? "page" : undefined} className={classeBotao("analytics-financeiro")} onClick={() => navegar("analytics-financeiro")}>
-          <span className="sidebar-dot" />
-          Analytics Financeiro
-        </button>
-        <button type="button" aria-current={paginaAtiva === "recursos" ? "page" : undefined} className={classeBotao("recursos")} onClick={() => navegar("recursos")}><span className="sidebar-dot" />Recursos</button>
-        <button type="button" className={classeBotao("perfil")} aria-current={paginaAtiva === "perfil" ? "page" : undefined} onClick={() => navegar("perfil")}><span className="sidebar-dot" />Perfil</button>
-
+      <nav className="sidebar-menu" aria-label="Ferramentas do Escritório">
+        {grupos.map((grupo, index) => (
+          <section className="sidebar-tool-group" key={grupo.titulo} aria-labelledby={"sidebar-group-" + index}>
+            <h2 id={"sidebar-group-" + index}>{grupo.titulo}</h2>
+            {grupo.itens.map(item => (
+              <button key={item.pagina} type="button"
+                className={"sidebar-item" + (paginaAtiva === item.pagina ? " ativo" : "")}
+                aria-current={!item.indisponivel && paginaAtiva === item.pagina ? "page" : undefined}
+                disabled={item.indisponivel}
+                title={item.indisponivel ? "Ferramenta ainda não implementada" : undefined}
+                onClick={() => { if (!item.indisponivel && typeof onNavegar === "function") onNavegar(item.pagina); }}>
+                <span className="sidebar-dot" aria-hidden="true" />
+                <span className="sidebar-tool-name">{item.nome}{item.indisponivel && <small>Indisponível</small>}</span>
+              </button>
+            ))}
+          </section>
+        ))}
       </nav>
-
-      <div className="sidebar-footer">
-        <span>
-          SISTEMA VÉRTICE
-        </span>
-
-        <small>
-          Gestão inteligente de obras
-        </small>
-      </div>
-
+      <div className="sidebar-footer"><span>SISTEMA VÉRTICE</span><small>Gestão inteligente de obras</small></div>
     </aside>
   );
 }

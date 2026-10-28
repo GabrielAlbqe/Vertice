@@ -1,3 +1,4 @@
+import HistoricoPreditivo from './pages/escritorio/HistoricoPreditivo';
 import { useEffect, useState } from "react";
 import CanteiroApp from "./canteiro/CanteiroApp";
 import { usuarioCanteiro, paginasCanteiro } from "./canteiro/sessao";
@@ -10,12 +11,13 @@ import Equipes from "./pages/escritorio/Equipes";
 import ObraDetalhes from "./pages/escritorio/ObraDetalhes";
 import Recursos from "./pages/escritorio/Recursos";
 import Perfil from "./pages/escritorio/Perfil";
+import InteligenciaOperacional from './pages/escritorio/InteligenciaOperacional';
 import AnalyticsFinanceiro from "./pages/escritorio/AnalyticsFinanceiro";
 
 import "./styles.css";
 import { confirmarSaida } from "./componentes/shared/useUnsavedChanges";
 
-const rotas = { dashboard: "/escritorio", obras: "/escritorio/obras", equipes: "/escritorio/equipes", recursos: "/escritorio/recursos", perfil: "/escritorio/perfil", "obra-detalhes": "/escritorio/obra", "analytics-financeiro": "/escritorio/analytics", login: "/login", cadastro: "/cadastro" };
+const rotas = { 'historico-preditivo': '/escritorio/historico-preditivo', 'inteligencia-operacional': '/escritorio/inteligencia-operacional', dashboard: "/escritorio", obras: "/escritorio/obras", equipes: "/escritorio/equipes", recursos: "/escritorio/recursos", perfil: "/escritorio/perfil", "obra-detalhes": "/escritorio/obra", "analytics-financeiro": "/escritorio/analytics", login: "/login", cadastro: "/cadastro" };
 paginasCanteiro.forEach(p => { rotas[p] = p === "canteiro-home" ? "/canteiro" : "/canteiro/" + p.replace("canteiro-", ""); });
 
 function App() {
@@ -53,7 +55,7 @@ function App() {
       localStorage.setItem("pagina_atual", destino);
       return destino;
     }
-    const paginas = ["dashboard", "obras", "equipes", "recursos", "perfil", "obra-detalhes", "analytics-financeiro"];
+    const paginas = ['historico-preditivo', 'inteligencia-operacional', "dashboard", "obras", "equipes", "recursos", "perfil", "obra-detalhes", "analytics-financeiro"];
     let destino = paginas.includes(salva) ? salva : "dashboard";
     if (destino === "obra-detalhes") {
       try {
@@ -232,6 +234,9 @@ function App() {
   // =====================================================
 
   if (pagina === "recursos") return <Recursos onNavegar={navegar} onAbrirObra={abrirObra} />;
+
+  if (pagina === 'historico-preditivo') return <HistoricoPreditivo onNavegar={navegar} />;
+  if (pagina === 'inteligencia-operacional') return <InteligenciaOperacional onNavegar={navegar} />;
 
   if (pagina === "analytics-financeiro") {
     return <AnalyticsFinanceiro onNavegar={navegar} />;
