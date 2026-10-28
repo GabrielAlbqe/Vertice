@@ -1,52 +1,179 @@
+
 const OrcamentoPrevisto = require("../models/orcamentoPrevistoModel");
 const { dbStatus } = require("../utils/dbError");
 
-// Lista os orçamentos previstos filtrando pelo ID da atividade EAP
-exports.listarPorAtividadeEap = (req, res) => {
-  const id_atividade_eap = req.query.id_atividade_eap || req.headers["id-atividade-eap"];
+function idValido(valor) {
+  return (
+    valor !== null &&
+    valor !== undefined &&
+    valor !== "" &&
+    /^\d+$/.test(String(valor)) &&
+    Number.isSafeInteger(Number(valor)) &&
+    Number(valor) > 0
+  );
+}
 
-  if (!id_atividade_eap) {
-    return res.status(400).send("O identificador da atividade EAP (id_atividade_eap) é obrigatório.");
+function valorValido(valor) {
+  return (
+    valor !== null &&
+    valor !== undefined &&
+    valor !== "" &&
+    typeof valor !== "boolean" &&
+    Number.isFinite(Number(valor)) &&
+    Number(valor) >= 0 &&
+    Number(valor) <= 9999999999999.99
+  );
+}
+
+function validarDados(dados, cadastro = false) {
+  if (cadastro && !idValido(dados.id_orcamento)) {
+    return "Informe um ID de orçamento válido.";
   }
 
-  OrcamentoPrevisto.getByAtividadeEap(id_atividade_eap, (err, results) => {
-    if (err) return res.status(dbStatus(err)).send("Erro interno no servidor ao listar orçamento previsto.");
-    res.json(results);
+  if (!idValido(dados.id_atividade_eap)) {
+    return "Informe uma atividade EAP válida.";
+  }
+
+  if (!valorValido(dados.valor_planejado)) {
+    return "Informe um valor planejado válido.";
+  }
+
+  return null;
+}
+
+function erroBanco(res, erro) {
+  console.error("Erro em Orçamentos Previstos:", erro.message);
+
+  return res.status(dbStatus(erro)).json({
+    message: "Erro ao processar orçamento previsto."
   });
+}
+
+// GET /api/orcamentos-previstos?id_atividade_eap=1
+exports.listarPorAtividadeEap = (req, res) => {
+  const idAtividade =
+    req.query.id_atividade_eap ??
+    req.headers["id-atividade-eap"];
+
+  if (!idValido(idAtividade)) {
+    return res.status(400).json({
+      message: "Informe um ID de atividade EAP válido."
+    });
+  }
+
+  OrcamentoPrevisto.getByAtividadeEap(
+    idAtividade,
+    (erro, resultados) => {
+      if (erro) return erroBanco(res, erro);
+
+      return res.status(200).json(resultados);
+    }
+  );
 };
 
-// Busca detalhes de um orçamento previsto por ID
+// GET /api/orcamentos-previstos/:id
 exports.buscarPorId = (req, res) => {
-  OrcamentoPrevisto.getById(req.params.id, (err, results) => {
-    if (err) return res.status(dbStatus(err)).send("Erro interno no servidor ao buscar orçamento previsto.");
-    if (results.length === 0) return res.status(404).send("Orçamento previsto não encontrado.");
-    res.json(results[0]);
-  });
+  if (!idValido(req.params.id)) {
+    return res.status(400).json({
+      message: "ID do orçamento inválido."
+    });
+  }
+
+  OrcamentoPrevisto.getById(
+    req.params.id,
+    (erro, resultados) => {
+      if (erro) return erroBanco(res, erro);
+
+      if (!resultados || resultados.length === 0) {
+        return res.status(404).json({
+          message: "Orçamento previsto não encontrado."
+        });
+      }
+
+      return res.status(200).json(resultados[0]);
+    }
+  );
 };
 
-// Remove um registro de orçamento previsto
-exports.deletar = (req, res) => {
-  OrcamentoPrevisto.delete(req.params.id, (err, result) => {
-    if (err) return res.status(dbStatus(err)).send("Erro interno no servidor ao deletar orçamento previsto.");
-    if (result.affectedRows === 0) return res.status(404).send("Orçamento previsto não encontrado.");
-    res.send("Orçamento previsto removido com sucesso!");
-  });
-};
-
-// Registra um novo orçamento previsto
+// POST /api/orcamentos-previstos/insert
 exports.criar = (req, res) => {
-  // req.body deve conter: id_orcamento, valor_planejado, id_atividade_eap
-  OrcamentoPrevisto.create(req.body, (err) => {
-    if (err) return res.status(dbStatus(err)).send("Erro interno no servidor ao cadastrar orçamento previsto.");
-    res.status(201).send("Orçamento previsto registrado com sucesso!");
+  const dados = req.body || {};
+  const mensagem = validarDados(dados, true);
+
+  if (mensagem) {
+    return res.status(400).json({
+      message: mensagem
+    });
+  }
+
+  OrcamentoPrevisto.create(dados, (erro) => {
+    if (erro) return erroBanco(res, erro);
+
+    return res.status(201).json({
+      message: "Orçamento previsto cadastrado com sucesso!",
+      insertId: Number(dados.id_orcamento)
+    });
   });
 };
 
-// Atualiza os dados de um orçamento previsto existente
+// PUT /api/orcamentos-previstos/insert/:id
 exports.atualizar = (req, res) => {
-  OrcamentoPrevisto.update(req.params.id, req.body, (err, result) => {
-    if (err) return res.status(dbStatus(err)).send("Erro interno no servidor ao atualizar orçamento previsto.");
-    if (result.affectedRows === 0) return res.status(404).send("Orçamento previsto não encontrado.");
-    res.send("Orçamento previsto atualizado com sucesso!");
-  });
+  if (!idValido(req.params.id)) {
+    return res.status(400).json({
+      message: "ID do orçamento inválido."
+    });
+  }
+
+  const dados = req.body || {};
+  const mensagem = validarDados(dados);
+
+  if (mensagem) {
+    return res.status(400).json({
+      message: mensagem
+    });
+  }
+
+  OrcamentoPrevisto.update(
+    req.params.id,
+    dados,
+    (erro, resultado) => {
+      if (erro) return erroBanco(res, erro);
+
+      if (resultado.affectedRows === 0) {
+        return res.status(404).json({
+          message: "Orçamento previsto não encontrado."
+        });
+      }
+
+      return res.status(200).json({
+        message: "Orçamento previsto atualizado com sucesso!"
+      });
+    }
+  );
+};
+
+// DELETE /api/orcamentos-previstos/del/:id
+exports.deletar = (req, res) => {
+  if (!idValido(req.params.id)) {
+    return res.status(400).json({
+      message: "ID do orçamento inválido."
+    });
+  }
+
+  OrcamentoPrevisto.delete(
+    req.params.id,
+    (erro, resultado) => {
+      if (erro) return erroBanco(res, erro);
+
+      if (resultado.affectedRows === 0) {
+        return res.status(404).json({
+          message: "Orçamento previsto não encontrado."
+        });
+      }
+
+      return res.status(200).json({
+        message: "Orçamento previsto removido com sucesso!"
+      });
+    }
+  );
 };

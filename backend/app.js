@@ -6,6 +6,7 @@ require("dotenv").config({
 
 const express = require("express");
 const cors = require("cors");
+const connection = require("./config/connection");
 
 const autenticar = require("./middlewares/autenticar");
 
@@ -103,11 +104,26 @@ app.use("/api/rdo-equipes", rdoEquipeRoutes);
 app.use("/api/rdo-maquinarios", rdoMaquinarioRoutes);
 
 // Rota padrão para teste de integridade da API
+
 app.get("/api/health", (req, res) => {
-  res.status(200).json({
-    status: "online",
-    timestamp: new Date(),
-    banco_dados: "conectado",
+  connection.query("SELECT 1 AS teste", (erro) => {
+    if (erro) {
+      console.error("Erro na verificação do MySQL:", erro.message);
+
+      return res.status(503).json({
+        status: "erro",
+        servidor: "online",
+        banco_dados: "desconectado",
+        timestamp: new Date().toISOString()
+      });
+    }
+
+    return res.status(200).json({
+      status: "online",
+      servidor: "online",
+      banco_dados: "conectado",
+      timestamp: new Date().toISOString()
+    });
   });
 });
 

@@ -1,11 +1,10 @@
-
 {
   "name": "vertice-backend",
   "version": "1.0.0",
   "private": true,
   "scripts": {
     "start": "node app.js",
-    "test": "node --test --test-concurrency=1 tests/recursos.test.js tests/equipes.construtora.test.js tests/maquinarios.construtora.test.js"
+    "test": "node --test --test-concurrency=1 tests/recursos.test.js tests/equipes.construtora.test.js tests/maquinarios.construtora.test.js tests/obras.test.js tests/construtoras.test.js tests/usuarios.test.js tests/eap.test.js tests/rdo.test.js tests/rdoEquipes.test.js tests/rdoMaquinarios.test.js tests/diarioObra.test.js tests/orcamentosPrevistos.test.js tests/custosPlanejados.test.js"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",

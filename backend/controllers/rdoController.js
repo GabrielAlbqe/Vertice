@@ -1,52 +1,182 @@
+
 const Rdo = require("../models/rdoModel");
 const { dbStatus } = require("../utils/dbError");
 
-// Lista os RDOs filtrando pelo ID da obra
-exports.listarPorObra = (req, res) => {
-  const id_obra = req.query.id_obra || req.headers["id-obra"];
+const TURNOS = ["Manhã", "Tarde", "Noite", "Integral"];
 
-  if (!id_obra) {
-    return res.status(400).send("O identificador da obra (id_obra) é obrigatório.");
+const CLIMAS = [
+  "Ensolarado",
+  "Nublado",
+  "Chuvoso",
+  "Impraticável"
+];
+
+function idValido(valor) {
+  if (valor === null || valor === undefined || valor === "") {
+    return false;
   }
 
-  Rdo.getByObra(id_obra, (err, results) => {
-    if (err) return res.status(dbStatus(err)).send("Erro interno no servidor ao listar RDOs.");
-    res.json(results);
+  return /^\d+$/.test(String(valor)) &&
+    Number.isSafeInteger(Number(valor)) &&
+    Number(valor) > 0;
+}
+
+function dataValida(valor) {
+  if (
+    typeof valor !== "string" ||
+    !/^\d{4}-\d{2}-\d{2}$/.test(valor)
+  ) {
+    return false;
+  }
+
+  const [ano, mes, dia] = valor.split("-").map(Number);
+  const data = new Date(Date.UTC(ano, mes - 1, dia));
+
+  return (
+    data.getUTCFullYear() === ano &&
+    data.getUTCMonth() === mes - 1 &&
+    data.getUTCDate() === dia
+  );
+}
+
+function validarDados(dados) {
+  if (!idValido(dados.id_obra)) {
+    return "Informe um ID de obra válido.";
+  }
+
+  if (!dataValida(dados.data_rdo)) {
+    return "Informe uma data válida no formato AAAA-MM-DD.";
+  }
+
+  if (!TURNOS.includes(dados.turno)) {
+    return "Turno inválido.";
+  }
+
+  if (!CLIMAS.includes(dados.clima)) {
+    return "Condição climática inválida.";
+  }
+
+  return null;
+}
+
+function erroBanco(res, erro) {
+  console.error("Erro no módulo RDO:", erro.message);
+
+  return res.status(dbStatus(erro)).json({
+    message: "Erro ao processar o relatório diário de obra."
+  });
+}
+
+// GET /api/rdo?id_obra=1
+exports.listarPorObra = (req, res) => {
+  const idObra = req.query.id_obra ?? req.headers["id-obra"];
+
+  if (!idValido(idObra)) {
+    return res.status(400).json({
+      message: "Informe um ID de obra válido."
+    });
+  }
+
+  Rdo.getByObra(idObra, (erro, resultados) => {
+    if (erro) return erroBanco(res, erro);
+
+    return res.status(200).json(resultados);
   });
 };
 
-// Busca detalhes de um RDO específico por ID
+// GET /api/rdo/:id
 exports.buscarPorId = (req, res) => {
-  Rdo.getById(req.params.id, (err, results) => {
-    if (err) return res.status(dbStatus(err)).send("Erro interno no servidor ao buscar RDO.");
-    if (results.length === 0) return res.status(404).send("RDO não encontrado.");
-    res.json(results[0]);
+  if (!idValido(req.params.id)) {
+    return res.status(400).json({
+      message: "ID do RDO inválido."
+    });
+  }
+
+  Rdo.getById(req.params.id, (erro, resultados) => {
+    if (erro) return erroBanco(res, erro);
+
+    if (!resultados || resultados.length === 0) {
+      return res.status(404).json({
+        message: "RDO não encontrado."
+      });
+    }
+
+    return res.status(200).json(resultados[0]);
   });
 };
 
-// Remove um registro de RDO do sistema
-exports.deletar = (req, res) => {
-  Rdo.delete(req.params.id, (err, result) => {
-    if (err) return res.status(dbStatus(err)).send("Erro interno no servidor ao deletar RDO.");
-    if (result.affectedRows === 0) return res.status(404).send("RDO não encontrado.");
-    res.send("RDO removido com sucesso!");
-  });
-};
-
-// Registra um novo RDO
+// POST /api/rdo/insert
 exports.criar = (req, res) => {
-  // req.body deve conter: id_obra, data_rdo, turno, clima
-  Rdo.create(req.body, (err) => {
-    if (err) return res.status(dbStatus(err)).send("Erro interno no servidor ao cadastrar RDO.");
-    res.status(201).send("RDO registrado com sucesso!");
+  const dados = req.body || {};
+  const erroValidacao = validarDados(dados);
+
+  if (erroValidacao) {
+    return res.status(400).json({
+      message: erroValidacao
+    });
+  }
+
+  Rdo.create(dados, (erro, resultado) => {
+    if (erro) return erroBanco(res, erro);
+
+    return res.status(201).json({
+      message: "RDO registrado com sucesso!",
+      insertId: resultado.insertId
+    });
   });
 };
 
-// Atualiza os dados de um RDO existente
+// PUT /api/rdo/insert/:id
 exports.atualizar = (req, res) => {
-  Rdo.update(req.params.id, req.body, (err, result) => {
-    if (err) return res.status(dbStatus(err)).send("Erro interno no servidor ao atualizar RDO.");
-    if (result.affectedRows === 0) return res.status(404).send("RDO não encontrado.");
-    res.send("RDO atualizado com sucesso!");
+  if (!idValido(req.params.id)) {
+    return res.status(400).json({
+      message: "ID do RDO inválido."
+    });
+  }
+
+  const dados = req.body || {};
+  const erroValidacao = validarDados(dados);
+
+  if (erroValidacao) {
+    return res.status(400).json({
+      message: erroValidacao
+    });
+  }
+
+  Rdo.update(req.params.id, dados, (erro, resultado) => {
+    if (erro) return erroBanco(res, erro);
+
+    if (resultado.affectedRows === 0) {
+      return res.status(404).json({
+        message: "RDO não encontrado."
+      });
+    }
+
+    return res.status(200).json({
+      message: "RDO atualizado com sucesso!"
+    });
+  });
+};
+
+// DELETE /api/rdo/del/:id
+exports.deletar = (req, res) => {
+  if (!idValido(req.params.id)) {
+    return res.status(400).json({
+      message: "ID do RDO inválido."
+    });
+  }
+
+  Rdo.delete(req.params.id, (erro, resultado) => {
+    if (erro) return erroBanco(res, erro);
+
+    if (resultado.affectedRows === 0) {
+      return res.status(404).json({
+        message: "RDO não encontrado."
+      });
+    }
+
+    return res.status(200).json({
+      message: "RDO removido com sucesso!"
+    });
   });
 };

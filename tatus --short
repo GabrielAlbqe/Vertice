@@ -1,0 +1,17 @@
+ backend/controllers/equipeController.js         | 488 [32m+++++++[m[31m------------[m
+ backend/controllers/insumosController.js        | 531 [32m++++++++++[m[31m-----------[m
+ backend/controllers/maquinarioController.js     | 593 [32m++++++++++++++[m[31m----------[m
+ backend/middlewares/exigirConstrutora.js        |  61 [32m+++[m
+ backend/migrations/001_recursos_construtora.sql |  47 [32m++[m
+ backend/models/equipeModel.js                   | 202 [32m++[m[31m------[m
+ backend/models/insumosModel.js                  | 175 [32m+++[m[31m----[m
+ backend/models/maquinarioModel.js               | 196 [32m++++[m[31m----[m
+ backend/package-lock.json                       | 252 [32m+++++++++[m[31m-[m
+ backend/package.json                            |  11 [32m+[m
+ backend/routes/equipeRoutes.js                  |  53 [32m+[m[31m--[m
+ backend/routes/insumoRoutes.js                  |  72 [32m++[m[31m-[m
+ backend/routes/maquinarioRoutes.js              |  49 [32m+[m[31m-[m
+ backend/tests/equipes.construtora.test.js       | 182 [32m++++++++[m
+ backend/tests/maquinarios.construtora.test.js   | 425 [32m+++++++++++++++++[m
+ backend/tests/recursos.test.js                  | 296 [32m++++++++++++[m
+ 16 files changed, 2331 insertions(+), 1302 deletions(-)
