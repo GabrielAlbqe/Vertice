@@ -1,5 +1,5 @@
 const Insumos = require("../models/insumosModel");
-const { dbStatus } = require("../utils/dbError");
+const { dbStatus, safeDbMessage } = require("../utils/dbError");
 
 // Lista os insumos filtrando pelo ID da obra
 exports.listarPorObra = (req, res) => {
@@ -50,7 +50,7 @@ exports.deletar = (req, res) => {
 exports.criar = (req, res) => {
   Insumos.create(req.body, (err, result) => { // <-- Corrigido de Insumo para Insumos
     if (err) {
-      return res.status(dbStatus(err)).json({ message: "Erro ao cadastrar insumo.", error: err.message });
+      return res.status(dbStatus(err)).json({ message: "Erro ao cadastrar insumo.", error: safeDbMessage(err) });
     }
     
     // Devolve o ID criado em formato JSON

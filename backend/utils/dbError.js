@@ -18,4 +18,7 @@ function dbStatus(err) {
   return CLIENT_DB_ERROR_CODES.has(err?.code) ? 400 : 500;
 }
 
-module.exports = { dbStatus };
+function safeDbMessage(err) {
+  return dbStatus(err)===400?'Dados inválidos, duplicados ou vinculados a outros registros.':'Não foi possível concluir a operação.';
+}
+module.exports = { dbStatus, safeDbMessage };

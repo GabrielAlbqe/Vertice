@@ -1,4 +1,4 @@
-const bd = require("../config/connection");
+const bd = require("../config/scopedConnection");
 
 const ConsumoInsumo = {
   getByRdo: (id_rdo, callback) => {

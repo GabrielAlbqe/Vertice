@@ -1,24 +1,35 @@
-import { useEffect, useState } from "react";
-import CanteiroApp from "./canteiro/CanteiroApp";
-import { usuarioCanteiro, paginasCanteiro } from "./canteiro/sessao";
+import Layout from './componentes/escritorio/Layout';
+import CanteiroLayout from './layouts/CanteiroLayout';
+import RouteContent from './navigation/RouteContent';
+import { pages, preloadPage } from './navigation/pages';
+const { dashboard: Dashboard, obras: Obras, equipes: Equipes, recursos: Recursos, perfil: Perfil, 'obra-detalhes': ObraDetalhes, 'analytics-financeiro': AnalyticsFinanceiro, canteiro: CanteiroApp } = pages;
+import { startTransition, useEffect, useState } from "react";
+import { usuarioCanteiro, paginasCanteiro, sessaoValida, invalidarSessao } from "./canteiro/sessao";
 
 import Login from "./pages/Login";
-import Cadastro from "./pages/escritorio/Cadastro";
-import Dashboard from "./pages/escritorio/Dashboard";
-import Obras from "./pages/escritorio/Obras";
-import Equipes from "./pages/escritorio/Equipes";
-import ObraDetalhes from "./pages/escritorio/ObraDetalhes";
-import Recursos from "./pages/escritorio/Recursos";
-import Perfil from "./pages/escritorio/Perfil";
-import AnalyticsFinanceiro from "./pages/escritorio/AnalyticsFinanceiro";
 
 import "./styles.css";
 import { confirmarSaida } from "./componentes/shared/useUnsavedChanges";
+import {sessionId} from './api/sessionTransport';
+import RedefinirSenha from './pages/RedefinirSenha';
 
-const rotas = { dashboard: "/escritorio", obras: "/escritorio/obras", equipes: "/escritorio/equipes", recursos: "/escritorio/recursos", perfil: "/escritorio/perfil", "obra-detalhes": "/escritorio/obra", "analytics-financeiro": "/escritorio/analytics", login: "/login", cadastro: "/cadastro" };
+const rotas = { dashboard: "/escritorio", obras: "/escritorio/obras", equipes: "/escritorio/equipes", recursos: "/escritorio/recursos", perfil: "/escritorio/perfil", "obra-detalhes": "/escritorio/obra", "analytics-financeiro": "/escritorio/analytics", login: "/login" };
 paginasCanteiro.forEach(p => { rotas[p] = p === "canteiro-home" ? "/canteiro" : "/canteiro/" + p.replace("canteiro-", ""); });
 
 function App() {
+  const [resetTicket]=useState(()=>{
+    const params=new URLSearchParams(location.hash.slice(1)),ticket=params.get('reset');
+    if(ticket)history.replaceState(null,'','/login');
+    return ticket;
+  });
+  useEffect(()=>{
+    const encerrar=()=>{setObraSelecionada(null);setPagina('login');history.replaceState(null,'','/login');};
+    const conferir=()=>{if(localStorage.getItem('id_usuario') && !sessaoValida())invalidarSessao(sessionId());};
+    window.addEventListener('vertice:sessao-expirada',encerrar);
+    window.addEventListener('focus',conferir);
+    const timer=setInterval(conferir,30000);conferir();
+    return()=>{clearInterval(timer);window.removeEventListener('focus',conferir);window.removeEventListener('vertice:sessao-expirada',encerrar);};
+  },[]);
   useEffect(() => {
     const lerRota = () => {
       const destino = Object.keys(rotas).find(p => rotas[p] === window.location.pathname.replace(/\/$/, ""));
@@ -34,9 +45,9 @@ function App() {
 
   const [pagina, setPagina] = useState(() => {
     const destinoUrl = Object.keys(rotas).find(p => rotas[p] === window.location.pathname.replace(/\/$/, ""));
-    if (["login", "cadastro"].includes(destinoUrl)) return destinoUrl;
+    if (["login"].includes(destinoUrl)) return destinoUrl;
     const idUsuario =
-      localStorage.getItem("id_usuario");
+      sessaoValida() ? localStorage.getItem("id_usuario") : null;
 
     if (!idUsuario) {
       localStorage.setItem(
@@ -71,7 +82,7 @@ function App() {
   function navegar(
     paginaDestino, substituir = false
   ) {
-    if (!["login", "cadastro"].includes(paginaDestino)) {
+    if (!["login"].includes(paginaDestino)) {
       if (!localStorage.getItem("id_usuario")) paginaDestino = "login";
       else if (usuarioCanteiro() && !paginasCanteiro.includes(paginaDestino)) paginaDestino = "canteiro-home";
       else if (!usuarioCanteiro() && paginasCanteiro.includes(paginaDestino)) paginaDestino = "dashboard";
@@ -88,9 +99,10 @@ function App() {
       paginaDestino
     );
 
-    setPagina(
-      paginaDestino
-    );
+    preloadPage(paginaDestino);
+    if (!['login'].includes(paginaDestino) && !['login'].includes(pagina)) {
+      startTransition(() => setPagina(paginaDestino));
+    } else setPagina(paginaDestino);
   }
 
 
@@ -163,6 +175,7 @@ function App() {
   // LOGIN
   // =====================================================
 
+  if(resetTicket)return <RedefinirSenha ticket={resetTicket}/>;
   if (
     pagina === "login"
   ) {
@@ -173,47 +186,19 @@ function App() {
             usuarioCanteiro(usuario) ? "canteiro-home" : "dashboard"
           )
         }
-        onCadastro={() =>
-          navegar(
-            "cadastro"
-          )
-        }
-      />
-    );
-  }
-
-  // =====================================================
-  // CADASTRO
-  // =====================================================
-
-  if (
-    pagina ===
-    "cadastro"
-  ) {
-    return (
-      <Cadastro
-        onCadastro={() =>
-          navegar(
-            "login"
-          )
-        }
-        onVoltar={() =>
-          navegar(
-            "login"
-          )
-        }
       />
     );
   }
 
   if (localStorage.getItem("id_usuario") && usuarioCanteiro()) {
-    return <CanteiroApp pagina={pagina} onNavegar={navegar} />;
+    return <CanteiroLayout pagina={pagina} onNavegar={navegar}><RouteContent page={pagina}><CanteiroApp pagina={pagina} onNavegar={navegar} /></RouteContent></CanteiroLayout>;
   }
 
   // =====================================================
   // DASHBOARD
   // =====================================================
 
+  function renderEscritorio() {
   if (
     pagina ===
     "dashboard"
@@ -320,6 +305,7 @@ function App() {
       }
     />
   );
+  }
+  return <Layout onNavegar={navegar} pagina={pagina}><RouteContent page={pagina}>{renderEscritorio()}</RouteContent></Layout>;
 }
-
 export default App;

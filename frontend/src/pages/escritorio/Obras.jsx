@@ -1,3 +1,4 @@
+import {dataISO,hojeLocal} from '../../api/analyticsCalculos';
 import Toast from "../../componentes/shared/Toast";
 import Skeleton from "../../componentes/shared/Skeleton";
 import useUnsavedChanges, { confirmarSaida } from "../../componentes/shared/useUnsavedChanges";
@@ -9,7 +10,6 @@ import {
   useState,
 } from "react";
 
-import Layout from "../../componentes/escritorio/Layout";
 import Card from "../../componentes/escritorio/Card";
 
 import {
@@ -135,6 +135,10 @@ function Obras({
   // MODAL OBRA
   // ===================================================
 
+  const [situacaoFiltro,setSituacaoFiltro]=useState(''),[inicioFiltro,setInicioFiltro]=useState(''),[fimFiltro,setFimFiltro]=useState(''),[buscaFiltro,setBuscaFiltro]=useState('');
+  const periodoInvalido=Boolean(inicioFiltro&&fimFiltro&&inicioFiltro>fimFiltro);
+  const prazo=obra=>{const end=dataISO(obra.data_termino_planejada);if(!end||!obra.status||statusParaBanco(obra.status)==='Concluida')return '';const days=Math.round((Date.parse(end)-Date.parse(hojeLocal()))/86400000);return days<0?'Prazo vencido':days<=7?'Prazo crítico (até 7 dias)':'';};
+  const obrasVisiveis=obras.filter(o=>!periodoInvalido&&(!situacaoFiltro||(situacaoFiltro==='critica'?Boolean(prazo(o)):statusParaBanco(o.status)===situacaoFiltro))&&(!inicioFiltro||dataISO(o.data_termino_planejada)>=inicioFiltro)&&(!fimFiltro||(dataISO(o.data_inicio_planejada)&&dataISO(o.data_inicio_planejada)<=fimFiltro))&&String(o.nome||o.obra||'').toLocaleLowerCase('pt-BR').includes(buscaFiltro.toLocaleLowerCase('pt-BR')));
   const [
     modalObraAberto,
     setModalObraAberto,
@@ -795,11 +799,7 @@ function Obras({
   // ===================================================
 
   return (
-    <Layout
-      onNavegar={
-        onNavegar
-      }
-    >
+    <>
       <div className="dashboard">
 
         {/* CABEÇALHO */}
@@ -876,6 +876,7 @@ function Obras({
           />
         </section>
 
+        <section className="v3-panel" aria-label="Filtros de obras"><div className="v3-filters"><label>Buscar obra<input type="search" value={buscaFiltro} onChange={e=>setBuscaFiltro(e.target.value)}/></label><label>Situação da obra<select value={situacaoFiltro} onChange={e=>setSituacaoFiltro(e.target.value)}><option value="">Todas</option>{['Planejamento','Em Andamento','Concluida','Paralisada'].map(v=><option key={v}>{v}</option>)}<option value="critica">Prazos críticos ou vencidos</option></select></label><label>Período de início<input type="date" value={inicioFiltro} onChange={e=>setInicioFiltro(e.target.value)}/></label><label>Período de fim<input type="date" value={fimFiltro} onChange={e=>setFimFiltro(e.target.value)}/></label><button className="secondary-button" type="button" onClick={()=>{setSituacaoFiltro('');setInicioFiltro('');setFimFiltro('');setBuscaFiltro('');}}>Limpar filtros de obras</button></div>{periodoInvalido&&<p role="alert">O início deve ser anterior ou igual ao fim.</p>}<p role="status">{obrasVisiveis.length} obras encontradas. O período considera a sobreposição das datas previstas.</p></section>
         {/* TABELA */}
 
         <section className="dashboard-section">
@@ -919,7 +920,7 @@ function Obras({
                       <Skeleton label="Carregando obras…" />
                     </td>
                   </tr>
-                ) : obras.length === 0 ? (
+                ) : obrasVisiveis.length === 0 ? (
                   <tr>
                     <td
                       colSpan="7"
@@ -929,7 +930,7 @@ function Obras({
                     </td>
                   </tr>
                 ) : (
-                  obras.map(
+                  obrasVisiveis.map(
                     (obra) => (
                       <tr
                         key={
@@ -987,7 +988,7 @@ function Obras({
                         </td>
 
                         <td>
-                          <span className="obra-prazo">
+                          {prazo(obra)&&<strong className="v5-deadline">{prazo(obra)}</strong>}<span className="obra-prazo">
                             {formatarData(
                               obra.data_inicio_planejada
                             )}
@@ -1747,7 +1748,7 @@ function Obras({
           </div>
         )}
       </div>
-    </Layout>
+    </>
   );
 }
 

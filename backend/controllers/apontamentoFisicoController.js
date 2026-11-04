@@ -1,5 +1,5 @@
 const ApontamentoFisico = require("../models/apontamentoFisicoModel");
-const { dbStatus } = require("../utils/dbError");
+const { dbStatus, safeDbMessage } = require("../utils/dbError");
 
 // Lista os apontamentos filtrando pelo ID do diário de obra
 exports.listarPorDiario = (req, res) => {
@@ -46,9 +46,9 @@ exports.criar = (req, res) => {
 
   ApontamentoFisico.create(req.body, (err, result) => {
     if (err) {
-      console.error("❌ ERRO NO BANCO AO INSERIR APONTAMENTO FISICO:", err);
+      console.error("❌ ERRO NO BANCO AO INSERIR APONTAMENTO FISICO:", { code: err.code });
       return res.status(dbStatus(err)).json({ 
-        error: err.message || "Erro interno no servidor ao cadastrar apontamento." 
+        error: safeDbMessage(err) || "Erro interno no servidor ao cadastrar apontamento."
       });
     }
 

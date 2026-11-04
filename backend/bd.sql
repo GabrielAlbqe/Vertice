@@ -824,7 +824,7 @@ CREATE TABLE `usuario` (
 
 LOCK TABLES `usuario` WRITE;
 /*!40000 ALTER TABLE `usuario` DISABLE KEYS */;
-INSERT INTO `usuario` VALUES (1,'Engenheiro Teste','eng_1789051679644@valen.com',NULL,NULL,'Ativo','2026-09-23 17:25:39','hash_senha_123',1);
+INSERT INTO `usuario` VALUES (1,'Engenheiro Teste','eng_1789051679644@valen.com',NULL,NULL,'Ativo','2026-09-23 17:25:39','REDEFINICAO_OBRIGATORIA',1);
 /*!40000 ALTER TABLE `usuario` ENABLE KEYS */;
 UNLOCK TABLES;
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;

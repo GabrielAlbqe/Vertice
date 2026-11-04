@@ -1,13 +1,15 @@
 import {
   useState,
   useRef,
+  useEffect,
 } from "react";
 
 import {
   requisitar,
 } from "../../api/api";
 
-import logoVertice from "../../assets/logo-vertice.png";
+import logoVertice from "../../assets/logo-vertice.webp";
+import {sessionId} from '../../api/sessionTransport';
 
 const estadoInicial = {
   nome: "",
@@ -24,6 +26,8 @@ function Cadastro({
   onCadastro,
   onVoltar,
 }) {
+  const [restrito,setRestrito]=useState(false);
+  useEffect(()=>{let ativo=true;requisitar('/health').then(d=>{if(ativo)setRestrito(d.cadastro_publico===false);}).catch(()=>{});return()=>{ativo=false;};},[]);
   const trava = useRef(false);
   const [
     formulario,
@@ -138,6 +142,7 @@ function Cadastro({
     }
   }
 
+  if (restrito && !sessionId()) return <div className="auth-page"><section className="auth-card"><h1>Cadastro pelo Escritório</h1><p>Solicite ao Escritório da sua construtora a criação do seu acesso.</p><button type="button" className="button" onClick={onVoltar}>Voltar ao login</button></section></div>;
   return (
     <div className="auth-page">
       <div className="auth-container">

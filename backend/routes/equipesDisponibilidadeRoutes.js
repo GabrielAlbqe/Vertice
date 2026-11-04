@@ -1,0 +1,11 @@
+const router=require('express').Router();
+const {pool,wrap,fail,write}=require('../utils/operacional');
+const service=require('../utils/equipesDisponibilidade');
+const {office}=require('../utils/auditoria');
+router.get('/estado',wrap(async(req,res)=>res.json({habilitado:await service.enabled(),controle:'vinculo_unico'})));
+router.get('/',wrap(async(req,res)=>res.json(await service.list(req))));
+router.use(wrap(async(req,res,next)=>{office(req);if(!await service.enabled())fail(503,'A disponibilidade aguarda autorização e aplicação da migração 007 pelo responsável.');next();}));
+router.post('/:tipo',wrap(async(req,res)=>{const result=await write(req,c=>service.create(c,req,req.params.tipo));res.status(result.repeated?200:201).json(result.result);}));
+router.put('/:tipo/:id/vinculo',wrap(async(req,res)=>{const result=await write(req,c=>service.move(c,req));res.status(result.repeated?200:201).json(result.result);}));
+router.get('/:tipo/:id/historico',wrap(async(req,res)=>{const t=service.type(req.params.tipo);const c=await pool.getConnection();try{await c.beginTransaction();const row=await service.target(c,req,t,req.params.id);const [rows]=await c.query(`SELECT h.*,u.nome responsavel,a.nome origem,b.nome destino FROM equipe_transferencia h JOIN usuario u ON u.id_usuario=h.usuario_id LEFT JOIN obra a ON a.id_obra=h.obra_anterior LEFT JOIN obra b ON b.id_obra=h.obra_atual WHERE h.${t.history}=? AND h.construtora_id=? ORDER BY h.id DESC LIMIT 200`,[row[t.pk],req.acesso.idconstrutora]);await c.commit();res.json(rows);}catch(e){await c.rollback();throw e;}finally{c.release();}}));
+module.exports=router;

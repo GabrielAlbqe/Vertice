@@ -1,27 +1,20 @@
 const mysql = require("mysql2");
-const path = require("path");
-require("dotenv").config({
-  path: path.join(__dirname, "../.env")
-});
+const { databaseOptions } = require('./environment');
+const connection = mysql.createPool({...databaseOptions(),connectionLimit:5,maxIdle:5,idleTimeout:60000,waitForConnections:true,queueLimit:100});
 
-const connection = mysql.createConnection({
-  host: process.env.DB_HOST || "localhost",
-  user: process.env.DB_USER || "root",
-  password: process.env.DB_PASSWORD || "Password",
-  database: process.env.DB_NAME || "valen"
-});
-
-connection.connect((err) => {
+connection.getConnection((err, acquired) => {
   if (err) {
     console.error(
       "❌ Erro ao conectar ao banco de dados MySQL:",
-      err.message
+      err.code
     );
     return;
   }
 
+  acquired.release();
+
   console.log(
-    `✅ Conexão com MySQL realizada com sucesso (${process.env.DB_NAME || "valen"})!`
+    `✅ Conexão com MySQL realizada com sucesso (${process.env.DB_NAME})!`
   );
 });
 

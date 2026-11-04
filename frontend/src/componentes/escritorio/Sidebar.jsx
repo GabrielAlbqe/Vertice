@@ -1,3 +1,4 @@
+import { preloadNavigation } from "../../navigation/pages";
 import iconeVertice from "../../assets/icone-vertice.png";
 
 function Sidebar({
@@ -61,10 +62,10 @@ if (
         </div>
       </div>
 
-      <nav className="sidebar-menu" aria-label="Escrit?rio">
+      <nav onPointerOver={preloadNavigation} onFocus={preloadNavigation} onTouchStart={preloadNavigation} className="sidebar-menu" aria-label="Escritório">
 
         <button
-          type="button"
+          type="button" data-page="dashboard"
           aria-current={paginaAtiva === "dashboard" ? "page" : undefined} className={classeBotao("dashboard")}
           onClick={() =>
             navegar(
@@ -77,7 +78,7 @@ if (
         </button>
 
         <button
-          type="button"
+          type="button" data-page="obras"
           aria-current={paginaAtiva === "obras" ? "page" : undefined} className={classeBotao("obras")}
           onClick={() =>
             navegar(
@@ -90,7 +91,7 @@ if (
         </button>
 
         <button
-          type="button"
+          type="button" data-page="equipes"
           aria-current={paginaAtiva === "equipes" ? "page" : undefined} className={classeBotao("equipes")}
           onClick={() =>
             navegar(
@@ -102,12 +103,12 @@ if (
           Equipes
         </button>
 
-        <button type="button" aria-current={paginaAtiva === "analytics-financeiro" ? "page" : undefined} className={classeBotao("analytics-financeiro")} onClick={() => navegar("analytics-financeiro")}>
+        <button type="button" data-page="analytics-financeiro" aria-current={paginaAtiva === "analytics-financeiro" ? "page" : undefined} className={classeBotao("analytics-financeiro")} onClick={() => navegar("analytics-financeiro")}>
           <span className="sidebar-dot" />
           Analytics Financeiro
         </button>
-        <button type="button" aria-current={paginaAtiva === "recursos" ? "page" : undefined} className={classeBotao("recursos")} onClick={() => navegar("recursos")}><span className="sidebar-dot" />Recursos</button>
-        <button type="button" className={classeBotao("perfil")} aria-current={paginaAtiva === "perfil" ? "page" : undefined} onClick={() => navegar("perfil")}><span className="sidebar-dot" />Perfil</button>
+        <button type="button" data-page="recursos" aria-current={paginaAtiva === "recursos" ? "page" : undefined} className={classeBotao("recursos")} onClick={() => navegar("recursos")}><span className="sidebar-dot" />Recursos</button>
+        <button type="button" data-page="perfil" className={classeBotao("perfil")} aria-current={paginaAtiva === "perfil" ? "page" : undefined} onClick={() => navegar("perfil")}><span className="sidebar-dot" />Perfil</button>
 
       </nav>
 

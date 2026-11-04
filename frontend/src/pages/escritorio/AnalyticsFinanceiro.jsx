@@ -4,7 +4,6 @@ import {
   useState,
 } from "react";
 
-import Layout from "../../componentes/escritorio/Layout";
 import Card from "../../componentes/escritorio/Card";
 
 import {
@@ -141,25 +140,7 @@ function formatarData(data) {
 // PERÍODO PADRÃO
 // =====================================================
 
-function criarPeriodoAnalise(
-  obra
-) {
-  return {
-    ...FILTROS_VAZIOS,
-
-    // Começa automaticamente
-    // na data cadastrada da obra
-    inicio:
-      limparData(
-        obra?.data_inicio_planejada
-      ),
-
-    // Termina automaticamente
-    // na data atual
-    fim:
-      hojeLocal(),
-  };
-}
+function criarPeriodoAnalise() { return { ...FILTROS_VAZIOS }; }
 
 // =====================================================
 // GRÁFICO
@@ -221,7 +202,7 @@ function Projecao({
       : 1;
 
   const x = (data) =>
-    esquerda +
+    pontos.length === 1 ? largura / 2 : esquerda +
     (
       (
         Date.parse(data) -
@@ -299,6 +280,8 @@ function Projecao({
         </div>
       </div>
 
+      {resultado.motivoProjecao && <p className="v3-note">{resultado.motivoProjecao}</p>}
+      {resultado.usaOrcamento && <p className="v3-note">Orçamento global: {reais(planejado)}. Referência total, sem distribuição temporal cadastrada.</p>}
       <div className="analytics-projecao-grid">
         <div className="analytics-chart">
 
@@ -311,6 +294,8 @@ function Projecao({
             </div>
           ) : (
             <>
+              <p className="analytics-chart-hint">Deslize o gráfico na horizontal ou consulte os valores por período abaixo.</p>
+              <div className="analytics-chart-scroll" tabIndex="0" role="region" aria-label="Gráfico de custos com rolagem horizontal">
               <svg
                 viewBox={`0 0 ${largura} ${altura}`}
                 role="img"
@@ -378,8 +363,7 @@ function Projecao({
                   R$ acumulado
                 </text>
 
-                {planejado !==
-                  null && (
+                {planejado !== null && !resultado.usaOrcamento && (
                   <line
                     x1={
                       esquerda
@@ -515,6 +499,7 @@ function Projecao({
                   )
                 )}
               </svg>
+              </div>
 
               <details className="analytics-table-details">
                 <summary>
@@ -941,6 +926,7 @@ export default function AnalyticsFinanceiro({
   // OBRA SELECIONADA
   // ===================================================
 
+  useEffect(()=>{const refresh=()=>setRecarregar(v=>v+1);window.addEventListener('vertice:financeiro-atualizado',refresh);return()=>window.removeEventListener('vertice:financeiro-atualizado',refresh);},[]);
   const obraSelecionada =
     useMemo(
       () =>
@@ -1101,6 +1087,8 @@ export default function AnalyticsFinanceiro({
     const novoId =
       event.target.value;
 
+    if (String(novoId) === String(idObra)) return;
+
     setDados(
       null
     );
@@ -1205,11 +1193,7 @@ export default function AnalyticsFinanceiro({
   // ===================================================
 
   return (
-    <Layout
-      onNavegar={
-        onNavegar
-      }
-    >
+    <>
       <div className="dashboard analytics-page">
 
         {/* CABEÇALHO */}
@@ -1848,6 +1832,7 @@ export default function AnalyticsFinanceiro({
                     período.
                   </p>
 
+                  {resultado.quantidade===0 && resultado.realizado!==null && <p className="v3-empty" role="status">Sem custos realizados registrados neste recorte. Recursos e orçamentos não representam despesas.</p>}
                   <div className="analytics-origins">
                     {resultado.origens.map(
                       (item) => (
@@ -1967,10 +1952,7 @@ export default function AnalyticsFinanceiro({
                     essa média nos dias
                     restantes, sem
                     calendário de
-                    trabalho. Datas sem
-                    registros não são
-                    tratadas como dias
-                    efetivos.
+                    trabalho. A média utiliza dias corridos da janela observada, incluindo dias sem lançamentos. Exige custos em ao menos duas datas.
                   </p>
                 </div>
 
@@ -2008,6 +1990,6 @@ export default function AnalyticsFinanceiro({
           )
         )}
       </div>
-    </Layout>
+    </>
   );
 }

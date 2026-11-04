@@ -1,3 +1,8 @@
+import DisponibilidadeEquipes from '../../componentes/escritorio/DisponibilidadeEquipes';
+import Indicadores from '../../componentes/escritorio/IndicadoresObra';
+import Profissionais from '../../componentes/escritorio/Profissionais';
+import LancamentosCustos from '../../componentes/escritorio/LancamentosCustos';
+import OperacaoObra from '../../componentes/escritorio/OperacaoObra';
 import Toast from "../../componentes/shared/Toast";
 import PrazoObra from "../../componentes/shared/PrazoObra";
 import { somarRecursos } from "../../api/obraIndicadores";
@@ -8,7 +13,6 @@ import {
   useRef,
 } from "react";
 
-import Layout from "../../componentes/escritorio/Layout";
 
 import {
   buscarObraPorId,
@@ -323,11 +327,7 @@ function ObraDetalhes({
 
   if (!obra?.id_obra) {
     return (
-      <Layout
-        onNavegar={
-          onNavegar
-        }
-      >
+      <>
         <div className="dashboard">
 
           <section className="dashboard-section">
@@ -353,7 +353,7 @@ function ObraDetalhes({
           </section>
 
         </div>
-      </Layout>
+      </>
     );
   }
 
@@ -366,11 +366,7 @@ function ObraDetalhes({
   // ===================================================
 
   return (
-    <Layout
-      onNavegar={
-        onNavegar
-      }
-    >
+    <>
       <div className="dashboard">
 
         {/* =============================================
@@ -438,7 +434,7 @@ function ObraDetalhes({
 
           {/* ABAS */}
 
-          <div className="abas-obra">
+          <div className="abas-obra"><BotaoAba atual={abaAtiva} id="operacao" titulo="Canteiro" setAba={setAbaAtiva} />
 
             <BotaoAba
               atual={
@@ -499,7 +495,7 @@ function ObraDetalhes({
 
           {/* CONTEÚDO */}
 
-          <div className="conteudo-aba">
+          <div className="conteudo-aba">{abaAtiva === "operacao" && <OperacaoObra key={dadosObra.id_obra} obra={dadosObra.id_obra} />}
 
             {carregando ? (
 
@@ -541,7 +537,8 @@ function ObraDetalhes({
                 {abaAtiva ===
                   "equipes" && (
 
-                  <TabelaEquipes
+                  <>
+                  <DisponibilidadeEquipes obras={[obraAtual]} obra={obraAtual.id_obra} onAtualizar={carregarDados}/><TabelaEquipes
                     onRemover={(item) => removerRecurso("equipe", item)}
                     equipes={
                       equipes
@@ -563,6 +560,8 @@ function ObraDetalhes({
                       Boolean(atribuindo)
                     }
                   />
+                  <Profissionais obra={obraAtual.id_obra} equipes={[...catalogo.equipes,...equipes.filter(e=>e.origem==='terceirizada')]} />
+                  </>
 
                 )}
 
@@ -625,6 +624,7 @@ function ObraDetalhes({
                 {abaAtiva ===
                   "indicadores" && (
 
+                  <>
                   <Indicadores
                     obra={
                       dadosObra
@@ -639,6 +639,8 @@ function ObraDetalhes({
                       maquinarios
                     }
                   />
+                  <LancamentosCustos obra={obraAtual.id_obra} equipes={equipes} insumos={insumos} maquinarios={maquinarios} />
+                  </>
 
                 )}
 
@@ -652,7 +654,7 @@ function ObraDetalhes({
 
       </div>
 
-    </Layout>
+    </>
   );
 }
 
@@ -780,7 +782,7 @@ function PainelAtribuicao({
           null;
 
         return (
-          Number(
+          !(tipo==="equipe"&&item.ativo===0)&&Number(
             obraDoItem
           ) !==
           Number(
@@ -857,7 +859,7 @@ function PainelAtribuicao({
         </h3>
 
         <p>
-          Escolha um recurso já cadastrado e vincule-o à obra selecionada. Recursos de outra obra serão transferidos. O cadastro atual exige uma obra; para manter o recurso, transfira-o em vez de excluir.
+          Escolha um recurso já cadastrado e vincule-o à obra selecionada. Recursos de outra obra serão transferidos. Para liberar ou inativar equipes, use o painel de disponibilidade. Materiais e maquinários conservam o vínculo atual.
         </p>
 
       </div>
@@ -958,6 +960,8 @@ function TabelaEquipes({
   onAtribuir,
   atribuindo,
 }) {
+  const [tipo,setTipo]=useState(''),[busca,setBusca]=useState('');
+  const visiveis=equipes.filter(e=>(!tipo||(e.origem==='terceirizada'?'terceirizada':'propria')===tipo)&&String(e.nome_equipe).toLocaleLowerCase().includes(busca.toLocaleLowerCase()));
   return (
     <div>
 
@@ -997,7 +1001,7 @@ function TabelaEquipes({
         }
       />
 
-      <div className="cards-resumo">
+      <div className="v3-filters"><label>Buscar equipe<input type="search" value={busca} onChange={e=>setBusca(e.target.value)}/></label><label>Tipo<select value={tipo} onChange={e=>setTipo(e.target.value)}><option value="">Todos</option><option value="propria">Próprias</option><option value="terceirizada">Terceirizadas</option></select></label></div><p>{equipes.length} equipes atribuídas a esta obra; {catalogo.length} cadastros no catálogo da construtora. Equipes em outra obra podem ser transferidas, não duplicadas.</p><div className="cards-resumo">
 
         <Resumo
           titulo="Equipes"
@@ -1074,7 +1078,7 @@ function TabelaEquipes({
 
           <tbody>
 
-            {equipes.length ===
+            {visiveis.length ===
             0 ? (
 
               <tr>
@@ -1090,7 +1094,7 @@ function TabelaEquipes({
 
             ) : (
 
-              equipes.map(
+              visiveis.map(
                 (equipe) => (
 
                   <tr
@@ -1533,125 +1537,5 @@ function TabelaMaquinarios({
 // =====================================================
 // INDICADORES
 // =====================================================
-
-function Indicadores({
-  obra,
-  equipes,
-  insumos,
-  maquinarios,
-}) {
-  const dados = useMemo(() => ({ custoDiarioEquipes: somarRecursos(equipes, "custo_diario"), custoMensalEquipes: somarRecursos(equipes, "custo_mensal"), profissionais: somarRecursos(equipes, "quantidade_profissionais"), valorInsumos: somarRecursos(insumos, "quantidade_disponivel", "valor_unitario"), custoMaquinariosDia: somarRecursos(maquinarios, "quantidade", "custo_diario") }), [equipes, insumos, maquinarios]);
-
-  return (
-    <div>
-
-      <div className="titulo-aba">
-
-        <div>
-
-          <span className="section-label">
-            ANÁLISE
-          </span>
-
-          <h2>
-            Indicadores
-          </h2>
-
-          <p>
-            Indicadores calculados utilizando somente os recursos atribuídos a esta obra.
-          </p>
-
-        </div>
-
-      </div>
-
-      <div className="cards-resumo">
-
-        <Resumo
-          titulo="Profissionais"
-          valor={
-            dados.profissionais
-          }
-        />
-
-        <Resumo
-          titulo="Custo equipes / dia"
-          valor={
-            formatarReal(
-              dados
-                .custoDiarioEquipes
-            )
-          }
-        />
-
-        <Resumo
-          titulo="Custo equipes / mês"
-          valor={
-            formatarReal(
-              dados
-                .custoMensalEquipes
-            )
-          }
-        />
-
-        <Resumo
-          titulo="Maquinários / dia"
-          valor={
-            formatarReal(
-              dados
-                .custoMaquinariosDia
-            )
-          }
-        />
-
-      </div>
-
-      <div
-        className="cards-resumo"
-        style={{
-          marginTop:
-            "20px",
-        }}
-      >
-
-        <Resumo
-          titulo="Valor dos insumos"
-          valor={
-            formatarReal(
-              dados
-                .valorInsumos
-            )
-          }
-        />
-
-        <Resumo
-          titulo="Orçamento da obra"
-          valor={
-            formatarReal(
-              obra
-                .orcamento_planejado
-            )
-          }
-        />
-
-        <Resumo
-          titulo="Equipes atribuídas"
-          valor={
-            equipes.length
-          }
-        />
-
-        <Resumo
-          titulo="Maquinários atribuídos"
-          valor={
-            maquinarios.length
-          }
-        />
-
-      </div>
-
-    </div>
-  );
-}
 
 export default ObraDetalhes;

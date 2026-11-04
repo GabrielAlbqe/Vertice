@@ -40,15 +40,8 @@ export async function carregarAnalytics(idObra, signal) {
       const respostas = await Promise.all(rotas.map(rota => consultar(`${rota}?id_rdo=${id}`)));
       if (respostas.some(lista => lista === null)) ocorrenciasCompletas = false;
       respostas.forEach((lista, i) => lista?.filter(item => Number(item.id_rdo) === Number(id)).forEach(item => ocorrencias.push({ ...item, data: rdo.data_rdo, tipo: rotas[i] })));
-      // O livro de custos é autoritativo quando contém lançamentos: não soma
-      // novamente os usos de RDO que podem já ter originado esses lançamentos.
-      if (lancamentos?.length || lancamentos === null) return;
-      const tipos = [['equipe', '/rdo-equipes'], ['insumo', '/consumos-insumos'], ['maquinario', '/rdo-maquinarios']];
-      await Promise.all(tipos.map(async ([origem, rota]) => {
-        const lista = await consultar(`${rota}?id_rdo=${id}`);
-        if (lista === null) usosCompletos = false;
-        lista?.filter(item => Number(item.id_rdo) === Number(id)).forEach(item => usos.push({ ...item, origem, data: rdo.data_rdo }));
-      }));
+      // Somente o livro registra despesas confirmadas com preço histórico.
+      // Presenças, usos e tarifas atuais não substituem lançamentos financeiros.
     }));
   }
   const referencias = new Map();

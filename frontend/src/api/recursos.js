@@ -185,7 +185,7 @@ export async function listarEquipesEmpresa(
 
   return lista.filter(
     (equipe) =>
-      idsObras.has(
+      (equipe.idobra === null && Number(equipe.id_construtora) === Number(idConstrutora)) || idsObras.has(
         Number(
           equipe.idobra
         )
@@ -656,17 +656,11 @@ export async function excluirMaquinario(
 export async function buscarCatalogoRecursos(obras = []) {
   const ids = [...new Set(obras.map(o => Number(o.id_obra ?? o.id)).filter(id => id > 0))];
   if (!ids.length) return { equipes: [], insumos: [], maquinarios: [] };
-  // As rotas de insumos e máquinas exigem idobra; não existe listagem global.
-  const equipes = await listarEquipesEmpresa();
-  const insumos = [], maquinarios = [];
-  for (let i = 0; i < ids.length; i += 4) {
-    const lote = await Promise.all(ids.slice(i, i + 4).map(async id => {
-      const [materiais, maquinas] = await Promise.all([listarInsumos(id), listarMaquinarios(id)]);
-      return { materiais: materiais.filter(r => Number(r.idobra) === id), maquinas: maquinas.filter(r => Number(r.idobra) === id) };
-    }));
-    for (const item of lote) { insumos.push(...item.materiais); maquinarios.push(...item.maquinas); }
-  }
-  return { equipes: equipes.filter(e => ids.includes(Number(e.idobra))), insumos: removerDuplicados(insumos, obterIdInsumo), maquinarios: removerDuplicados(maquinarios, obterIdMaquinario) };
+  const result=await requisitar('/operacional/gestao/recursos');
+  return Object.fromEntries(['equipes','insumos','maquinarios'].map(key=>{
+    if(!Array.isArray(result?.[key]))throw new Error('Formato de resposta inesperado na consulta de recursos.');
+    return [key,result[key].filter(r=>ids.includes(Number(r.idobra))||(key==='equipes'&&r.idobra===null&&obras.some(o=>Number(o.id_construtora)===Number(r.id_construtora))))];
+  }));
 }
 
 // =====================================================
@@ -688,6 +682,13 @@ export async function atribuirEquipe(
     );
   }
 
+  if (Number.isSafeInteger(equipe.versao)) {
+    if (equipe.ativo === 0 || equipe.ativo === false) throw new Error('Equipe inativa. Reative-a na disponibilidade antes de alocar.');
+    return requisitar(`/operacional/gestao/equipes/propria/${id}/vinculo`, {
+      method: 'PUT', headers: {'Idempotency-Key': crypto.randomUUID()},
+      body: JSON.stringify({obra_id:Number(idObra),ativo:true,versao:equipe.versao,motivo:'Alocação pela gestão da obra'}),
+    });
+  }
   return atualizarEquipe(
     id,
     {

@@ -1,4 +1,4 @@
-const bd = require("../config/connection");
+const bd = require("../config/scopedConnection");
 
 const Cargo = {
   // Retorna todos os cargos cadastrados no sistema
@@ -19,7 +19,7 @@ const Cargo = {
     bd.query(del, [id], callback);
   },
 
-  // Insere um novo cargo respeitando o ENUM de permissões
+  // Insere nome e descrição no catálogo de cargos existente.
   create: (data, callback) => {
     const insert = "INSERT INTO cargo (nome_cargo, descricao) VALUES (?, ?)";
     bd.query(insert, [data.nome_cargo, data.descricao], callback);

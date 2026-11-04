@@ -1,0 +1,59 @@
+# Modelo revisavel, NAO provisionado. Servicos e custos exigem aprovacao.
+services:
+  - type: web
+    name: vertice-api
+    runtime: node
+    rootDir: backend
+    buildCommand: npm ci
+    startCommand: npm start
+    healthCheckPath: /api/health
+    autoDeployTrigger: 'off'
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: SECURITY_STORE
+        value: mysql
+      - key: SESSION_SAME_SITE
+        value: lax
+      - key: NODE_VERSION
+        value: "24.21.0"
+      - key: DB_SSL
+        value: "true"
+      - key: REGISTRATION_MODE
+        value: office
+      - key: PHOTO_STORAGE_DRIVER
+        value: s3
+      - key: TRUST_PROXY_HOPS
+        value: "1"
+      - key: DB_HOST
+        sync: false
+      - key: DB_PORT
+        value: "3306"
+      - key: DB_USER
+        sync: false
+      - key: DB_PASSWORD
+        sync: false
+      - key: DB_NAME
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+      - key: PUBLIC_FRONTEND_URL
+        sync: false
+      - key: PUBLIC_API_URL
+        sync: false
+      - key: ORIGIN_SECRET
+        sync: false
+      - key: CORS_ORIGINS
+        sync: false
+      - key: DB_SSL_CA_BASE64
+        sync: false
+      - key: S3_BUCKET
+        sync: false
+      - key: S3_REGION
+        sync: false
+      - key: S3_PREFIX
+        value: vertice/photos
+      - key: AWS_ACCESS_KEY_ID
+        sync: false
+      - key: AWS_SECRET_ACCESS_KEY
+        sync: false

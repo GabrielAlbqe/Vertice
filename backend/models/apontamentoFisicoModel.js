@@ -1,4 +1,4 @@
-const bd = require("../config/connection");
+const bd = require("../config/scopedConnection");
 
 const ApontamentoFisico = {
   // Lista todos os apontamentos vinculados a um diário de obras específico

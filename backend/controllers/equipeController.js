@@ -1,13 +1,12 @@
 const Equipe = require("../models/equipeModel");
-const { dbStatus } = require("../utils/dbError");
+const { dbStatus, safeDbMessage } = require("../utils/dbError");
 
 exports.criar = (req, res) => {
-  console.log("PAYLOAD DA EQUIPE RECEBIDO:", req.body);
 
   Equipe.create(req.body, (err, result) => {
     if (err) {
-      console.error("❌ ERRO NO BANCO AO INSERIR EQUIPE:", err);
-      return res.status(dbStatus(err)).json({ error: err.message || err });
+      console.error("❌ ERRO NO BANCO AO INSERIR EQUIPE:", { code: err.code });
+      return res.status(dbStatus(err)).json({ error: safeDbMessage(err) || err });
     }
     
     res.status(201).json({
@@ -19,22 +18,24 @@ exports.criar = (req, res) => {
 
 exports.listarTodas = (req, res) => {
   Equipe.getAll((err, results) => {
-    if (err) return res.status(dbStatus(err)).json({ error: err.message });
+    if (err) return res.status(dbStatus(err)).json({ error: safeDbMessage(err) });
     res.json(results);
   });
 };
 
 // Adicionada a função exigida pelas rotas
 exports.listarPorObra = (req, res) => {
-  Equipe.getAll((err, results) => {
-    if (err) return res.status(dbStatus(err)).json({ error: err.message });
+  const id = req.query.idobra;
+  const consultar = id ? callback => Equipe.getByObra(id, callback) : Equipe.getAll;
+  consultar((err, results) => {
+    if (err) return res.status(dbStatus(err)).json({ error: safeDbMessage(err) });
     res.json(results);
   });
 };
 
 exports.buscarPorId = (req, res) => {
   Equipe.getById(req.params.id, (err, results) => {
-    if (err) return res.status(dbStatus(err)).json({ error: err.message });
+    if (err) return res.status(dbStatus(err)).json({ error: safeDbMessage(err) });
     if (!results || results.length === 0) return res.status(404).json({ message: "Equipe não encontrada." });
     res.json(results[0]);
   });
@@ -42,7 +43,7 @@ exports.buscarPorId = (req, res) => {
 
 exports.deletar = (req, res) => {
   Equipe.delete(req.params.id, (err, result) => {
-    if (err) return res.status(dbStatus(err)).json({ error: err.message });
+    if (err) return res.status(dbStatus(err)).json({ error: safeDbMessage(err) });
     if (result.affectedRows === 0) return res.status(404).json({ message: "Equipe não encontrada." });
     res.json({ message: "Equipe removida com sucesso!" });
   });
@@ -50,8 +51,13 @@ exports.deletar = (req, res) => {
 
 exports.atualizar = (req, res) => {
   Equipe.update(req.params.id, req.body, (err, result) => {
-    if (err) return res.status(dbStatus(err)).json({ error: err.message });
+    if (err) return res.status(dbStatus(err)).json({ error: safeDbMessage(err) });
     if (result.affectedRows === 0) return res.status(404).json({ message: "Equipe não encontrada." });
     res.json({ message: "Equipe atualizada com sucesso!" });
   });
 };
+
+exports.criar=require('../utils/equipesDisponibilidade').legacyController(exports.criar,'propria','create');
+exports.atualizar=require('../utils/equipesDisponibilidade').legacyController(exports.atualizar,'propria','update');
+
+exports.deletar=require('../utils/equipesDisponibilidade').legacyController(exports.deletar,'propria','delete');

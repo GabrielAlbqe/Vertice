@@ -1,6 +1,15 @@
-const request = require("supertest");
+const supertest = require("supertest");
 const app = require("../app");
 const connection = require("../config/connection");
+const jwt = require("jsonwebtoken");
+let token;
+let actorId;
+const request = (application) => {
+  const client = supertest(application);
+  return Object.fromEntries(["get", "post", "put", "delete"].map(method => [
+    method, (...args) => client[method](...args).set("Authorization", `Bearer ${token}`),
+  ]));
+};
 
 jest.setTimeout(30000);
 
@@ -16,8 +25,11 @@ function dbQuery(sql, params = []) {
   });
 }
 
-async function lastInsertId() {
-  const rows = await dbQuery("SELECT LAST_INSERT_ID() AS id");
+async function lastInsertId(resource) {
+  // Os contratos legados retornam texto; não depender da sessão de outra conexão do pool.
+  const table = {apropriacao:'apropriacao',rdo:'rdo',maquinario:'cadastro_de_maquinario',historico:'historico_obras',metrica:'metricas_eva',rdoEquipe:'rdo_equipe'}[resource.key];
+  if (!table) throw new Error('Contrato de criação sem insertId não mapeado.');
+  const rows = await dbQuery('SELECT MAX(??) AS id FROM ??',[resource.idColumn,table]);
   return rows[0].id;
 }
 
@@ -189,7 +201,14 @@ const resources = [
 ];
 
 describe("API Vértice - cobertura completa das 137 operações", () => {
+  beforeAll(async () => {
+    const company = await dbQuery("INSERT INTO construtora(razao_social) VALUES ('Construtora do executor de testes')");
+    const actor = await dbQuery("INSERT INTO usuario(nome,email,senha,ambiente,idconstrutora) VALUES ('Executor',?,'hash_teste','Escritório',?)", [`executor_${stamp}@teste.local`,company.insertId]);
+    actorId = actor.insertId;
+    token = jwt.sign({ id_usuario: actorId }, process.env.JWT_SECRET, { expiresIn: '10m' });
+  });
   afterAll(async () => {
+    await require('../config/operacional').end();
     await new Promise((resolve) => connection.end(() => resolve()));
   });
 
@@ -205,8 +224,14 @@ describe("API Vértice - cobertura completa das 137 operações", () => {
         const payload = r.payload();
         const res = await request(app).post(`${r.base}/insert`).send(payload);
         expectNoServerError(res);
+        if(r.key==='cargo'){
+          expect(res.statusCode).toBe(403);
+          ids.cargo=(await dbQuery('INSERT INTO cargo(nome_cargo,descricao) VALUES (?,?)',[payload.nome_cargo,payload.descricao])).insertId;
+          return;
+        }
         expect(res.statusCode).toBe(201);
-        ids[r.key] = r.explicitId ? r.explicitId(payload) : (res.body?.insertId || await lastInsertId());
+        ids[r.key] = r.explicitId ? r.explicitId(payload) : (res.body?.insertId || await lastInsertId(r));
+        if (r.key === 'construtora') await dbQuery('UPDATE usuario SET idconstrutora=? WHERE id_usuario=?',[ids.construtora,actorId]);
         expect(ids[r.key]).toBeTruthy();
       });
     }
@@ -265,6 +290,7 @@ describe("API Vértice - cobertura completa das 137 operações", () => {
         const payload = r.update();
         const res = await request(app).put(`${r.base}/insert/${ids[r.key]}`).send(payload);
         expectNoServerError(res);
+        if(r.key==='cargo'){expect(res.statusCode).toBe(403);return;}
         expect(res.statusCode).toBe(200);
 
         const check = await request(app).get(`${r.base}/${ids[r.key]}`);
@@ -277,7 +303,7 @@ describe("API Vértice - cobertura completa das 137 operações", () => {
       test(`PUT ${r.base}/insert/999999999 - inexistente`, async () => {
         const res = await request(app).put(`${r.base}/insert/999999999`).send(r.update());
         expectNoServerError(res);
-        expect(res.statusCode).toBe(404);
+        expect(res.statusCode).toBe(r.key==='cargo'?403:404);
       });
     }
   });
@@ -312,6 +338,13 @@ describe("API Vértice - cobertura completa das 137 operações", () => {
       test(`DELETE ${r.base}/del/:id`, async () => {
         const res = await request(app).delete(`${r.base}/del/${ids[r.key]}`);
         expectNoServerError(res);
+        if(r.key==='cargo'){expect(res.statusCode).toBe(403);return;}
+        // O principal autenticado continua associado à construtora, protegendo a FK.
+        if (r.key === 'construtora') { expect(res.statusCode).toBe(400); return; }
+        if(await require('../utils/equipesDisponibilidade').enabled()){
+          if(['equipe','equipeTerceirizada'].includes(r.key)){expect(res.statusCode).toBe(409);expect((await request(app).get(`${r.base}/${ids[r.key]}`)).statusCode).toBe(200);return;}
+          if(r.key==='obra'){expect(res.statusCode).toBe(400);return;}
+        }
         expect(res.statusCode).toBe(200);
 
         const check = await request(app).get(`${r.base}/${ids[r.key]}`);
@@ -320,6 +353,7 @@ describe("API Vértice - cobertura completa das 137 operações", () => {
 
       test(`DELETE ${r.base}/del/999999999 - inexistente`, async () => {
         const res = await request(app).delete(`${r.base}/del/999999999`);
+        if(r.key==='cargo'){expect(res.statusCode).toBe(403);return;}
         expectNoServerError(res);
         expect(res.statusCode).toBe(404);
       });

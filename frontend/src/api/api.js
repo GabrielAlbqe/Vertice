@@ -1,7 +1,5 @@
-const API_URL = (
-  import.meta.env?.VITE_API_URL ||
-  "http://localhost:3000/api"
-).replace(/\/$/, "");
+import {invalidarSessao} from '../canteiro/sessao.js';
+import {API_URL,sessionId,sessionHeaders} from './sessionTransport.js';
 
 export async function requisitar(
   endpoint,
@@ -13,14 +11,14 @@ export async function requisitar(
   // TOKEN JWT
   // =====================================================
 
-  const token =
-    localStorage.getItem("token");
+  const token = sessionId();
 
   try {
     resposta = await fetch(
       `${API_URL}${endpoint}`,
       {
         ...opcoes,
+        credentials:'include',
 
         signal: opcoes.signal
           ? AbortSignal.any([
@@ -35,12 +33,7 @@ export async function requisitar(
 
           // Envia automaticamente o JWT
           // caso o usuário esteja logado.
-          ...(token
-            ? {
-                Authorization:
-                  `Bearer ${token}`,
-              }
-            : {}),
+          ...sessionHeaders(),
 
           ...(opcoes.headers || {}),
         },
@@ -77,6 +70,7 @@ export async function requisitar(
   }
 
   if (!resposta.ok) {
+    if(resposta.status===401 && endpoint!=='/usuarios/login')invalidarSessao(token);
     const mensagem =
       typeof dados === "string"
         ? (
@@ -107,6 +101,17 @@ export async function requisitar(
   if (
     typeof dados === "string"
   ) {
+    // Confirmações textuais dos contratos legados, somente nas rotas e mensagens conhecidas.
+    // HTML, GET e textos desconhecidos continuam sendo rejeitados.
+    const metodo=(opcoes.method || 'GET').toUpperCase();
+    const legado=[
+      ['POST',/^\/maquinarios\/insert$/,'Maquinário registrado com sucesso!'],
+      ['PUT',/^\/maquinarios\/insert\/\d+$/,'Maquinário atualizado com sucesso!'],
+      ['DELETE',/^\/maquinarios\/del\/\d+$/,'Maquinário removido com sucesso!'],
+      ['PUT',/^\/insumos\/insert\/\d+$/,'Insumo atualizado com sucesso!'],
+      ['DELETE',/^\/insumos\/del\/\d+$/,'Insumo removido com sucesso!'],
+    ].some(([m,rota,mensagem])=>m===metodo&&rota.test(endpoint)&&dados===mensagem);
+    if(legado)return {message:dados,confirmado:true};
     throw new Error(
       `Formato de resposta inesperado ao acessar ${endpoint}.`
     );

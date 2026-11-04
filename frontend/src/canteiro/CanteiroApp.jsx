@@ -1,4 +1,3 @@
-import CanteiroLayout from "../layouts/CanteiroLayout";
 import HomeCanteiro from "../pages/canteiro/HomeCanteiro";
 import DetalheObra from "../pages/canteiro/DetalheObra";
 import Registrar from "../pages/canteiro/Registrar";
@@ -18,5 +17,5 @@ const telas = {
 };
 export default function CanteiroApp({ pagina, onNavegar }) {
   const Tela = telas[pagina] || HomeCanteiro;
-  return <CanteiroLayout pagina={pagina} onNavegar={onNavegar}><Tela key={pagina} /></CanteiroLayout>;
+  return <Tela key={pagina} />;
 }

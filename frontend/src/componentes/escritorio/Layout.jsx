@@ -5,7 +5,7 @@ import Header from "./Header";
 import Sidebar from "./Sidebar";
 import { requisitar } from "../../api/api";
 
-function Layout({ children, onNavegar }) {
+function Layout({ children, onNavegar, pagina }) {
   const main = useRef(null);
   const [usuario, setUsuario] = useState(lerUsuario);
 
@@ -16,6 +16,11 @@ function Layout({ children, onNavegar }) {
     main.current?.focus();
     return () => { ativo = false; controle.abort(); };
   }, []);
+
+  useEffect(() => {
+    main.current?.focus({ preventScroll: true });
+    main.current?.scrollTo(0, 0);
+  }, [pagina]);
 
   async function buscarUsuario(signal, ativo) {
     const idUsuario =
@@ -55,9 +60,9 @@ function Layout({ children, onNavegar }) {
     }
   }
 
-  function sair() {
+  async function sair() {
     if (!confirmarSaida()) return;
-    sairCanteiro();
+    if(!await sairCanteiro())return;
 
     if (
       typeof onNavegar === "function"

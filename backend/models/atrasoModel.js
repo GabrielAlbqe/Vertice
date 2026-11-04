@@ -1,4 +1,4 @@
-const bd = require("../config/connection");
+const bd = require("../config/scopedConnection");
 
 const Atraso = {
   // Lista todos os atrasos vinculados a um RDO

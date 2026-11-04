@@ -1,5 +1,5 @@
 const Construtora = require("../models/construtoraModel");
-const { dbStatus } = require("../utils/dbError");
+const { dbStatus, safeDbMessage } = require("../utils/dbError");
 
 // Lista todas as construtoras
 exports.listarTodas = (req, res) => {
@@ -30,7 +30,7 @@ exports.deletar = (req, res) => {
 // Registra uma nova construtora (Corrigido para retornar JSON com insertId)
 exports.criar = (req, res) => {
   Construtora.create(req.body, (err, result) => {
-    if (err) return res.status(dbStatus(err)).json({ error: err.message || err });
+    if (err) return res.status(dbStatus(err)).json({ error: safeDbMessage(err) || err });
     
     // Retorna JSON padronizado e o ID recém-gerado pelo MySQL
     res.status(201).json({

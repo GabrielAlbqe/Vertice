@@ -1,4 +1,4 @@
-const bd = require("../config/connection");
+const bd = require("../config/scopedConnection");
 
 const OrcamentoPrevisto = {
   // Lista todos os orçamentos previstos vinculados a uma atividade de EAP

@@ -1,3 +1,7 @@
+import DisponibilidadeEquipes from '../../componentes/escritorio/DisponibilidadeEquipes';
+import IndicadoresEquipes from '../../componentes/escritorio/IndicadoresEquipes';
+import EquipesExternas from '../../componentes/escritorio/EquipesExternas';
+import {somarRecursos} from '../../api/obraIndicadores';
 import Toast from "../../componentes/shared/Toast";
 import useUnsavedChanges, { confirmarSaida } from "../../componentes/shared/useUnsavedChanges";
 import {
@@ -9,7 +13,6 @@ import {
 
 import { listarObras } from "../../api/obras.js";
 
-import Layout from "../../componentes/escritorio/Layout";
 
 import {
   requisitar,
@@ -370,7 +373,7 @@ function Equipes({
         );
       }
 
-      if (!obras.some(o => String(o.id_obra) === String(dados.idobra))) throw new Error("Selecione uma obra disponível para sua construtora.");
+      if (!(equipeEditando?.versao!==undefined&&dados.idobra===null)&&!obras.some(o => String(o.id_obra) === String(dados.idobra))) throw new Error("Selecione uma obra disponível para sua construtora.");
       for (const campo of ["custo_diario", "custo_mensal"]) {
         if (formulario[campo] === "" || !Number.isFinite(Number(formulario[campo])) || Number(formulario[campo]) < 0) throw new Error("Informe custos válidos, maiores ou iguais a zero.");
       }
@@ -481,36 +484,14 @@ function Equipes({
       filtroArea, filtroObra,
     ]);
 
-  const profissionais =
-    equipes.reduce(
-      (total, equipe) =>
-        total +
-        Number(
-          equipe.quantidade_profissionais ||
-          0
-        ),
-      0
-    );
+  const profissionais = equipesFiltradas.length ? somarRecursos(equipesFiltradas, "quantidade_profissionais") : 0;
 
-  const custo =
-    equipes.reduce(
-      (total, equipe) =>
-        total +
-        Number(
-          equipe.custo_diario ||
-          0
-        ),
-      0
-    );
+  const custo = equipesFiltradas.length ? somarRecursos(equipesFiltradas, "custo_diario") : 0;
 
   return (
-    <Layout
-      onNavegar={
-        onNavegar
-      }
-    >
+    <>
 
-      <div className="dashboard">
+      <div className="dashboard equipes-page">
 
         <section className="dashboard-header">
 
@@ -520,13 +501,11 @@ function Equipes({
               RECURSOS HUMANOS
             </span>
 
-            <h1>
-              Equipes
-            </h1>
+            <h1>Equipes e profissionais</h1>
 
             <p>
-              Cadastre e edite equipes. Uma obra é obrigatória no cadastro atual.
-              Transfira equipes nos detalhes da obra de destino.
+              Cadastre equipes e consulte sua obra atual.
+              Liberações, transferências e inativação ficam no painel de disponibilidade.
             </p>
 
           </div>
@@ -600,8 +579,8 @@ function Equipes({
               <fieldset disabled={salvando} className="obra-form-grid" style={{ border: 0, padding: 0 }}>
                 <div className="form-group">
                   <label htmlFor="obra-equipe">Obra</label>
-                  <select id="obra-equipe" name="idobra" value={formulario.idobra ?? ""} onChange={alterarCampo} required>
-                    <option value="">Selecione uma obra</option>
+                  <select disabled={equipeEditando?.versao!==undefined} id="obra-equipe" name="idobra" value={formulario.idobra ?? ""} onChange={alterarCampo} required>
+                    <option value="">{equipeEditando?.versao!==undefined?'Sem obra atribuída':'Selecione uma obra'}</option>
                     {obras.map(item => <option key={item.id_obra} value={item.id_obra}>{item.nome || item.obra}</option>)}
                     {formulario.idobra && !obras.some(item => Number(item.id_obra) === Number(formulario.idobra)) && <option value={formulario.idobra}>Obra {formulario.idobra}</option>}
                   </select>
@@ -740,48 +719,16 @@ function Equipes({
 
         )}
 
-        <section className="cards-grid">
-
-          <div className="dashboard-section">
-            <span className="section-label">
-              EQUIPES
-            </span>
-            <h2>{equipes.length}</h2>
-            <p>Cadastradas</p>
-          </div>
-
-          <div className="dashboard-section">
-            <span className="section-label">
-              PROFISSIONAIS
-            </span>
-            <h2>{profissionais}</h2>
-            <p>Total</p>
-          </div>
-
-          <div className="dashboard-section">
-            <span className="section-label">
-              CUSTO/DIA
-            </span>
-            <h2>
-              {formatarReal(
-                custo
-              )}
-            </h2>
-            <p>Total</p>
-          </div>
-
-        </section>
-
-        <section className="dashboard-section">
-
-          <div className="filtros-equipes"><label className="form-group">Obra<select value={filtroObra} onChange={e => setFiltroObra(e.target.value)}><option value="">Todas as obras</option>{obras.map(o => <option key={o.id_obra} value={o.id_obra}>{o.nome}</option>)}</select></label>
+        <section className="equipes-overview" aria-label="Resumo e filtros de equipes">
+          <div className="equipes-toolbar">
+          <div className="filtros-equipes" role="group" aria-label="Filtros das equipes próprias"><label className="form-group" htmlFor="filtro-obra-equipe">Obra<select id="filtro-obra-equipe" value={filtroObra} onChange={e => setFiltroObra(e.target.value)}><option value="">Todas as obras</option>{obras.map(o => <option key={o.id_obra} value={o.id_obra}>{o.nome}</option>)}</select></label>
 
             <div className="filtro-pesquisa">
 
               <label htmlFor="pesquisa-equipe">Pesquisar
               </label>
 
-              <input id="pesquisa-equipe" value={pesquisa ?? ""
+              <input type="search" id="pesquisa-equipe" value={pesquisa ?? ""
                 }
                 onChange={(event) =>
                   setPesquisa(
@@ -828,9 +775,15 @@ function Equipes({
 
             </div>
 
-          </div>
+          <button type="button" className="secondary-button" onClick={() => { setPesquisa(""); setFiltroArea(""); setFiltroObra(""); }}>Limpar filtros</button></div>
 
-          <div className="filter-results"><button type="button" className="secondary-button" onClick={() => { setPesquisa(""); setFiltroArea(""); setFiltroObra(""); }}>Limpar filtros</button>{!carregando && !erro && <p role="status">{equipesFiltradas.length} {equipesFiltradas.length === 1 ? "equipe encontrada" : "equipes encontradas"}</p>}</div>
+          <div className="filter-results">{!carregando && !erro && <p role="status">{equipesFiltradas.length} {equipesFiltradas.length === 1 ? "equipe encontrada" : "equipes encontradas"}</p>}</div>
+          </div>
+          <IndicadoresEquipes total={equipesFiltradas.length} profissionais={profissionais} custo={custo} carregando={carregando} erro={erro} />
+        </section>
+
+        <section className="dashboard-section">
+
           <div className="tabela-container">
 
             <table>
@@ -894,7 +847,7 @@ function Equipes({
                         >
 
                           <td>
-                            {equipe.nome_equipe}<small style={{ display: "block" }}>{obras.find(o => String(o.id_obra) === String(equipe.idobra))?.nome || "Obra não informada"}</small>
+                            {equipe.nome_equipe}<small style={{ display: "block" }}>{obras.find(o => String(o.id_obra) === String(equipe.idobra))?.nome || (equipe.idobra===null?"Sem obra atribuída":"Obra não informada")}</small>
                           </td>
 
                           <td>
@@ -961,9 +914,10 @@ function Equipes({
 
         </section>
 
+        <DisponibilidadeEquipes obras={obras} obra={filtroObra} onAtualizar={carregarEquipes}/><EquipesExternas obra={filtroObra} equipes={equipes} />
       </div>
 
-    </Layout>
+    </>
   );
 }
 

@@ -69,6 +69,21 @@
 .ct-resource-list span { color: var(--text-secondary); font-size: 14px; }
 .ct-photo { margin-top: 16px; display: flex; flex-direction: column; gap: 12px; }
 .ct-photo img { display: block; width: 100%; max-height: 420px; object-fit: contain; border-radius: 10px; background: var(--bg-primary); }
+.ct-gallery { display: grid; grid-template-columns: repeat(auto-fit,minmax(min(100%,260px),1fr)); gap: 16px; }
+.ct-gallery-image { width: 100%; max-height: 420px; object-fit: contain; border-radius: 10px; }
+.ct-prewrap { white-space: pre-wrap; overflow-wrap: anywhere; }
+.ct-stack > form, .ct-stack > section, .ct-gallery > article { min-width: 0; }
+.ct-embedded { color: var(--text-primary); margin-top: 24px; }
+.ct-embedded button { cursor: pointer; }
+.ct-app { color: var(--text-primary); }
+.ct-nav button { color: var(--text-secondary); }
+.ct-nav button[aria-current], .ct-steps button[aria-current], .ct-link { color: var(--link); }
+.ct-embedded .ct-field input, .ct-embedded .ct-field textarea, .ct-embedded .ct-field select,
+.ct-app .ct-field input, .ct-app .ct-field textarea, .ct-app .ct-field select { color: var(--text-primary); background: var(--surface); }
+.ct-app .ct-card, .ct-embedded .ct-card { border-color: var(--border); }
+.ct-app button:focus-visible, .ct-embedded button:focus-visible { outline: 3px solid #0469fc; outline-offset: 3px; }
+.ct-app button:disabled, .ct-embedded button:disabled { opacity: .6; cursor: wait; }
+@media (prefers-reduced-motion: reduce) { .ct-app *, .ct-embedded * { scroll-behavior: auto !important; animation: none !important; transition: none !important; } }
 .ct-progress { width: 100%; height: 12px; accent-color: #0469fc; }
 .ct-profile-avatar { display: grid; place-items: center; width: 64px; height: 64px; background: var(--bg-primary); border-radius: 50%; color: #0055d4; font-size: 26px; font-weight: 700; margin-bottom: 16px; }
 .ct-activity-record { border-top: 1px solid var(--border); padding-top: 14px; }

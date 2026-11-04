@@ -1,4 +1,4 @@
-const bd = require("../config/connection");
+const bd = require("../config/scopedConnection");
 
 const RdoEquipe = {
   // Lista todas as equipes de um RDO específico

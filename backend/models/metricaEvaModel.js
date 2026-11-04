@@ -1,4 +1,4 @@
-const bd = require("../config/connection");
+const bd = require("../config/scopedConnection");
 
 const MetricasEva = {
   // Lista todas as métricas EVA vinculadas a uma obra específica

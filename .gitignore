@@ -3,6 +3,37 @@ frontend/node_modules/
 backend/node_modules/
 
 .env
+.env.*
+!.env.example
+!.env.production.example
+backend/database/backups/
+backend/storage/private/
+frontend/tests/*-run.log
+frontend/dist/
+frontend/.vercel/
+backend/database/usuarios-teste-local.json
+backend/database/carga-demo-local.json
 
 Zip.zip
 *.zip
+
+# Generated local evidence; keep implementation and tests reviewable.
+**/tests/screenshots/
+**/tests/*-result.json
+**/tests/browser-run.log
+backend/database/*-verification.json
+backend/database/*-test-results.txt
+backend/database/estado-principal-*.json
+backend/database/query-analysis.json
+backend/database/schema-comparison.json
+/ARQUIVOS_*.txt
+/AUDITORIA_*.json
+/DESEMPENHO_*.json
+/RELATORIO_*.md
+frontend/ARQUIVOS_*.txt
+frontend/RELATORIO_*.md
+*.pem
+*.key
+*.p12
+*.pfx
+*.sql.gz

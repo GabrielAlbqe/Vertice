@@ -1,4 +1,4 @@
-const bd = require("../config/connection");
+const bd = require("../config/scopedConnection");
 
 const Paralisacao = {
   // Lista todas as paralisações vinculadas a um RDO

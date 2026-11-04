@@ -1,5 +1,5 @@
 const DiarioObra = require("../models/diarioObraModel");
-const { dbStatus } = require("../utils/dbError");
+const { dbStatus, safeDbMessage } = require("../utils/dbError");
 
 // Lista os diários filtrando pelo ID da obra
 exports.listarPorObra = (req, res) => {
@@ -37,7 +37,7 @@ exports.deletar = (req, res) => {
 exports.criar = (req, res) => {
   DiarioObra.create(req.body, (err, result) => {
     if (err) {
-      return res.status(dbStatus(err)).json({ error: err.message || "Erro interno no servidor ao cadastrar diário de obra." });
+      return res.status(dbStatus(err)).json({ error: safeDbMessage(err) || "Erro interno no servidor ao cadastrar diário de obra." });
     }
     
     res.status(201).json({

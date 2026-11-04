@@ -1,11 +1,13 @@
+import GestaoIntegrada from '../../componentes/shared/GestaoIntegrada';
+import {resumirAtrasos} from '../../api/obraIndicadores';
 import {
   useEffect,
   useState,
 } from "react";
 
-import Layout from "../../componentes/escritorio/Layout";
 import Card from "../../componentes/escritorio/Card";
 import Skeleton from "../../componentes/shared/Skeleton";
+import ResumoGestao from '../../componentes/escritorio/ResumoGestao';
 
 import {
   listarObras,
@@ -173,6 +175,8 @@ function Dashboard({
         )
     ).length;
 
+  const atrasos=resumirAtrasos(obras,new Intl.DateTimeFormat('sv-SE',{timeZone:'America/Sao_Paulo'}).format(new Date()));
+
   const paralisadas =
     obras.filter(
       (obra) => ["paralisada", "pausada"].includes(normalizarStatus(obra.status))
@@ -201,11 +205,7 @@ function Dashboard({
     ) : "Não informado";
 
   return (
-    <Layout
-      onNavegar={
-        onNavegar
-      }
-    >
+    <>
 
       <div className="dashboard">
 
@@ -265,6 +265,7 @@ function Dashboard({
             ["Total de obras", obras.length, "Cadastros da construtora", "obras"],
             ["Planejamento", obras.filter(o => normalizarStatus(o.status) === "planejamento").length, "Preparação e planejamento", "obras"],
             ["Obras ativas", obrasAtivas, "Em execução", "obras"],
+            ["Obras atrasadas", atrasos.atrasadas, atrasos.semPrazoValido?`${atrasos.semPrazoValido} sem prazo ou situação válidos`:'Prazo previsto vencido; obras não concluídas', "obras"],
             ["Concluídas", obras.filter(o => normalizarStatus(o.status) === "concluida").length, "Obras finalizadas", "obras"],
             ["Paralisadas", paralisadas, "Necessitam acompanhamento", "obras"],
             ["Equipes", equipes.length, profissionais + " profissionais", "equipes"],
@@ -272,6 +273,7 @@ function Dashboard({
           ].map(([title, value, description, destino]) => <Card key={title} title={title} value={erro ? "Não informado" : value} description={erro ? "Consulta indisponível" : description} onClick={() => onNavegar(destino)} />)}
         </section>
 
+        <ResumoGestao obras={obras} /><GestaoIntegrada obras={obras} />
         <section className="dashboard-section">
 
           <div className="section-header">
@@ -474,7 +476,7 @@ function Dashboard({
 
       </div>
 
-    </Layout>
+    </>
   );
 }
 

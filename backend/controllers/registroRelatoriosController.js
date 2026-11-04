@@ -1,5 +1,5 @@
 const RegistroRelatorios = require("../models/registroRelatoriosModel");
-const { dbStatus } = require("../utils/dbError");
+const { dbStatus, safeDbMessage } = require("../utils/dbError");
 
 // Lista os registros de relatórios filtrando pelo ID da obra
 exports.listarPorObra = (req, res) => {
@@ -35,12 +35,11 @@ exports.deletar = (req, res) => {
 
 // Registra um novo relatório
 exports.criar = (req, res) => {
-  console.log("PAYLOAD REGISTRO RELATORIOS RECEBIDO:", req.body);
 
   RegistroRelatorios.create(req.body, (err, result) => {
     if (err) {
-      console.error("❌ ERRO NO BANCO AO INSERIR REGISTRO RELATORIO:", err);
-      return res.status(dbStatus(err)).json({ error: err.message || "Erro interno no servidor ao cadastrar registro de relatório." });
+      console.error("❌ ERRO NO BANCO AO INSERIR REGISTRO RELATORIO:", { code: err.code });
+      return res.status(dbStatus(err)).json({ error: safeDbMessage(err) || "Erro interno no servidor ao cadastrar registro de relatório." });
     }
 
     res.status(201).json({

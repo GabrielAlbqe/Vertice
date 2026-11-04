@@ -1,5 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+// Ambiente de navegador mínimo para o transporte HTTP autenticado.
+globalThis.localStorage = { getItem: () => null };
 import { listarEquipes, buscarCatalogoRecursos, atribuirEquipe } from "../src/api/recursos.js";
 import { calcularAnalytics, normalizarAnalytics, FILTROS_VAZIOS } from "../src/api/analyticsCalculos.js";
 import { usuarioCanteiro, usuarioSeguro } from "../src/canteiro/sessao.js";
@@ -52,12 +54,13 @@ test("ambiente explícito prevalece sobre ocupação e tamanho da tela", () => {
   assert.equal(usuarioCanteiro({ ocupacao: "Operacional" }), true);
 });
 
-test("catálogo consulta insumos e máquinas por obra e isola equipes", async () => {
+test("catálogo agregado usa uma consulta e filtra obras autorizadas", async () => {
   const anterior = globalThis.fetch, chamadas = [];
   globalThis.fetch = async (url, options) => {
     const rota = new URL(url); chamadas.push({ rota, options });
     let dados = [];
     if (rota.pathname === "/api/equipes") dados = [{ id_cadastro_equipes: 1, idobra: 1 }, { id_cadastro_equipes: 2, idobra: 2 }];
+      if(rota.pathname==='/api/operacional/gestao/recursos')dados={equipes:[{id_cadastro_equipes:1,idobra:1},{id_cadastro_equipes:2,idobra:2}],insumos:[{id_insumos:1,idobra:1}],maquinarios:[{id_maquina:1,idobra:1}]};
     if (/\/(insumos|maquinarios)$/.test(rota.pathname)) {
       assert.equal(rota.searchParams.get("idobra"), "1");
       dados = [{ id_insumos: 1, id_maquina: 1, idobra: 1 }];
@@ -69,6 +72,7 @@ test("catálogo consulta insumos e máquinas por obra e isola equipes", async ()
     const catalogo = await buscarCatalogoRecursos([{ id_obra: 1 }]);
     assert.equal(catalogo.equipes.length, 1);
     assert.equal(catalogo.insumos.length, 1);
+      assert.equal(chamadas.filter(c=>c.rota.pathname==='/api/operacional/gestao/recursos').length,1);
     const antes = chamadas.length;
     assert.deepEqual(await buscarCatalogoRecursos([]), { equipes: [], insumos: [], maquinarios: [] });
     assert.equal(chamadas.length, antes);
@@ -97,4 +101,16 @@ test("Analytics diferencia erro, ausência e valores inválidos sem NaN", () => 
   const resultado = calcularAnalytics(normalizarAnalytics(dados), FILTROS_VAZIOS);
   assert.equal(resultado.realizado, null);
   assert.ok(!JSON.stringify(resultado).includes("NaN"));
+});
+
+
+test('alocação usa versão observada e idempotência, sem datas inventadas',async()=>{
+ const previous=globalThis.fetch;let sent;
+ globalThis.fetch=async(url,options)=>{sent={url,options};return new Response(JSON.stringify({insertId:9,versao:4}),{status:201});};
+ try{await atribuirEquipe({id_cadastro_equipes:9,versao:3,ativo:1},8);assert.match(sent.url,/gestao\/equipes\/propria\/9\/vinculo$/);const body=JSON.parse(sent.options.body);assert.deepEqual(body,{obra_id:8,ativo:true,versao:3,motivo:'Alocação pela gestão da obra'});assert.ok(sent.options.headers['Idempotency-Key']);await assert.rejects(atribuirEquipe({id_cadastro_equipes:9,versao:3,ativo:0},8),/inativa/);}finally{globalThis.fetch=previous;}
+});
+test('catálogo mantém equipes sem obra da construtora e exclui equipes estrangeiras',async()=>{
+ const previous=globalThis.fetch;
+ globalThis.fetch=async()=>new Response(JSON.stringify({equipes:[{id_cadastro_equipes:1,idobra:null,id_construtora:7},{id_cadastro_equipes:2,idobra:null,id_construtora:8}],insumos:[],maquinarios:[]}),{status:200});
+ try{const r=await buscarCatalogoRecursos([{id_obra:4,id_construtora:7}]);assert.deepEqual(r.equipes.map(e=>e.id_cadastro_equipes),[1]);}finally{globalThis.fetch=previous;}
 });

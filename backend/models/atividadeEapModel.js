@@ -1,4 +1,4 @@
-const bd = require("../config/connection");
+const bd = require("../config/scopedConnection");
 
 const AtividadeEap = {
   // Lista todas as atividades ligadas a uma obra específica

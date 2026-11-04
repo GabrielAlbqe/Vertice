@@ -1,4 +1,4 @@
-const bd = require("../config/connection");
+const bd = require("../config/scopedConnection");
 
 const ProjecaoFinanceira = {
   getByObra: (id_obra, callback) => {

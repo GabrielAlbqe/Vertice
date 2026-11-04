@@ -1,4 +1,4 @@
-const bd = require("../config/connection");
+const bd = require("../config/scopedConnection");
 
 const RdoMaquinario = {
   // Lista todos os maquinários vinculados a um RDO

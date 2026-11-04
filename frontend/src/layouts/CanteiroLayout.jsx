@@ -7,6 +7,7 @@ import { listarObras } from "../api/obras";
 import { buscarRecursosDaObra } from "../api/recursos";
 import { listarDiarios, listarAtividades, listarRdos, listarApropriacoes, carregarApontamentos } from "../canteiro/dados";
 import { lerRascunhos } from "../canteiro/rascunhos";
+import {lerCache,guardarCache} from '../canteiro/offline';
 import "../canteiro/canteiro.css";
 const Contexto = createContext(null);
 export const useCanteiro = () => useContext(Contexto);
@@ -28,7 +29,7 @@ export default function CanteiroLayout({ children, pagina, onNavegar }) {
   const main = useRef(null);
   useEffect(() => { main.current?.focus(); window.scrollTo(0, 0); }, [pagina]);
   useEffect(() => {
-    const conectar = () => setOnline(true), desconectar = () => setOnline(false);
+    const conectar = () => {setOnline(true);setTentativa(v=>v+1);}, desconectar = () => setOnline(false);
     window.addEventListener("online", conectar); window.addEventListener("offline", desconectar);
     return () => { window.removeEventListener("online", conectar); window.removeEventListener("offline", desconectar); };
   }, []);
@@ -48,6 +49,8 @@ export default function CanteiroLayout({ children, pagina, onNavegar }) {
         if (!escolhida) localStorage.removeItem("obra_selecionada");
         else localStorage.setItem("obra_selecionada", JSON.stringify(escolhida));
       } catch (erro) {
+        const cache=!navigator.onLine && lerCache(usuario);
+        if(ativo && cache){setObras([cache.obra]);setObra(cache.obra);setDados(cache.dados);setErroObras('');return;}
         if (ativo) { console.error("Obras do Canteiro:", erro); setErroObras(erro.message === "A sessão não informa a construtora. Entre novamente." ? erro.message : "Não foi possível carregar as obras."); }
       } finally { if (ativo) setCarregandoObras(false); }
     }
@@ -56,6 +59,8 @@ export default function CanteiroLayout({ children, pagina, onNavegar }) {
   }, [usuario.idconstrutora, tentativa]);
   useEffect(() => {
     if (!obra) { setDados(vazio); setAvisos([]); setCarregando(false); return; }
+    const cache=!online && lerCache(usuario,obra.id_obra);
+    if(cache){setDados(cache.dados);setAvisos([`Cópia offline da obra consultada em ${new Date(cache.atualizado).toLocaleString('pt-BR',{timeZone:'America/Sao_Paulo'})}. Reconecte para atualizar.`]);setCarregando(false);return;}
     let ativo = true;
     const controle = new AbortController();
     setCarregando(true); setAvisos([]); setDados(vazio);
@@ -79,16 +84,18 @@ export default function CanteiroLayout({ children, pagina, onNavegar }) {
       catch (e) { if (!controle.signal.aborted) { console.error("Apontamentos:", e); mensagens.push("Não foi possível carregar apontamentos."); } }
       if (!ativo) return;
       const idsAtividades = new Set(valor(1, []).filter(a => String(a.idx_obra) === String(obra.id_obra)).map(a => String(a.id_atividade)));
-      setDados({ diarios, apontamentos, rdos: valor(3, []).filter(r => String(r.id_obra) === String(obra.id_obra)), apropriacoes: valor(4, []).filter(a => idsAtividades.has(String(a.id_atividade))), atividades: valor(1, []).filter(a => String(a.idx_obra) === String(obra.id_obra)), recursos: {
+      const recebidos={ diarios, apontamentos, rdos: valor(3, []).filter(r => String(r.id_obra) === String(obra.id_obra)), apropriacoes: valor(4, []).filter(a => idsAtividades.has(String(a.id_atividade))), atividades: valor(1, []).filter(a => String(a.idx_obra) === String(obra.id_obra)), recursos: {
         equipes: recursos.equipes.filter(e => String(e.idobra ?? e.id_obra) === String(obra.id_obra)),
         insumos: recursos.insumos.filter(e => String(e.idobra ?? e.id_obra) === String(obra.id_obra)),
         maquinarios: recursos.maquinarios.filter(e => String(e.idobra ?? e.id_obra) === String(obra.id_obra))
-      } });
+      } };
+      setDados(recebidos);
+      if(!mensagens.length)guardarCache(usuario,obra,recebidos);
       setAvisos(mensagens); setCarregando(false);
     }
     carregar();
     return () => { ativo = false; controle.abort(); };
-  }, [obra, revisao]);
+  }, [obra, revisao, online]);
   function selecionarObra(id) {
     const escolhida = obras.find(item => String(item.id_obra) === String(id)) || null;
     if (String(escolhida?.id_obra) === String(obra?.id_obra)) { return true; }
@@ -106,10 +113,10 @@ export default function CanteiroLayout({ children, pagina, onNavegar }) {
     setRascunhoAberto(item);
     onNavegar(({ diario: "canteiro-diario", atividade: "canteiro-atividade", material: "canteiro-material", ocorrencia: "canteiro-ocorrencia" })[item.tipo] || "canteiro-registrar");
   }
-  const contexto = { usuario, obras, obra, ...dados, carregando: carregando || carregandoObras, avisos, online,
+  const contexto = { revisao, usuario, obras, obra, ...dados, carregando: carregando || carregandoObras, avisos, online,
     selecionarObra, onNavegar, atualizar: () => setRevisao(v => v + 1),
-    rascunhos, atualizarRascunhos, rascunhoAberto, abrirRascunho, fecharRascunho: () => setRascunhoAberto(null),
-    sair: () => { if (!confirmarSaida()) return; sairCanteiro(); onNavegar("login"); } };
+    rascunhos: rascunhos.filter(item=>obras.some(o=>String(o.id_obra)===String(item.obra))), atualizarRascunhos, rascunhoAberto, abrirRascunho, fecharRascunho: () => setRascunhoAberto(null),
+    sair: async() => { if (!confirmarSaida()) return; if(await sairCanteiro())onNavegar("login"); } };
   return <Contexto.Provider value={contexto}><div className="ct-app"><a href="#ct-main" className="ct-skip">Ir para o conteúdo</a><HeaderCanteiro usuario={usuario} onNavegar={onNavegar} /><main id="ct-main" ref={main} tabIndex="-1" className="ct-main">
     {!online && <p className="ct-message" role="status">Você está offline. Salve um rascunho e envie manualmente quando a conexão retornar.</p>}
     {erroObras && <div className="ct-message ct-error" role="alert">{erroObras}<button className="ct-link" type="button" onClick={() => setTentativa(v => v + 1)}>Tentar novamente</button></div>}

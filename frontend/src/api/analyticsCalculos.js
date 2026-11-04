@@ -47,8 +47,8 @@ export function estimarImpacto({ dias_atraso, origem, quantidade, custo_diario }
 
 export function normalizarAnalytics(dados) {
   const avisos = [...(dados.avisos || [])];
-  const usarLivro = Boolean(dados.realizados?.length);
-  const fontes = usarLivro ? dados.realizados : dados.usos || [];
+  const usarLivro = Array.isArray(dados.realizados);
+  const fontes = usarLivro ? [...new Map(dados.realizados.map((item,index)=>[item.id_custo_realizado ?? `linha:${index}`,item])).values()] : [];
   const registros = fontes.map(item => {
     const origem = usarLivro ? origemNome(item.origem_custo) : item.origem;
     const id = usarLivro ? item.id_origem : item.id_equipe ?? item.id_insumo ?? item.id_maquinario;
@@ -73,19 +73,21 @@ export function normalizarAnalytics(dados) {
   }));
   if (!usarLivro && registros.length) avisos.push('Realizado calculado a partir dos usos registrados em RDO. Equipes e máquinas usam as diárias atuais; tempo de máquina é interpretado em dias. Não há histórico de tarifas/unidade de tempo nesses registros.');
   if (registros.some(item => !item.data || item.valor === null || item.etapa === 'Sem etapa identificada' || item.origem === 'outros')) avisos.push('Há lançamentos incompletos. Valores sem base de cálculo não são tratados como zero; classificações ausentes são mostradas separadamente.');
-  return { ...dados, registros, planos: planejados, avisos, fonte: usarLivro ? 'Custos realizados registrados' : 'Usos registrados em RDO' };
+  return { ...dados, registros, planos: planejados, avisos, fonte: usarLivro ? 'Custos realizados registrados' : 'Consulta de custos indisponível' };
 }
 
 export function calcularAnalytics(dados, filtros = FILTROS_VAZIOS, hoje = hojeLocal()) {
   const avisos = [...dados.avisos];
   const inicio = dataISO(filtros.inicio);
   const fim = dataISO(filtros.fim);
+  const periodoInvalido=Boolean(inicio&&fim&&inicio>fim);
+  if(periodoInvalido)avisos.push('Período inválido: o início deve ser anterior ou igual ao fim.');
   const limiteReal = fim && fim < hoje ? fim : hoje;
   const classifica = item => (!filtros.etapa || item.etapa === filtros.etapa) && (!filtros.origem || item.origem === filtros.origem);
   const registros = dados.registros.filter(item => classifica(item) && (!filtros.recurso || item.chave === filtros.recurso) &&
     (!inicio || (item.data && item.data >= inicio)) && (!fim || (item.data && item.data <= fim)) && (!item.data || item.data <= hoje));
   if (dados.registros.some(item => item.data > hoje)) avisos.push('Lançamentos com data futura não entram no realizado.');
-  const baseDisponivel = dados.realizados !== null && (dados.realizados.length > 0 || dados.usosCompletos);
+  const baseDisponivel = !periodoInvalido && Array.isArray(dados.realizados);
   const realizado = baseDisponivel && registros.every(item => item.valor !== null) ? soma(registros) : null;
   let planos = dados.planos.filter(classifica);
   let planejado = null;
@@ -112,12 +114,19 @@ export function calcularAnalytics(dados, filtros = FILTROS_VAZIOS, hoje = hojeLo
   } else if (dados.planejados !== null) avisos.push('Não há planejamento detalhado disponível para este recorte.');
   const diasEfetivos = new Set(registros.filter(item => item.data && item.data <= limiteReal && item.valor !== null).map(item => item.data)).size;
   const terminoObra = dataISO(dados.obra.data_termino_planejada);
-  const termino = fim && terminoObra ? (fim < terminoObra ? fim : terminoObra) : terminoObra;
+  const termino = terminoObra;
   const diasRestantes = termino ? diasEntre(limiteReal, termino) : null;
-  const media = realizado !== null && diasEfetivos > 0 && registros.every(item => item.data) ? realizado / diasEfetivos : null;
+  const primeiraData = registros.map(item=>item.data).filter(Boolean).sort()[0];
+  const janelaObservada = primeiraData ? diasEntre(primeiraData, limiteReal) + 1 : 0;
+  const media = realizado !== null && diasEfetivos >= 2 && registros.every(item => item.data) ? realizado / janelaObservada : null;
   const projetado = media !== null && diasRestantes !== null ? realizado + media * diasRestantes : null;
+  if(periodoInvalido)planejado=null;
   const desvio = realizado !== null && planejado !== null ? realizado - planejado : null;
-  const desvioProjetado = projetado !== null && planejado !== null ? projetado - planejado : null;
+  const comparacaoProjecao = !inicio && !fim && !filtros.recurso;
+  const desvioProjetado = comparacaoProjecao && projetado !== null && planejado !== null ? projetado - planejado : null;
+  const motivoProjecao = realizado === null ? 'A consulta de custos realizados falhou ou contém valores incompletos.' : !registros.length ? 'Sem custos realizados registrados neste recorte.' : registros.some(item=>!item.data) ? 'Existem lançamentos sem data válida.' : diasEfetivos < 2 ? 'São necessárias despesas em pelo menos duas datas distintas para estimar uma tendência.' : !termino ? 'Informe o término planejado da obra.' : '';
+  if (motivoProjecao) avisos.push(motivoProjecao);
+  if (projetado !== null) avisos.push('Projeção por média diária de calendário: realizado dividido pelos dias entre o primeiro lançamento e o fim observado, multiplicado pelos dias até o término da obra. É uma estimativa, não uma despesa confirmada.');
   const nomesEtapas = [...ETAPAS, ...new Set([...registros, ...planos].map(item => item.etapa).filter(item => !ETAPAS.includes(item)))];
   const etapas = nomesEtapas.map(nome => ({ nome,
     planejado: planejado !== null && !usaOrcamento ? soma(planos.filter(item => item.etapa === nome)) : null,
@@ -136,10 +145,10 @@ export function calcularAnalytics(dados, filtros = FILTROS_VAZIOS, hoje = hojeLo
   // o impacto monetário não é inferido nem somado ao realizado/projetado.
   const datas = registros.map(item => item.data).filter(Boolean).sort();
   const inicioSerie = inicio || dataISO(dados.obra.data_inicio_planejada) || datas[0];
-  const fimSerie = termino && termino > limiteReal ? termino : limiteReal;
+  const fimSerie = fim ? limiteReal : termino && termino > limiteReal ? termino : limiteReal;
   const pontos = [];
   if (registros.length > 0 && inicioSerie && inicioSerie <= fimSerie && realizado !== null && registros.every(item => item.data)) {
-    const marcos = new Set([inicioSerie, fimSerie]);
+    const marcos = new Set([inicioSerie, fimSerie, ...datas]);
     if (limiteReal >= inicioSerie && limiteReal <= fimSerie) marcos.add(limiteReal);
     let mes = new Date(`${inicioSerie.slice(0, 7)}-01T00:00:00Z`);
     // Em obras muito longas, agrega o eixo para limitar o custo de renderização.
@@ -149,10 +158,11 @@ export function calcularAnalytics(dados, filtros = FILTROS_VAZIOS, hoje = hojeLo
       if (data >= inicioSerie && data <= fimSerie) marcos.add(data);
       mes.setUTCMonth(mes.getUTCMonth() + passo);
     }
-    [...marcos].sort().forEach(data => {
+    const eixo = diasEfetivos === 1 ? new Set(datas) : marcos;
+    [...eixo].sort().forEach(data => {
       const acumulado = soma(registros.filter(item => item.data <= data));
       pontos.push({ data, realizado: data <= limiteReal ? acumulado : null, projetado: data >= limiteReal && projetado !== null ? realizado + media * diasEntre(limiteReal, data) : null });
     });
   }
-  return { planejado, realizado, projetado, desvio, desvioPercentual: percentual(desvio, planejado), desvioProjetado, desvioProjetadoPercentual: percentual(desvioProjetado, planejado), realizadoPercentual: percentual(realizado, planejado), etapas, origens, pontos, diasEfetivos, diasRestantes, media, ocorrencias, avisos: [...new Set(avisos)], quantidade: registros.length, usaOrcamento };
+  return { planejado, realizado, projetado, motivoProjecao, desvio, desvioPercentual: percentual(desvio, planejado), desvioProjetado, desvioProjetadoPercentual: percentual(desvioProjetado, planejado), realizadoPercentual: percentual(realizado, planejado), etapas, origens, pontos, diasEfetivos, diasRestantes, media, ocorrencias, avisos: [...new Set(avisos)], quantidade: registros.length, usaOrcamento };
 }

@@ -1,4 +1,4 @@
-const bd = require("../config/connection");
+const bd = require("../config/scopedConnection");
 
 const RegistroRelatorios = {
   // Lista todos os registros de relatórios vinculados a uma obra específica

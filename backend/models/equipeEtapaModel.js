@@ -1,4 +1,4 @@
-const bd = require("../config/connection");
+const bd = require("../config/scopedConnection");
 
 const EquipeEtapa = {
   // Lista todos os registros de etapas das equipes

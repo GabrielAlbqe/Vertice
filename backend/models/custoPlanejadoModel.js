@@ -1,4 +1,4 @@
-const bd = require("../config/connection");
+const bd = require("../config/scopedConnection");
 
 const CustoPlanejado = {
   // Lista todos os custos planejados

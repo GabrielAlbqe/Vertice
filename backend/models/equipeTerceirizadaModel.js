@@ -1,4 +1,4 @@
-const bd = require("../config/connection");
+const bd = require("../config/scopedConnection");
 
 const EquipeTerceirizada = {
   // Lista todas as equipes terceirizadas

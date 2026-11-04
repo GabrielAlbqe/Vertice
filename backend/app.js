@@ -2,6 +2,7 @@ const path = require("path");
 
 require("dotenv").config({
   path: path.join(__dirname, ".env"),
+  quiet: true,
 });
 
 const express = require("express");
@@ -15,19 +16,19 @@ const app = express();
 // =============================================================
 // MIDDLEWARES GLOBAIS
 // =============================================================
-app.use(cors()); // Permite que o Front-End se comunique com a API
+require('./middlewares/http').configure(app);
+if(process.env.NODE_ENV==='production')app.use('/api',require('./middlewares/http').loginLimit({limit:600,windowMs:60000,namespace:'api'}));
+app.use('/api/usuarios/login',require('./middlewares/http').loginLimit());
 app.use(express.json()); // Habilita o recebimento de dados em formato JSON no corpo das requisições
+app.use(require('./middlewares/http').validateInput);
+app.use('/api/usuarios/insert',require('./middlewares/http').loginLimit({limit:30,namespace:'registration'}));
+app.use('/api/usuarios/reset-password',require('./middlewares/http').loginLimit({limit:10,namespace:'reset'}));
 
 app.use((req, res, next) => {
-  console.log("PASSOU PELO MIDDLEWARE:", req.method, req.path);
-  next();
-});
-
-app.use((req, res, next) => {
-  console.log("JWT middleware:", req.method, req.path);
   const rotaPublica =
     (req.method === "POST" && req.path === "/api/usuarios/login") ||
-    (req.method === "POST" && req.path === "/api/usuarios/insert") ||
+    (req.method === "POST" && req.path === "/api/usuarios/reset-password") ||
+    (req.method === "POST" && req.path === "/api/usuarios/insert" && process.env.REGISTRATION_MODE !== 'office' && !req.headers.authorization) ||
     (req.method === "GET" && req.path === "/api/health");
 
   if (rotaPublica) {
@@ -41,6 +42,10 @@ app.use((req, res, next) => {
 // IMPORTAÇÃO DAS ROTAS (Em ordem alfabética)
 // =============================================================
 const apontamentoFisicoRoutes = require("./routes/apontamentoFisicoRoutes");
+// Carrega e valida a configuração antes do pool operacional.
+require("./config/connection");
+app.use(require("./middlewares/escopoConstrutora"));
+app.use("/api/operacional", require("./routes/operacionalRoutes"));
 const apropriacaoRoutes = require("./routes/apropriacaoRoutes");
 const atividadeEapRoutes = require("./routes/atividadeEapRoutes");
 const cargoRoutes = require("./routes/cargoRoutes");
@@ -104,24 +109,21 @@ app.use("/api/rdo-maquinarios", rdoMaquinarioRoutes);
 
 // Rota padrão para teste de integridade da API
 app.get("/api/health", (req, res) => {
-  res.status(200).json({
-    status: "online",
-    timestamp: new Date(),
-    banco_dados: "conectado",
+  const connection = require("./config/connection");
+  connection.query("SELECT 1", (err) => {
+    res.status(err ? 503 : 200).json({
+      status: err ? "indisponivel" : "online",
+      timestamp: new Date(),
+      banco_dados: err ? "desconectado" : "conectado",
+      cadastro_publico: false,
+    });
   });
 });
 
 // =============================================================
 // INICIALIZAÇÃO DO SERVIDOR
 // =============================================================
-if (process.env.NODE_ENV !== "test") {
-  const PORT = process.env.PORT || 3000;
-  app.listen(PORT, () => {
-    console.log(`====================================================`);
-    console.log(`🚀 Servidor rodando com sucesso na porta ${PORT}`);
-    console.log(`🔗 Link de teste: http://localhost:${PORT}/api/health`);
-    console.log(`====================================================`);
-  });
-}
-
+app.use((req,res)=>res.status(404).json({message:'Recurso não encontrado.'}));
+app.use(require('./utils/operacional').errors);
 module.exports = app;
+if (require.main === module && process.env.NODE_ENV !== "test") require('./server');

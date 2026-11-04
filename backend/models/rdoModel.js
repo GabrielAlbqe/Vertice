@@ -1,4 +1,4 @@
-const bd = require("../config/connection");
+const bd = require("../config/scopedConnection");
 
 const Rdo = {
   // Lista todos os RDOs filtrando pelo ID da obra

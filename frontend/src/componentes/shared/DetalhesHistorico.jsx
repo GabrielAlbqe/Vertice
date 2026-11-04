@@ -1,0 +1,6 @@
+const labels={anterior:'Antes',atual:'Depois',equipe_id:'Equipe própria (ID)',terceirizada_id:'Equipe terceirizada (ID)',ativo:'Ativo',situacao:'Situação',progresso:'Execução declarada (%)',inicio_previsto:'Início previsto',fim_previsto:'Fim previsto',inicio_real:'Início real',fim_real:'Fim real',responsavel_id:'Responsável (ID)',atividade_id:'Atividade (ID)',critica:'Etapa crítica',insumo_id:'Material (ID)',tipo:'Tipo',quantidade:'Quantidade',saldo_apos:'Saldo após',unidade:'Unidade',minimo:'Limite de estoque',evento_id:'Registro (ID)',inicio:'Início',fim:'Fim',horas:'Horas',custo:'Custo informado',diario_id:'Diário (ID)',status:'Situação',ambiente:'Perfil',nome:'Nome',valor_unitario:'Valor unitário',idobra:'Obra (ID)',id_obra:'Obra (ID)',id_construtora:'Construtora (ID)'};
+export default function DetalhesHistorico({dados}){
+ const value=typeof dados==='string'?JSON.parse(dados):dados;
+ if(!value||typeof value!=='object')return null;
+ return <dl>{Object.entries(value).filter(([key])=>labels[key]).map(([key,item])=><div key={key}><dt>{labels[key]}</dt><dd>{item&&typeof item==='object'?<DetalhesHistorico dados={item}/>:item===null?'Sem vínculo / não informado':typeof item==='boolean'?item?'Sim':'Não':String(item)}</dd></div>)}</dl>;
+}

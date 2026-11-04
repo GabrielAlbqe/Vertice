@@ -1,4 +1,5 @@
 import { requisitar } from "../api/api.js";
+import { enviarOperacional } from '../api/operacional.js';
 // Contratos conferidos em backend/app.js, routes, controllers, models e bd.sql.
 // Reutiliza o transporte existente; não altera os módulos de API do Escritório.
 export const ETAPAS_DIARIO = ["Mobilização", "Infraestrutura", "Supraestrutura e Alvenaria", "Instalações", "Revestimentos", "Acabamentos"];
@@ -13,9 +14,9 @@ export async function consultarLista(rota, signal) {
 export const listarDiarios = (id, signal) => consultarLista(`/diarios-obra?obrax_id=${encodeURIComponent(id)}`, signal);
 export const listarAtividades = (id, signal) => consultarLista(`/atividades-eap?idx_obra=${encodeURIComponent(id)}`, signal);
 export const listarApontamentos = (id, signal) => consultarLista(`/apontamentos-fisicos?diario_id=${encodeURIComponent(id)}`, signal);
-export const salvarDiario = payload => requisitar("/diarios-obra/insert", { method: "POST", body: JSON.stringify(payload) });
-export const salvarAtividade = payload => requisitar("/apontamentos-fisicos/insert", { method: "POST", body: JSON.stringify(payload) });
-export const salvarMaterial = payload => requisitar("/apropriacoes/insert", { method: "POST", body: JSON.stringify(payload) });
+export const salvarDiario = (payload, chave) => enviarOperacional('diarios', payload, chave);
+export const salvarAtividade = (payload, chave) => enviarOperacional('atividades', payload, chave);
+export const salvarMaterial = (payload, chave) => enviarOperacional('materiais', payload, chave);
 export const listarRdos = (id, signal) => consultarLista(`/rdo?id_obra=${encodeURIComponent(id)}`, signal);
 export const listarApropriacoes = signal => consultarLista("/apropriacoes", signal);
 export async function carregarApontamentos(diarios, signal) {

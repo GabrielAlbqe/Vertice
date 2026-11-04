@@ -1,0 +1,55 @@
+name: Validate cloud readiness
+on:
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_ROOT_PASSWORD: isolated-ci-only-password
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=12
+    env:
+      NODE_ENV: test
+      DB_HOST: 127.0.0.1
+      DB_PORT: '3306'
+      DB_USER: root
+      DB_PASSWORD: isolated-ci-only-password
+      DB_NAME: vertice_test_ci
+      JWT_SECRET: Isolated_CI_only_key_93kQm82zLf4vNs7
+      REGISTRATION_MODE: office
+      SECURITY_STORE: memory
+      PHOTO_STORAGE_DRIVER: local
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            backend/package-lock.json
+            frontend/package-lock.json
+      - run: npm ci
+      - run: npm ci --prefix backend
+      - run: npm ci --prefix frontend
+      - run: npm test
+      - run: npm run test:frontend
+      - run: npm run build
+      - run: npm run build:cloud --prefix frontend
+        env:
+          PUBLIC_FRONTEND_URL: https://app.company.test
+          PUBLIC_API_URL: https://api.company.test
+          ORIGIN_SECRET: Isolated_CI_proxy_key_83kLm92vQz7nRs4
+      # Somente validação; não publica, não migra e não recebe segredos de produção.

@@ -1,0 +1,2 @@
+import { formatarData } from '../../canteiro/dados';
+export default function DiarioSelect({registro:r}) { return <label className="ct-field">Diário relacionado (opcional)<select disabled={r.salvando} value={r.form.diario_id || ''} onChange={e=>r.campo('diario_id',e.target.value)}><option value="">Sem vínculo com diário</option>{r.ctx.diarios.map(d=><option key={d.id_diario} value={d.id_diario}>{formatarData(d.data)} · {d.turno} · #{d.id_diario}</option>)}</select></label>; }

@@ -1,3 +1,5 @@
+import {limparCache} from '../canteiro/offline';
+import {saveSession} from '../api/sessionTransport';
 import {
   useEffect,
   useRef,
@@ -12,13 +14,13 @@ import {
   usuarioSeguro,
 } from "../canteiro/sessao";
 
-import logoVertice from "../assets/logo-vertice.png";
+import iconeVertice from "../assets/icone-vertice.png";
 
 function Login({
   onLogin,
-  onCadastro,
 }) {
   const trava = useRef(false);
+  const [accountId,setAccountId]=useState(new URLSearchParams(location.search).get('account')||'');
 
   const [email, setEmail] =
     useState("");
@@ -95,6 +97,7 @@ function Login({
           "/usuarios/login",
           {
             method: "POST",
+            headers:{'X-Session-Mode':'cookie'},
 
             body: JSON.stringify({
               email:
@@ -103,6 +106,7 @@ function Login({
                   .toLowerCase(),
 
               senha,
+              ...(accountId?{id_usuario:Number(accountId)}:{}),
             }),
           }
         );
@@ -111,7 +115,7 @@ function Login({
       // VALIDAR TOKEN JWT
       // =================================================
 
-      if (!dados?.token) {
+      if (!dados?.session) {
         throw new Error(
           "O servidor não retornou o token de autenticação."
         );
@@ -142,6 +146,7 @@ function Login({
       // LIMPAR SESSÃO ANTERIOR
       // =================================================
 
+      limparCache(localStorage.getItem('id_usuario'));
       [
         "usuario",
         "idconstrutora",
@@ -159,10 +164,7 @@ function Login({
       // SALVAR TOKEN JWT
       // =================================================
 
-      localStorage.setItem(
-        "token",
-        dados.token
-      );
+      saveSession(dados.session,usuario.id_usuario);
 
       // =================================================
       // SALVAR USUÁRIO LOGADO
@@ -280,16 +282,21 @@ function Login({
   // =====================================================
 
   return (
-    <div className="auth-page">
+    <div className="auth-page auth-login">
       <div className="auth-container">
 
-        <div className="auth-brand">
-          <img
-            src={logoVertice}
-            alt="Sistema Vértice - Gestão inteligente de obras"
-            className="auth-brand-logo"
-          />
-        </div>
+        <header className="auth-brand auth-brand-card" aria-label="Sistema Vértice">
+          <div className="auth-brand-lockup">
+            <span className="auth-brand-symbol" aria-hidden="true">
+              <img src={iconeVertice} alt="" width="512" height="512" />
+            </span>
+            <div className="auth-brand-copy">
+              <span className="auth-brand-eyebrow">SISTEMA</span>
+              <h1>Vértice</h1>
+            </div>
+          </div>
+          <p className="auth-brand-tagline">Gestão inteligente de obras</p>
+        </header>
 
         <div className="auth-card">
 
@@ -353,6 +360,7 @@ function Login({
 
             <div className="form-group">
 
+              <details><summary>Conta com e-mail compartilhado</summary><label>ID da conta<input type="number" min="1" value={accountId} onChange={e=>setAccountId(e.target.value)} /></label></details>
               <label htmlFor="senha">
                 Senha
               </label>
@@ -434,36 +442,7 @@ function Login({
 
           </form>
 
-          <div
-            className="auth-footer"
-            style={{
-              marginTop:
-                "22px",
-            }}
-          >
 
-            <span>
-              Ainda não possui conta?
-            </span>
-
-            <button
-              type="button"
-              onClick={() => {
-                if (
-                  typeof onCadastro ===
-                  "function"
-                ) {
-                  onCadastro();
-                }
-              }}
-              disabled={
-                carregando
-              }
-            >
-              Cadastre-se
-            </button>
-
-          </div>
 
         </div>
 

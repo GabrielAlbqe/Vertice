@@ -3,23 +3,35 @@ const jwt = require("jsonwebtoken");
 const { timingSafeEqual } = require("crypto");
 
 const Usuario = require("../models/usuarioModel");
-const { dbStatus } = require("../utils/dbError");
+const { dbStatus, safeDbMessage } = require("../utils/dbError");
+function validProfile(body,creating=false){
+  if((creating||body.nome!==undefined)&&(typeof body.nome!=='string'||!body.nome.trim()||body.nome.length>150))return false;
+  if((creating||body.email!==undefined)&&(typeof body.email!=='string'||body.email.length>191||!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(body.email.trim())))return false;
+  if(body.ocupacao!=null&&(typeof body.ocupacao!=='string'||body.ocupacao.length>100))return false;
+  if(body.ambiente!=null&&!['Escritório','Canteiro'].includes(body.ambiente))return false;
+  if(body.status!==undefined&&!['Ativo','Inativo'].includes(body.status))return false;
+  return true;
+}
 
 // =====================================================
 // CRIAR USUÁRIO
 // =====================================================
 
 exports.criar = async (req, res) => {
+  req.body ||= {};
   const { senha } = req.body || {};
+  // O esquema exige uma construtora. Um visitante não pode provar associação apenas enviando seu ID.
+  if(!req.acesso)return res.status(403).json({message:'A associação a uma construtora e a definição de permissões exigem cadastro pelo Escritório.'});
+  if(!validProfile(req.body,true))return res.status(400).json({error:safeDbMessage({code:'ER_BAD_NULL_ERROR'})});
 
   if (
     typeof senha !== "string" ||
-    !senha ||
+    senha.length < 10 ||
     Buffer.byteLength(senha, "utf8") > 72
   ) {
     return res.status(400).json({
       message:
-        "Informe uma senha válida com até 72 bytes.",
+        "Informe uma senha com pelo menos 10 caracteres e até 72 bytes.",
     });
   }
 
@@ -50,7 +62,7 @@ exports.criar = async (req, res) => {
     senha: senhaHash,
 
     idconstrutora:
-      req.body.idconstrutora ||
+      (req.acesso ? req.acesso.idconstrutora : null) ||
       null,
   };
 
@@ -62,7 +74,7 @@ exports.criar = async (req, res) => {
           .status(dbStatus(err))
           .json({
             error:
-              err.message || err,
+              safeDbMessage(err) || err,
           });
       }
 
@@ -91,7 +103,7 @@ exports.listarTodos = (
         return res
           .status(dbStatus(err))
           .json({
-            error: err.message,
+            error: safeDbMessage(err),
           });
       }
 
@@ -119,7 +131,7 @@ exports.listarPorConstrutora = (
           return res
             .status(dbStatus(err))
             .json({
-              error: err.message,
+              error: safeDbMessage(err),
             });
         }
 
@@ -135,7 +147,7 @@ exports.listarPorConstrutora = (
         return res
           .status(dbStatus(err))
           .json({
-            error: err.message,
+            error: safeDbMessage(err),
           });
       }
 
@@ -159,7 +171,7 @@ exports.buscarPorId = (
         return res
           .status(dbStatus(err))
           .json({
-            error: err.message,
+            error: safeDbMessage(err),
           });
       }
 
@@ -195,7 +207,7 @@ exports.deletar = (
         return res
           .status(dbStatus(err))
           .json({
-            error: err.message,
+            error: safeDbMessage(err),
           });
       }
 
@@ -228,6 +240,7 @@ exports.atualizar = async (
 ) => {
   const body =
     req.body || {};
+  if(!validProfile(body))return res.status(400).json({error:safeDbMessage({code:'ER_BAD_NULL_ERROR'})});
 
   const dados = {};
 
@@ -292,6 +305,7 @@ exports.atualizar = async (
     if (
       typeof body.senha !==
         "string" ||
+      body.senha.length < 10 ||
       Buffer.byteLength(
         body.senha,
         "utf8"
@@ -301,7 +315,7 @@ exports.atualizar = async (
         .status(400)
         .json({
           message:
-            "Informe uma senha válida com até 72 bytes.",
+        "Informe uma senha com pelo menos 10 caracteres e até 72 bytes.",
         });
     }
 
@@ -342,7 +356,7 @@ exports.atualizar = async (
         return res
           .status(dbStatus(err))
           .json({
-            error: err.message,
+            error: safeDbMessage(err),
           });
       }
 
@@ -369,232 +383,24 @@ exports.atualizar = async (
 // LOGIN
 // =====================================================
 
-exports.login = (
-  req,
-  res
-) => {
-  const {
-    email,
-    senha,
-  } = req.body || {};
-
-  if (
-    typeof email !== "string" ||
-    !email.trim() ||
-    typeof senha !== "string" ||
-    !senha
-  ) {
-    return res
-      .status(400)
-      .json({
-        message:
-          "Email e senha são obrigatórios.",
-      });
-  }
-
-  Usuario.buscarPorEmail(
-    email
-      .trim()
-      .toLowerCase(),
-
-    async (
-      err,
-      results
-    ) => {
-      if (err) {
-        return res
-          .status(dbStatus(err))
-          .json({
-            error: err.message,
-          });
-      }
-
-      const registro =
-        results?.[0];
-
-      if (!registro) {
-        return res
-          .status(401)
-          .json({
-            message:
-              "Credenciais inválidas ou usuário inativo.",
-          });
-      }
-
-      try {
-        const armazenada =
-          String(
-            registro.senha ||
-              ""
-          );
-
-        const bcryptHash =
-          /^\$2[aby]\$/.test(
-            armazenada
-          );
-
-        let correta = false;
-
-        // ===============================================
-        // SENHA JÁ ESTÁ EM BCRYPT
-        // ===============================================
-
-        if (bcryptHash) {
-          correta =
-            await bcrypt.compare(
-              senha,
-              armazenada
-            );
-        }
-
-        // ===============================================
-        // SENHA LEGADA
-        // ===============================================
-
-        else {
-          const recebida =
-            Buffer.from(senha);
-
-          const legada =
-            Buffer.from(
-              armazenada
-            );
-
-          correta =
-            recebida.length ===
-              legada.length &&
-            timingSafeEqual(
-              recebida,
-              legada
-            );
-        }
-
-        if (!correta) {
-          return res
-            .status(401)
-            .json({
-              message:
-                "Credenciais inválidas ou usuário inativo.",
-            });
-        }
-
-        // ===============================================
-        // MIGRAR SENHA ANTIGA PARA BCRYPT
-        // ===============================================
-
-        if (!bcryptHash) {
-          const novaSenhaHash =
-            await bcrypt.hash(
-              senha,
-              12
-            );
-
-          await new Promise(
-            (
-              resolve,
-              reject
-            ) => {
-              Usuario.atualizarSenha(
-                registro.id_usuario,
-                novaSenhaHash,
-                (
-                  erroMigracao
-                ) => {
-                  if (
-                    erroMigracao
-                  ) {
-                    return reject(
-                      erroMigracao
-                    );
-                  }
-
-                  resolve();
-                }
-              );
-            }
-          );
-        }
-
-        // ===============================================
-        // NÃO DEVOLVER SENHA PARA O FRONTEND
-        // ===============================================
-
-        const {
-          senha: senhaRemovida,
-          ...usuario
-        } = registro;
-
-        // ===============================================
-        // JWT SECRET
-        // ===============================================
-
-        const jwtSecret =
-          process.env.JWT_SECRET;
-
-        if (!jwtSecret) {
-          console.error(
-            "JWT_SECRET não configurado."
-          );
-
-          return res
-            .status(500)
-            .json({
-              message:
-                "Erro de configuração do servidor.",
-            });
-        }
-
-        // ===============================================
-        // GERAR TOKEN
-        // ===============================================
-
-        const token =
-          jwt.sign(
-            {
-              id_usuario:
-                usuario.id_usuario,
-
-              idconstrutora:
-                usuario.idconstrutora,
-            },
-
-            jwtSecret,
-
-            {
-              algorithm:
-                "HS256",
-
-              subject:
-                String(
-                  usuario.id_usuario
-                ),
-
-              expiresIn:
-                "8h",
-            }
-          );
-
-        return res.json({
-          message:
-            "Login realizado com sucesso!",
-
-          usuario,
-
-          token,
-        });
-      } catch (erro) {
-        console.error(
-          "Erro no login:",
-          erro
-        );
-
-        return res
-          .status(500)
-          .json({
-            message:
-              "Erro ao realizar login.",
-          });
-      }
+exports.login = async(req,res)=>{
+  const {email,senha,id_usuario}=req.body||{};
+  if(typeof email!=='string'||!email.trim()||email.length>191||typeof senha!=='string'||!senha||Buffer.byteLength(senha)>72||id_usuario!==undefined&&(!Number.isSafeInteger(Number(id_usuario))||Number(id_usuario)<=0))return res.status(400).json({message:'Email e senha validos sao obrigatorios.'});
+  try{
+    const [rows]=await require('../config/operacional').query("SELECT id_usuario,nome,email,senha,ocupacao,ambiente,status,data_cadastro,idconstrutora FROM usuario WHERE email=? AND status='Ativo'"+(id_usuario!==undefined?' AND id_usuario=?':'')+' LIMIT 2',[email.trim().toLowerCase(),...(id_usuario!==undefined?[Number(id_usuario)]:[])]);
+    const row=rows.length===1?rows[0]:null;
+    const validHash=row&&require('../security/passwordReset').isHash(row.senha);
+    const correct=await bcrypt.compare(senha,validHash?row.senha:'$2b$12$viZNCEsMphNejGYDXDiQouJGoIVT9LSKDjQ9Oit9OGeFIogHeepDy');
+    if(!validHash||!correct)return res.status(401).json({message:'Credenciais invalidas ou usuario inativo.'});
+    const secret=process.env.JWT_SECRET;if(!secret)throw Error('JWT_NOT_CONFIGURED');
+    const claims={id_usuario:row.id_usuario,idconstrutora:row.idconstrutora,ver:require('../utils/sessionVersion')(row),jti:require('crypto').randomUUID(),purpose:'session'};
+    const token=jwt.sign(claims,secret,{algorithm:'HS256',subject:String(row.id_usuario),expiresIn:'8h'}),payload=jwt.decode(token);
+    const sessions=require('../security/sessions');await sessions.issue(token,payload);
+    const {senha:removed,...usuario}=row;
+    if(req.get('X-Session-Mode')==='cookie'){
+      res.cookie(sessions.cookieName(),token,sessions.cookieOptions());
+      return res.json({message:'Login realizado com sucesso!',usuario,session:{id:claims.jti,expiresAt:payload.exp*1000,csrf:sessions.csrf(claims.jti)}});
     }
-  );
+    return res.json({message:'Login realizado com sucesso!',usuario,token});
+  }catch(error){console.error('Login failure',{code:error.code||'LOGIN_FAILURE'});return res.status(500).json({message:'Erro ao realizar login.'});}
 };

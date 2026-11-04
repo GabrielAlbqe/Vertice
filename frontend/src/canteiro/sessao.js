@@ -1,3 +1,5 @@
+import {limparCache} from './offline.js';
+import {API_URL,readSession,sessionId,sessionHeaders} from '../api/sessionTransport.js';
 export function usuarioSeguro(
   usuario = {}
 ) {
@@ -150,7 +152,8 @@ export const paginasCanteiro = [
   "canteiro-foto",
 ];
 
-export function sairCanteiro() {
+export function limparSessaoLocal() {
+  limparCache(localStorage.getItem('id_usuario'));
   [
     "id_usuario",
     "nome_usuario",
@@ -167,10 +170,31 @@ export function sairCanteiro() {
 
     // JWT
     "token",
+    "vertice:session",
   ].forEach(
     (chave) =>
       localStorage.removeItem(
         chave
       )
   );
+}
+
+export function sessaoValida() {
+  const session=readSession();
+  return Number.isFinite(session?.expiresAt) && session.expiresAt>Date.now() && session.user===String(localStorage.getItem('id_usuario'));
+}
+
+export function invalidarSessao(token) {
+  // Uma resposta atrasada não deve encerrar um login mais recente.
+  if(token!==sessionId())return;
+  limparSessaoLocal();
+  if(typeof window!=='undefined')window.dispatchEvent(new Event('vertice:sessao-expirada'));
+}
+
+export async function sairCanteiro(){
+  try{
+    const response=await fetch(API_URL+'/usuarios/logout',{method:'POST',credentials:'include',headers:sessionHeaders(),signal:AbortSignal.timeout(10000)});
+    if(!response.ok&&response.status!==401)throw Error();
+    limparSessaoLocal();return true;
+  }catch{if(typeof window!=='undefined')window.alert('Não foi possível revogar a sessão. Conecte-se e tente sair novamente.');return false;}
 }

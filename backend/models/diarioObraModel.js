@@ -1,4 +1,4 @@
-const bd = require("../config/connection");
+const bd = require("../config/scopedConnection");
 
 const DiarioObra = {
   // Lista todos os diários vinculados a uma obra específica
