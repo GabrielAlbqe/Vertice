@@ -10,5 +10,5 @@ export default defineConfig(({mode}) => {
   if(env.VERTICE_DEPLOY_TARGET==='cloud'){
     publicOrigins(env);
   }
-  return {plugins:[react(),offlineShell()],...(env.VERTICE_DEPLOY_TARGET==='cloud'?{define:{'import.meta.env.VITE_API_URL':JSON.stringify('/api')}}:{})};
+  return {server:{proxy:{'/api':{target:'http://127.0.0.1:3000',changeOrigin:false}}},plugins:[react(),offlineShell()],...(env.VERTICE_DEPLOY_TARGET==='cloud'?{define:{'import.meta.env.VITE_API_URL':JSON.stringify('/api')}}:{})};
 });

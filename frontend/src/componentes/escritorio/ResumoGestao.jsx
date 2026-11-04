@@ -7,6 +7,7 @@ const sum=(rows,field)=>rows.length?rows.reduce((n,r)=>n+Number(r[field]),0):nul
 export default function ResumoGestao({obra='',obras=[]}){
   const [filtro,setFiltro]=useState({obra_id:String(obra),inicio:'',fim:''}),[rascunho,setRascunho]=useState({obra_id:String(obra),inicio:'',fim:''}),[versao,setVersao]=useState(0),[dados,setDados]=useState(null),[erro,setErro]=useState(''),[carregando,setCarregando]=useState(false),[baixando,setBaixando]=useState(false);
   const [pessoas,setPessoas]=useState(null);
+  useEffect(()=>{const refresh=()=>setVersao(v=>v+1);window.addEventListener('vertice:profissionais-atualizados',refresh);return()=>window.removeEventListener('vertice:profissionais-atualizados',refresh);},[]);
   const query=new URLSearchParams(Object.entries({...filtro,obra_id:obra||filtro.obra_id}).filter(([,v])=>v)).toString();
   useEffect(()=>{
     if(filtro.inicio&&filtro.fim&&filtro.inicio>filtro.fim){setErro('O início deve anteceder o fim.');return;}

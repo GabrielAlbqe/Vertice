@@ -29,6 +29,7 @@ function periodo(query){
 async function resumo(req){
   const [start,end]=periodo(req.query),work=req.query.obra_id?id(req.query.obra_id):null;
   if(work)await obra(pool,work,req.acesso);
+  await require('../utils/schemaReadiness').requireSchema(pool,'resumo');
   const c=await pool.getConnection();
   const scope='o.id_construtora=?'+(work?' AND o.id_obra=?':''),args=[req.acesso.idconstrutora,...(work?[work]:[])];
   function range(column,timestamp=false){

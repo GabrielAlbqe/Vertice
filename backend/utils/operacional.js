@@ -66,6 +66,10 @@ async function write(req, action, binaryHash = '') {
 }
 function errors(err, req, res, next) {
   if (res.headersSent) return next(err);
+  if(err.code==='SCHEMA_NOT_READY'){
+    console.error(JSON.stringify({event:'schema_not_ready',requestId:req.requestId,module:err.module,migrations:err.migrations,status:503}));
+    return res.status(503).json({code:'SCHEMA_NOT_READY',message:'Este m\u00f3dulo requer uma atualiza\u00e7\u00e3o autorizada do banco de dados.',migrations:err.migrations});
+  }
   const missing = ['ER_NO_SUCH_TABLE', 'ER_BAD_FIELD_ERROR'].includes(err.code);
   const status = ['ER_LOCK_DEADLOCK','ER_LOCK_WAIT_TIMEOUT'].includes(err.code)?409:err.status || (missing ? 503 : ['ER_NO_REFERENCED_ROW_2', 'ER_CHECK_CONSTRAINT_VIOLATED', 'ER_TRUNCATED_WRONG_VALUE_FOR_FIELD', 'ER_DATA_TOO_LONG'].includes(err.code) ? 400 : 500);
   if(status>=500)console.error(JSON.stringify({event:'request_error',requestId:req.requestId,code:err.code||'INTERNAL_ERROR',status}));

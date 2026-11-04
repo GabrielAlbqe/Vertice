@@ -18,6 +18,7 @@ export function fixture(req,res) {
     });return true;
   }
   const responses={
+    '/operacional/gestao/pessoas/estado':{habilitado:true,pode_editar:true,migrations:[],historico_habilitado:false},
     '/usuarios':users,'/usuarios/901':users[0],'/operacional/gestao/pessoas':people,
     '/obras':[work,secondWork],'/obras/901':work,'/obras/902':secondWork,'/equipes':[own,secondTeam],'/equipes/901':own,
     '/equipes-terceirizadas':[], '/insumos':[], '/maquinarios':[],

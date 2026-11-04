@@ -1,3 +1,4 @@
+import "./dashboardOverview.css";
 import GestaoIntegrada from '../../componentes/shared/GestaoIntegrada';
 import {resumirAtrasos} from '../../api/obraIndicadores';
 import {
@@ -207,7 +208,7 @@ function Dashboard({
   return (
     <>
 
-      <div className="dashboard">
+      <div className="dashboard overview-page">
 
         <section className="dashboard-header">
 
@@ -273,6 +274,19 @@ function Dashboard({
           ].map(([title, value, description, destino]) => <Card key={title} title={title} value={erro ? "Não informado" : value} description={erro ? "Consulta indisponível" : description} onClick={() => onNavegar(destino)} />)}
         </section>
 
+        {!carregando && !erro && obras.some(o => String(o.nome || o.obra || "").startsWith("[DEMO]")) && <p className="overview-demo" role="status"><strong>Dados de demonstração incluídos.</strong> Os totais também consideram as obras identificadas com [DEMO].</p>}
+        <section className="dashboard-section overview-status">
+          <div className="section-header"><div><span className="section-label">PORTFÓLIO</span><h2>Situação das obras</h2></div></div>
+          {carregando || erro ? <p role="status">{carregando ? "Carregando situação das obras…" : "Consulta indisponível."}</p> : obras.length === 0 ? <p>Nenhuma obra cadastrada.</p> : <ul className="overview-status-list">{[
+            ["Em andamento",obrasAtivas,"ativa"],
+            ["Planejamento",obras.filter(o => normalizarStatus(o.status) === "planejamento").length,"planejamento"],
+            ["Concluídas",obras.filter(o => normalizarStatus(o.status) === "concluida").length,"concluida"],
+            ["Paralisadas ou pausadas",paralisadas,"paralisada"],
+            ["Outros status",obras.filter(o => !["iniciada","em andamento","planejamento","concluida","paralisada","pausada"].includes(normalizarStatus(o.status))).length,"outros"]
+          ].map(([nome,total,classe]) => <li key={nome}><div><span><i className={classe} aria-hidden="true" />{nome}</span><strong>{total}<small>{Math.round(total/obras.length*100)}%</small></strong></div><div className="overview-track" aria-hidden="true"><span className={classe} style={{width: total/obras.length*100+"%"}} /></div></li>)}</ul>}
+          {!carregando && !erro && paralisadas > 0 && <p className="overview-caption">{paralisadas} {paralisadas === 1 ? "obra paralisada ou pausada para acompanhar." : "obras paralisadas ou pausadas para acompanhar."}</p>}
+        </section>
+        <section className="overview-shortcuts" aria-label="Análises da construtora">{[["inteligencia-operacional","Inteligência Operacional"],["historico-preditivo","Histórico Preditivo"],["analytics-financeiro","Analytics Financeiro"]].map(([pagina,nome])=><button key={pagina} type="button" onClick={()=>onNavegar(pagina)}><strong>{nome} ↗</strong></button>)}</section>
         <ResumoGestao obras={obras} /><GestaoIntegrada obras={obras} />
         <section className="dashboard-section">
 

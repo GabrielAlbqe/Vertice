@@ -22,7 +22,7 @@ const mysql = require("mysql2/promise");
   const root = path.resolve(__dirname, "../..");
   const result = spawnSync(process.execPath, [
     path.join(root, "node_modules/jest/bin/jest.js"),
-    "backend/tests/", "--runInBand", "--silent",
+    "--roots", path.join(root, "backend"), "--runInBand", "--silent",
   ], { cwd: root, stdio: "inherit", env: { ...process.env, NODE_ENV: "test", DB_NAME: database, SECURITY_STORE:'memory', REGISTRATION_MODE: 'office', PHOTO_STORAGE_DRIVER:'local', PHOTO_STORAGE_PATH: path.join(root,'backend/storage/private/tests',database) } });
   process.exitCode = result.status ?? 1;
 })().catch(error => {

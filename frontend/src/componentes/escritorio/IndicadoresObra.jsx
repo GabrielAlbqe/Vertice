@@ -8,7 +8,7 @@ export default function IndicadoresObra({obra,equipes,insumos,maquinarios}) {
   const [finance,setFinance]=useState(null),[error,setError]=useState(''),[revision,setRevision]=useState(0);
   const [members,setMembers]=useState(null);
   const teams=resumirEquipes(equipes);
-  useEffect(()=>{const refresh=()=>setRevision(v=>v+1);window.addEventListener('vertice:financeiro-atualizado',refresh);return()=>window.removeEventListener('vertice:financeiro-atualizado',refresh);},[]);
+  useEffect(()=>{const refresh=()=>setRevision(v=>v+1);window.addEventListener('vertice:financeiro-atualizado',refresh);window.addEventListener('vertice:profissionais-atualizados',refresh);return()=>{window.removeEventListener('vertice:financeiro-atualizado',refresh);window.removeEventListener('vertice:profissionais-atualizados',refresh);};},[]);
   useEffect(()=>{const c=new AbortController();setFinance(null);setError('');carregarAnalytics(obra.id_obra,c.signal).then(r=>setFinance(calcularAnalytics(normalizarAnalytics(r)))).catch(e=>{if(!c.signal.aborted)setError(e.message);});return()=>c.abort();},[obra.id_obra,revision]);
   useEffect(()=>{const c=new AbortController();setMembers(null);requisitar('/operacional/gestao/pessoas',{signal:c.signal}).then(rows=>{if(!Array.isArray(rows))throw Error('Resposta inválida.');if(!c.signal.aborted)setMembers([...new Map(rows.filter(p=>p.ativo&&String(p.id_obra)===String(obra.id_obra)).map(p=>[p.id_profissional,p])).values()]);}).catch(()=>{});return()=>c.abort();},[obra.id_obra,revision]);
   const groups=[['Recursos humanos','◎',[

@@ -57,7 +57,7 @@ test("ambiente explícito prevalece sobre ocupação e tamanho da tela", () => {
 test("catálogo agregado usa uma consulta e filtra obras autorizadas", async () => {
   const anterior = globalThis.fetch, chamadas = [];
   globalThis.fetch = async (url, options) => {
-    const rota = new URL(url); chamadas.push({ rota, options });
+    const rota = new URL(url, "http://localhost:5173"); chamadas.push({ rota, options });
     let dados = [];
     if (rota.pathname === "/api/equipes") dados = [{ id_cadastro_equipes: 1, idobra: 1 }, { id_cadastro_equipes: 2, idobra: 2 }];
       if(rota.pathname==='/api/operacional/gestao/recursos')dados={equipes:[{id_cadastro_equipes:1,idobra:1},{id_cadastro_equipes:2,idobra:2}],insumos:[{id_insumos:1,idobra:1}],maquinarios:[{id_maquina:1,idobra:1}]};

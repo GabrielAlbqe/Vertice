@@ -45,6 +45,8 @@ const apontamentoFisicoRoutes = require("./routes/apontamentoFisicoRoutes");
 // Carrega e valida a configuração antes do pool operacional.
 require("./config/connection");
 app.use(require("./middlewares/escopoConstrutora"));
+app.use("/api/inteligencia-operacional", require("./routes/inteligenciaOperacionalRoutes"));
+app.use("/api/historico-preditivo", require("./routes/historicoPreditivoRoutes"));
 app.use("/api/operacional", require("./routes/operacionalRoutes"));
 const apropriacaoRoutes = require("./routes/apropriacaoRoutes");
 const atividadeEapRoutes = require("./routes/atividadeEapRoutes");

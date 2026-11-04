@@ -4,7 +4,7 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "test": "node --test tests/frontend.test.mjs tests/operacional.test.mjs tests/cloud.test.mjs tests/escritorio3.test.mjs",
+    "test": "node --test tests/frontend.test.mjs tests/operacional.test.mjs tests/cloud.test.mjs tests/escritorio3.test.mjs tests/inteligenciaOperacional.test.mjs tests/historicoPreditivo.test.mjs tests/session-proxy.test.mjs tests/profissionais.test.mjs",
     "test:browser": "node tests/run-browser.cjs",
     "dev": "vite",
     "build": "vite build",

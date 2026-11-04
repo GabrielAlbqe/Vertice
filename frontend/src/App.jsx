@@ -2,7 +2,7 @@ import Layout from './componentes/escritorio/Layout';
 import CanteiroLayout from './layouts/CanteiroLayout';
 import RouteContent from './navigation/RouteContent';
 import { pages, preloadPage } from './navigation/pages';
-const { dashboard: Dashboard, obras: Obras, equipes: Equipes, recursos: Recursos, perfil: Perfil, 'obra-detalhes': ObraDetalhes, 'analytics-financeiro': AnalyticsFinanceiro, canteiro: CanteiroApp } = pages;
+const { dashboard: Dashboard, obras: Obras, equipes: Equipes, recursos: Recursos, perfil: Perfil, 'obra-detalhes': ObraDetalhes, 'analytics-financeiro': AnalyticsFinanceiro, 'inteligencia-operacional': InteligenciaOperacional, 'historico-preditivo': HistoricoPreditivo, canteiro: CanteiroApp } = pages;
 import { startTransition, useEffect, useState } from "react";
 import { usuarioCanteiro, paginasCanteiro, sessaoValida, invalidarSessao } from "./canteiro/sessao";
 
@@ -13,7 +13,7 @@ import { confirmarSaida } from "./componentes/shared/useUnsavedChanges";
 import {sessionId} from './api/sessionTransport';
 import RedefinirSenha from './pages/RedefinirSenha';
 
-const rotas = { dashboard: "/escritorio", obras: "/escritorio/obras", equipes: "/escritorio/equipes", recursos: "/escritorio/recursos", perfil: "/escritorio/perfil", "obra-detalhes": "/escritorio/obra", "analytics-financeiro": "/escritorio/analytics", login: "/login" };
+const rotas = { dashboard: "/escritorio", obras: "/escritorio/obras", equipes: "/escritorio/equipes", recursos: "/escritorio/recursos", perfil: "/escritorio/perfil", "obra-detalhes": "/escritorio/obra", "analytics-financeiro": "/escritorio/analytics", "inteligencia-operacional": "/escritorio/inteligencia-operacional", "historico-preditivo": "/escritorio/historico-preditivo", login: "/login" };
 paginasCanteiro.forEach(p => { rotas[p] = p === "canteiro-home" ? "/canteiro" : "/canteiro/" + p.replace("canteiro-", ""); });
 
 function App() {
@@ -64,7 +64,7 @@ function App() {
       localStorage.setItem("pagina_atual", destino);
       return destino;
     }
-    const paginas = ["dashboard", "obras", "equipes", "recursos", "perfil", "obra-detalhes", "analytics-financeiro"];
+    const paginas = ["dashboard", "obras", "equipes", "recursos", "perfil", "obra-detalhes", "analytics-financeiro", "inteligencia-operacional", "historico-preditivo"];
     let destino = paginas.includes(salva) ? salva : "dashboard";
     if (destino === "obra-detalhes") {
       try {
@@ -216,6 +216,8 @@ function App() {
   // OBRAS
   // =====================================================
 
+  if (pagina === "inteligencia-operacional") return <InteligenciaOperacional onNavegar={navegar} />;
+  if (pagina === "historico-preditivo") return <HistoricoPreditivo onNavegar={navegar} />;
   if (pagina === "recursos") return <Recursos onNavegar={navegar} onAbrirObra={abrirObra} />;
 
   if (pagina === "analytics-financeiro") {

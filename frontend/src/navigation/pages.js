@@ -4,6 +4,8 @@ const loaders = {
  equipes: () => import('../pages/escritorio/Equipes'), recursos: () => import('../pages/escritorio/Recursos'),
  perfil: () => import('../pages/escritorio/Perfil'), 'obra-detalhes': () => import('../pages/escritorio/ObraDetalhes'),
  'analytics-financeiro': () => import('../pages/escritorio/AnalyticsFinanceiro'),
+ 'inteligencia-operacional': () => import('../pages/escritorio/InteligenciaOperacional'),
+ 'historico-preditivo': () => import('../pages/escritorio/HistoricoPreditivo'),
  canteiro: () => import('../canteiro/CanteiroApp'),
 };
 const pending = new Map();
