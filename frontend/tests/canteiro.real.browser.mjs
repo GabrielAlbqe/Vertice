@@ -1,3 +1,4 @@
+import {resolveBrowserExecutable} from './browser-executable.mjs';
 // API real + MySQL isolado + Chrome headless. Não usa nem altera valen.
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
@@ -48,7 +49,7 @@ try {
   vite=await createServer({root:frontend,cacheDir:path.join(frontend,'node_modules/.cache',database,'vite'),envFile:false,define:{'import.meta.env.VITE_API_URL':JSON.stringify(apiUrl)},server:{host:'127.0.0.1',port:0}});await vite.listen();
   const base=`http://127.0.0.1:${vite.httpServer.address().port}`;
   const port=10000+Math.floor(Math.random()*40000),profile=path.join(frontend,'node_modules/.cache',database);await mkdir(profile,{recursive:true});
-  chrome=spawn('C:/Program Files/Google/Chrome/Application/chrome.exe',['--headless=new','--disable-gpu','--no-first-run','--no-proxy-server',`--remote-debugging-port=${port}`,`--user-data-dir=${profile}`,'about:blank'],{windowsHide:true,stdio:'ignore'});
+  chrome=spawn(resolveBrowserExecutable(),['--headless=new','--disable-gpu','--no-first-run',`--remote-debugging-port=${port}`,`--user-data-dir=${profile}`,'about:blank'],{windowsHide:true,stdio:'ignore'});
   let target;
   for(let i=0;i<100;i++){try{target=await (await fetch(`http://127.0.0.1:${port}/json/new?about:blank`,{method:'PUT'})).json();break;}catch{await sleep(100);}}
   assert.ok(target?.webSocketDebuggerUrl,'Chrome não iniciou');ws=new WebSocket(target.webSocketDebuggerUrl);await new Promise((resolve,reject)=>{ws.addEventListener('open',resolve);ws.addEventListener('error',reject);});

@@ -52,4 +52,10 @@ jobs:
           PUBLIC_FRONTEND_URL: https://app.company.test
           PUBLIC_API_URL: https://api.company.test
           ORIGIN_SECRET: Isolated_CI_proxy_key_83kLm92vQz7nRs4
+      - name: Browser checks on an isolated manual runner
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          google-chrome --version
+          npm run test:browser --prefix frontend
+          npm run test:navigation --prefix frontend
       # Somente validação; não publica, não migra e não recebe segredos de produção.

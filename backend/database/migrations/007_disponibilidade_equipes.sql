@@ -6,7 +6,16 @@ BEGIN
   ALTER TABLE obra ADD UNIQUE KEY obra_empresa_007(id_obra,id_construtora);
  END IF;
  IF NOT EXISTS(SELECT 1 FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='cadastro_de_equipes' AND COLUMN_NAME='id_construtora') THEN
-  ALTER TABLE cadastro_de_equipes ADD id_construtora INT NULL, ADD ativo BOOLEAN NOT NULL DEFAULT TRUE, ADD versao INT UNSIGNED NOT NULL DEFAULT 0, MODIFY idobra INT NULL;
+  ALTER TABLE cadastro_de_equipes ADD id_construtora INT NULL;
+ END IF;
+ IF NOT EXISTS(SELECT 1 FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='cadastro_de_equipes' AND COLUMN_NAME='ativo') THEN
+  ALTER TABLE cadastro_de_equipes ADD ativo BOOLEAN NOT NULL DEFAULT TRUE;
+ END IF;
+ IF NOT EXISTS(SELECT 1 FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='cadastro_de_equipes' AND COLUMN_NAME='versao') THEN
+  ALTER TABLE cadastro_de_equipes ADD versao INT UNSIGNED NOT NULL DEFAULT 0;
+ END IF;
+ IF EXISTS(SELECT 1 FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='cadastro_de_equipes' AND COLUMN_NAME='idobra' AND IS_NULLABLE='NO') THEN
+  ALTER TABLE cadastro_de_equipes MODIFY idobra INT NULL;
  END IF;
  UPDATE cadastro_de_equipes e JOIN obra o ON o.id_obra=e.idobra SET e.id_construtora=o.id_construtora WHERE e.id_construtora IS NULL;
  IF NOT EXISTS(SELECT 1 FROM information_schema.TABLE_CONSTRAINTS WHERE CONSTRAINT_SCHEMA=DATABASE() AND CONSTRAINT_NAME='equipe_empresa_007') THEN
@@ -18,7 +27,16 @@ BEGIN
    ADD CONSTRAINT equipe_inativa_007 CHECK(ativo=1 OR idobra IS NULL);
  END IF;
  IF NOT EXISTS(SELECT 1 FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='cadastro_de_equipes_terceirizadas' AND COLUMN_NAME='id_construtora') THEN
-  ALTER TABLE cadastro_de_equipes_terceirizadas ADD id_construtora INT NULL, ADD ativo BOOLEAN NOT NULL DEFAULT TRUE, ADD versao INT UNSIGNED NOT NULL DEFAULT 0, MODIFY id_obra INT NULL;
+  ALTER TABLE cadastro_de_equipes_terceirizadas ADD id_construtora INT NULL;
+ END IF;
+ IF NOT EXISTS(SELECT 1 FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='cadastro_de_equipes_terceirizadas' AND COLUMN_NAME='ativo') THEN
+  ALTER TABLE cadastro_de_equipes_terceirizadas ADD ativo BOOLEAN NOT NULL DEFAULT TRUE;
+ END IF;
+ IF NOT EXISTS(SELECT 1 FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='cadastro_de_equipes_terceirizadas' AND COLUMN_NAME='versao') THEN
+  ALTER TABLE cadastro_de_equipes_terceirizadas ADD versao INT UNSIGNED NOT NULL DEFAULT 0;
+ END IF;
+ IF EXISTS(SELECT 1 FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='cadastro_de_equipes_terceirizadas' AND COLUMN_NAME='id_obra' AND IS_NULLABLE='NO') THEN
+  ALTER TABLE cadastro_de_equipes_terceirizadas MODIFY id_obra INT NULL;
  END IF;
  UPDATE cadastro_de_equipes_terceirizadas e JOIN obra o ON o.id_obra=e.id_obra SET e.id_construtora=o.id_construtora WHERE e.id_construtora IS NULL;
  IF EXISTS(SELECT 1 FROM information_schema.REFERENTIAL_CONSTRAINTS WHERE CONSTRAINT_SCHEMA=DATABASE() AND CONSTRAINT_NAME='fk_equipes_terceirizadas_obra' AND (DELETE_RULE='CASCADE' OR UPDATE_RULE='CASCADE')) THEN

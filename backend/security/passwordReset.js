@@ -1,6 +1,13 @@
 const crypto=require('crypto'),bcrypt=require('bcryptjs'),jwt=require('jsonwebtoken');
 const version=require('../utils/sessionVersion');
 const isHash=value=>/^\$2[aby]\$\d{2}\$[./A-Za-z0-9]{53}$/.test(String(value));
+async function inspectPasswordResets(c,selectedIds){
+ if(selectedIds!==undefined&&(!Array.isArray(selectedIds)||!selectedIds.length||selectedIds.length>100||selectedIds.some(id=>!Number.isSafeInteger(id)||id<=0)||new Set(selectedIds).size!==selectedIds.length))throw Error('RESET_USERS_INVALID');
+ const filter=selectedIds?'id_usuario IN ('+selectedIds.map(()=>'?').join(',')+')':"senha NOT REGEXP '^[$]2[aby][$][0-9]{2}[$][./A-Za-z0-9]{53}$'";
+ const [rows]=await c.query("SELECT id_usuario,status,ambiente,(senha REGEXP '^[$]2[aby][$][0-9]{2}[$][./A-Za-z0-9]{53}$') hash_valido FROM usuario WHERE "+filter,selectedIds||[]);
+ if(selectedIds&&rows.length!==selectedIds.length)throw Error('RESET_USERS_MISSING');
+ return rows.map(row=>({id_usuario:row.id_usuario,status:row.status,ambiente:row.ambiente,requiresReset:!Boolean(row.hash_valido)}));
+}
 async function preparePasswordResets(c,selectedIds){
   // Não lê nem tenta recuperar senhas legadas.
   if(selectedIds!==undefined&&(!Array.isArray(selectedIds)||!selectedIds.length||selectedIds.length>100||selectedIds.some(id=>!Number.isSafeInteger(id)||id<=0)||new Set(selectedIds).size!==selectedIds.length))throw Error('RESET_USERS_INVALID');
@@ -27,4 +34,4 @@ async function resetPassword(pool,ticket,password){
     await c.query('UPDATE usuario SET senha=? WHERE id_usuario=?',[await bcrypt.hash(password,12),claims.id_usuario]);await c.commit();return claims.id_usuario;
   }catch(e){await c.rollback();throw e;}finally{c.release();}
 }
-module.exports={preparePasswordResets,resetPassword,isHash};
+module.exports={preparePasswordResets,inspectPasswordResets,resetPassword,isHash};

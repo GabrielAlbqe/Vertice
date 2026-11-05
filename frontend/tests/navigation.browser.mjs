@@ -1,3 +1,5 @@
+import {fileURLToPath} from 'node:url';
+import {resolveBrowserExecutable} from './browser-executable.mjs';
 import {fixture,work} from './escritorio3.fixtures.mjs';
 ﻿import assert from 'node:assert/strict';
 import {spawn} from 'node:child_process';
@@ -7,7 +9,7 @@ import {createServer} from 'vite';
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 let vite,chrome,ws,fail=false;const errors=[],consoleErrors=[];
 try {
- vite=await createServer({root:new URL('..',import.meta.url).pathname.replace(/^\/([A-Z]:)/,'$1'),envFile:false,define:{'import.meta.env.VITE_API_URL':JSON.stringify('/mock-api')},server:{host:'127.0.0.1',port:0},plugins:[{name:'navigation-fixtures',configureServer(server){server.middlewares.use((req,res,next)=>{
+ vite=await createServer({root:fileURLToPath(new URL('..',import.meta.url)),envFile:false,define:{'import.meta.env.VITE_API_URL':JSON.stringify('/mock-api')},server:{host:'127.0.0.1',port:0},plugins:[{name:'navigation-fixtures',configureServer(server){server.middlewares.use((req,res,next)=>{
   if(req.url.startsWith('/mock-api') && fixture(req,res)) return;
   if(req.url.startsWith('/mock-api')) {res.setHeader('Content-Type','application/json');res.end(JSON.stringify(req.url.includes('/gestao/resumo')?Object.fromEntries(['ocorrencias','indicadores_diarios','indicadores_ocorrencias','equipes','terceirizadas','maquinarios','financeiro','planejamento','materiais','diarios','atividades'].map(k=>[k,[]])):req.url.includes('/usuarios/')?{id_usuario:901,nome:'Navigation test',idconstrutora:901}:[]));return;}
   if(req.url.includes('/pages/escritorio/Recursos.jsx')&&fail){fail=false;res.statusCode=503;res.end('Test chunk unavailable');return;}
@@ -16,7 +18,7 @@ try {
   next();
  });}}]});await vite.listen();const base=`http://127.0.0.1:${vite.httpServer.address().port}`;
  const profile=await mkdtemp(tmpdir()+'/vertice-navigation-');const port=10000+Math.floor(Math.random()*40000);
- chrome=spawn('C:/Program Files/Google/Chrome/Application/chrome.exe',['--headless=new','--disable-gpu','--no-first-run',`--remote-debugging-port=${port}`,`--user-data-dir=${profile}`,'about:blank'],{windowsHide:true,stdio:'ignore'});
+ chrome=spawn(resolveBrowserExecutable(),['--headless=new','--disable-gpu','--no-first-run',`--remote-debugging-port=${port}`,`--user-data-dir=${profile}`,'about:blank'],{windowsHide:true,stdio:'ignore'});
  let target;for(let i=0;i<100;i++){try{target=await(await fetch(`http://127.0.0.1:${port}/json/new?about:blank`,{method:'PUT'})).json();break;}catch{await sleep(100);}}
  assert.ok(target);ws=new WebSocket(target.webSocketDebuggerUrl);await new Promise(r=>ws.addEventListener('open',r));let seq=0;const pending=new Map();
  const cmd=(method,params={})=>new Promise((resolve,reject)=>{const id=++seq;pending.set(id,{resolve,reject});ws.send(JSON.stringify({id,method,params}));});

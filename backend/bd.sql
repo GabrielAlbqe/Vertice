@@ -1,3 +1,6 @@
+-- Legacy schema reference only: all application data and credentials removed.
+-- For new installations use database/valen_atualizado.sql and migrations 001-007.
+-- Synthetic fixtures belong in isolated tests; no predefined user accounts.
 -- MySQL dump 10.13  Distrib 8.0.45, for Win64 (x86_64)
 --
 -- Host: 127.0.0.1    Database: valen
@@ -42,7 +45,6 @@ CREATE TABLE `apontamento_fisico` (
 
 LOCK TABLES `apontamento_fisico` WRITE;
 /*!40000 ALTER TABLE `apontamento_fisico` DISABLE KEYS */;
-INSERT INTO `apontamento_fisico` VALUES (1,15.50,'https://valen.com/fotos/obra123.jpg',1,1);
 /*!40000 ALTER TABLE `apontamento_fisico` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -102,7 +104,6 @@ CREATE TABLE `atividade_eap` (
 
 LOCK TABLES `atividade_eap` WRITE;
 /*!40000 ALTER TABLE `atividade_eap` DISABLE KEYS */;
-INSERT INTO `atividade_eap` VALUES (1,'Concretagem de Laje',1);
 /*!40000 ALTER TABLE `atividade_eap` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -162,7 +163,6 @@ CREATE TABLE `cadastro_de_equipes` (
 
 LOCK TABLES `cadastro_de_equipes` WRITE;
 /*!40000 ALTER TABLE `cadastro_de_equipes` DISABLE KEYS */;
-INSERT INTO `cadastro_de_equipes` VALUES (1,'Equipe de Estruturas','Instalações',6,900.00,19800.00,NULL);
 /*!40000 ALTER TABLE `cadastro_de_equipes` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -248,7 +248,6 @@ CREATE TABLE `cadastro_de_maquinario` (
 
 LOCK TABLES `cadastro_de_maquinario` WRITE;
 /*!40000 ALTER TABLE `cadastro_de_maquinario` DISABLE KEYS */;
-INSERT INTO `cadastro_de_maquinario` VALUES (1,'Betoneira 400L',2,'Infraestrutura',120.00,'Ativo',NULL);
 /*!40000 ALTER TABLE `cadastro_de_maquinario` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -297,7 +296,6 @@ CREATE TABLE `construtora` (
 
 LOCK TABLES `construtora` WRITE;
 /*!40000 ALTER TABLE `construtora` DISABLE KEYS */;
-INSERT INTO `construtora` VALUES (1,'12345678000199','Construtora Valen LTDA');
 /*!40000 ALTER TABLE `construtora` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -435,7 +433,6 @@ CREATE TABLE `diario_obra` (
 
 LOCK TABLES `diario_obra` WRITE;
 /*!40000 ALTER TABLE `diario_obra` DISABLE KEYS */;
-INSERT INTO `diario_obra` VALUES (1,'2026-09-09','Ensolarado','Manhã','Infraestrutura','A','B','Nenhuma','N/A','Nenhum','N/A',1,1);
 /*!40000 ALTER TABLE `diario_obra` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -522,7 +519,6 @@ CREATE TABLE `historico_obras` (
 
 LOCK TABLES `historico_obras` WRITE;
 /*!40000 ALTER TABLE `historico_obras` DISABLE KEYS */;
-INSERT INTO `historico_obras` VALUES (1,1,1,'em andamento','2026-09-10 14:48:00',NULL);
 /*!40000 ALTER TABLE `historico_obras` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -552,7 +548,6 @@ CREATE TABLE `metricas_eva` (
 
 LOCK TABLES `metricas_eva` WRITE;
 /*!40000 ALTER TABLE `metricas_eva` DISABLE KEYS */;
-INSERT INTO `metricas_eva` VALUES (1,'2026-09-09',1.0500,0.9800,480000.00,1);
 /*!40000 ALTER TABLE `metricas_eva` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -585,7 +580,6 @@ CREATE TABLE `obra` (
 
 LOCK TABLES `obra` WRITE;
 /*!40000 ALTER TABLE `obra` DISABLE KEYS */;
-INSERT INTO `obra` VALUES (1,'Residencial Valen Tower','Em Andamento',1,'Residencial',12,'2026-01-10','2026-12-20',500000.00);
 /*!40000 ALTER TABLE `obra` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -791,7 +785,6 @@ CREATE TABLE `registro_relatorios` (
 
 LOCK TABLES `registro_relatorios` WRITE;
 /*!40000 ALTER TABLE `registro_relatorios` DISABLE KEYS */;
-INSERT INTO `registro_relatorios` VALUES (1,1,1,'2026-09-10 14:48:00');
 /*!40000 ALTER TABLE `registro_relatorios` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -824,7 +817,6 @@ CREATE TABLE `usuario` (
 
 LOCK TABLES `usuario` WRITE;
 /*!40000 ALTER TABLE `usuario` DISABLE KEYS */;
-INSERT INTO `usuario` VALUES (1,'Engenheiro Teste','eng_1789051679644@valen.com',NULL,NULL,'Ativo','2026-09-23 17:25:39','REDEFINICAO_OBRIGATORIA',1);
 /*!40000 ALTER TABLE `usuario` ENABLE KEYS */;
 UNLOCK TABLES;
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;

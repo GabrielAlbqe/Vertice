@@ -1,3 +1,4 @@
+import {resolveBrowserExecutable} from './browser-executable.mjs';
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import { mkdir, writeFile } from "node:fs/promises";
@@ -6,8 +7,8 @@ const base = "http://127.0.0.1:5174";
 const porta = 9334;
 const profile = path.resolve("node_modules/.cache/canteiro-browser-" + Date.now());
 await mkdir(profile, { recursive: true });
-const chrome = spawn("C:/Program Files/Google/Chrome/Application/chrome.exe", [
-  "--headless=new", "--disable-gpu", "--no-proxy-server", "--no-first-run", "--no-default-browser-check",
+const chrome = spawn(resolveBrowserExecutable(), [
+  "--headless=new", "--disable-gpu", "--no-first-run", "--no-default-browser-check",
   "--remote-debugging-port=" + porta, "--user-data-dir=" + profile, "about:blank"
 ], { windowsHide: true, stdio: "ignore" });
 const sleep = ms => new Promise(r => setTimeout(r, ms));

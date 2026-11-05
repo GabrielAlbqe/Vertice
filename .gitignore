@@ -37,3 +37,6 @@ frontend/RELATORIO_*.md
 *.p12
 *.pfx
 *.sql.gz
+
+# Preserved local repository copy; never distribute as an accidental gitlink.
+/vertice-atualizado/

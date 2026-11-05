@@ -87,6 +87,7 @@ test('stale edits fail without overwriting; replay is idempotent and cannot dupl
  expect((await edit(p,{nome:'Stale write'})).status).toBe(409);expect((await person(p.id_profissional)).nome).toBe('Updated');
 });
 test('available teams without work are supported after 007; inactive and foreign teams cannot receive new people',async()=>{
+ await pool.query('ALTER TABLE cadastro_de_equipes ADD id_construtora INT NULL');
  await migration('007_disponibilidade_equipes.sql');
  const team=await insert('INSERT INTO cadastro_de_equipes(nome_equipe,id_construtora,idobra,ativo,quantidade_profissionais,custo_diario,custo_mensal,etapa_atuacao) VALUES (?,?,NULL,1,2,10,100,?)',['Disponível isolada',tenant,'Infraestrutura']);
  const r=await create({equipe_id:team});expect(r.status).toBe(201);let p=await person(r.body.insertId);expect(p.id_obra).toBeNull();expect(p.equipe).toBe('Disponível isolada');
