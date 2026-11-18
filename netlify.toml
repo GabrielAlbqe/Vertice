@@ -1,0 +1,7 @@
+
+[build]
+  command = "npm ci --prefix frontend && npm --prefix frontend run build"
+  publish = "frontend/dist"
+
+[build.environment]
+  NODE_VERSION = "24.22.1"
