@@ -7,13 +7,14 @@ import { startTransition, useEffect, useState } from "react";
 import { usuarioCanteiro, paginasCanteiro, sessaoValida, invalidarSessao } from "./canteiro/sessao";
 
 import Login from "./pages/Login";
+import LandingPage from "./pages/LandingPage";
 
 import "./styles.css";
 import { confirmarSaida } from "./componentes/shared/useUnsavedChanges";
 import {sessionId} from './api/sessionTransport';
 import RedefinirSenha from './pages/RedefinirSenha';
 
-const rotas = { dashboard: "/escritorio", obras: "/escritorio/obras", equipes: "/escritorio/equipes", recursos: "/escritorio/recursos", perfil: "/escritorio/perfil", "obra-detalhes": "/escritorio/obra", "analytics-financeiro": "/escritorio/analytics", "inteligencia-operacional": "/escritorio/inteligencia-operacional", "historico-preditivo": "/escritorio/historico-preditivo", login: "/login" };
+const rotas = { inicio: "/", dashboard: "/escritorio", obras: "/escritorio/obras", equipes: "/escritorio/equipes", recursos: "/escritorio/recursos", perfil: "/escritorio/perfil", "obra-detalhes": "/escritorio/obra", "analytics-financeiro": "/escritorio/analytics", "inteligencia-operacional": "/escritorio/inteligencia-operacional", "historico-preditivo": "/escritorio/historico-preditivo", login: "/login" };
 paginasCanteiro.forEach(p => { rotas[p] = p === "canteiro-home" ? "/canteiro" : "/canteiro/" + p.replace("canteiro-", ""); });
 
 function App() {
@@ -23,7 +24,7 @@ function App() {
     return ticket;
   });
   useEffect(()=>{
-    const encerrar=()=>{setObraSelecionada(null);setPagina('login');history.replaceState(null,'','/login');};
+    const encerrar=()=>{setObraSelecionada(null);if(location.pathname==='/')return;setPagina('login');history.replaceState(null,'','/login');};
     const conferir=()=>{if(localStorage.getItem('id_usuario') && !sessaoValida())invalidarSessao(sessionId());};
     window.addEventListener('vertice:sessao-expirada',encerrar);
     window.addEventListener('focus',conferir);
@@ -32,7 +33,7 @@ function App() {
   },[]);
   useEffect(() => {
     const lerRota = () => {
-      const destino = Object.keys(rotas).find(p => rotas[p] === window.location.pathname.replace(/\/$/, ""));
+      const destino = Object.keys(rotas).find(p => rotas[p] === (window.location.pathname.replace(/\/$/, "") || "/"));
       if (navegar(destino || (localStorage.getItem("id_usuario") ? (usuarioCanteiro() ? "canteiro-home" : "dashboard") : "login"), true) === false) history.pushState(null, "", rotas[localStorage.getItem("pagina_atual")] || "/login");
     };
     lerRota();
@@ -44,8 +45,8 @@ function App() {
   // =====================================================
 
   const [pagina, setPagina] = useState(() => {
-    const destinoUrl = Object.keys(rotas).find(p => rotas[p] === window.location.pathname.replace(/\/$/, ""));
-    if (["login"].includes(destinoUrl)) return destinoUrl;
+    const destinoUrl = Object.keys(rotas).find(p => rotas[p] === (window.location.pathname.replace(/\/$/, "") || "/"));
+    if (["inicio", "login"].includes(destinoUrl)) return destinoUrl;
     const idUsuario =
       sessaoValida() ? localStorage.getItem("id_usuario") : null;
 
@@ -82,7 +83,7 @@ function App() {
   function navegar(
     paginaDestino, substituir = false
   ) {
-    if (!["login"].includes(paginaDestino)) {
+    if (!["inicio", "login"].includes(paginaDestino)) {
       if (!localStorage.getItem("id_usuario")) paginaDestino = "login";
       else if (usuarioCanteiro() && !paginasCanteiro.includes(paginaDestino)) paginaDestino = "canteiro-home";
       else if (!usuarioCanteiro() && paginasCanteiro.includes(paginaDestino)) paginaDestino = "dashboard";
@@ -94,7 +95,7 @@ function App() {
     const rota = rotas[paginaDestino] || rotas.dashboard;
     if (paginaDestino !== localStorage.getItem("pagina_atual") && !confirmarSaida()) return false;
     if (location.pathname !== rota) history[substituir ? "replaceState" : "pushState"](null, "", rota);
-    localStorage.setItem(
+    if (paginaDestino !== "inicio") localStorage.setItem(
       "pagina_atual",
       paginaDestino
     );
@@ -176,6 +177,7 @@ function App() {
   // =====================================================
 
   if(resetTicket)return <RedefinirSenha ticket={resetTicket}/>;
+  if(pagina === 'inicio')return <LandingPage/>;
   if (
     pagina === "login"
   ) {
